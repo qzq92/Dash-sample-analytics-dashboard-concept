@@ -4,14 +4,8 @@ from datetime import datetime
 import yaml
 
 
-def setup_logging():
-    """
-    _summary_
-
-    _extended_summary_
-
-    Returns:
-        _type_: _description_
+def setup_logging() -> None:
+    """Function that facilitates logging setup for python program.
     """
     with open("logging.yml", "r", encoding="utf-8") as f:
         config_dict = yaml.load(f, Loader=yaml.FullLoader)
@@ -48,5 +42,3 @@ def setup_logging():
         logging.config.dictConfig(config_dict)
     except KeyError:
         pass
-
-    return None

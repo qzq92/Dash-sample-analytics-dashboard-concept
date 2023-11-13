@@ -35,7 +35,7 @@ handlers:
     delay: True
     
 loggers:
-  simpleExample:
+  project:
     level: INFO
     handlers: [console, info_file_handler]
     propagate: no
