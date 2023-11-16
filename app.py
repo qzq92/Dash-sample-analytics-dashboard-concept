@@ -9,70 +9,95 @@ import plotly.express as px
 import sys
 import logging
 import logging.config
-# create the dash application using the above layout definition
 
-external_stylesheets = [dbc.themes.CERULEAN]
-app = Dash(__name__, external_stylesheets=[external_stylesheets])
 
-default_placeholder_content = html.Div([
-    html.H3(id = 'under_construction', children = "Under construction")]
-    )
-""" Create the layout of the web-based dashboard using dash bootstrap components and dash core components
-"""
-# Traffic_cam_location
-traffic_cam_loc_data = process_traffic_cam_locations()
+# Dash instantiation create the dash application using the above layout definition
+app = Dash(__name__,  meta_tags=[{"name": "viewport", "content": "width=device-width"}])
 
-# Dropdown selection for traffic camera location description
-traffic_cam_location_dropdown = dcc.Dropdown(
-    id='location_dropdown', 
-    options=traffic_cam_loc_data["Description of Location"].unique(), 
-    value=None
-)
+# Plotly mapbox public token
+mapbox_access_token = "pk.eyJ1IjoicGxvdGx5bWFwYm94IiwiYSI6ImNrOWJqb2F4djBnMjEzbG50amg0dnJieG4ifQ.Zme1-Uzoi75IaFbieBDl3A"
+
+
+# Traffic_cam_location dataframe initialization
+traffic_cam_locations_df = process_traffic_cam_locations()
+traffic_cam_locations = traffic_cam_locations_df.to_dict("Description")
+
 
 # Mapbox graph compnment
 mapbox_graph = html.Div(id='div-body',children = [
                     dcc.Graph(id = 'mapbox')
-                ])
+               ])
 
 
-weather = dbc.Row([
-    dbc.Col(html.Div([]))
-])
+# Layout of Dash App
+app.layout = html.Div(
+    children=[
+        # Define a single html div
+        html.Div(
+            className="row",
+            children=[
+                # Column via Div for user controls
+                html.Div(
+                    className="div-user-controls",
+                    children=[
+                        html.P(
+                            """Select location"""
+                        ),
+                        # Change 
+                        html.Div(
+                            className="row",
+                            children=[
+                                html.Div(
+                                    className="div-for-dropdown",
+                                    children=[
+                                        # Dropdown for locations on map
+                                        dcc.Dropdown(
+                                            id="location-dropdown",
+                                            options=[
+                                                # Set label and value
+                                                {"label": i, "value": i}
+                                                for i in traffic_cam_locations
+                                            ],
+                                            placeholder="Select a location",
+                                        )
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                # Column for app graphs and plots
+                html.Div(
+                    className="div-for-map bg-grey",
+                    children=[
+                        # First children Mapbox graph
+                        dcc.Graph(id="map-graph"),
+                        # Column for analytics 
+                        html.Image(
+                            id="traffic-footage",
+                            className="div-for-traffic-footage bg-grey",
+                        ),
+                    ],
+                ),
+                # Column for analytics 
+                html.Div(
+                    className="div-for-analytics bg-grey",
+                    children=[
 
-vehicle_count = 
-analytics_summary = html.Div([])
 
-rows = html.Div(
-    [   
-        # First row of layout representing title
-        dbc.Row(dbc.Col(html.Div([
-            html.H3(id = 'title', children = "Weather and traffic conditions dashboard"),
-            html.H5(id = 'subtitle', children = 'Based on dataset from data.gov.sg'),            
-        ], style = {'textAlign': 'center', 'marginTop': 40, 'marginBottom': 40}))),
-
-        # Second row of layout with 2 columns representing content
-        dbc.Row(
-            [   
-                # Sidebar
-                dbc.Col(html.Div(children=[
-                    html.H1(children='List of traffic camera location'),
-                    traffic_cam_location_dropdown,
-                ]), width=3),
-                # Mapbox
-                dbc.Col(mapbox_graph, width=6),
-                # Analytics sidebar
-                dbc.Col(analytics_summary , width=3),
-            ], style = {'textAlign': 'center'}
-        ),
+                        
+                    ]
+                ),
+            ],
+        )
     ]
 )
-
-# Put the entire layout as an container.
-app.layout = dbc.Container(rows, fluid=True) 
 
 """ start the web application
     the host IP 0.0.0.0 is needed for dockerized version of this dash application
 """
 if __name__ == '__main__':
+    # Set app title
+    app.title = "Near Real Time Analytics Dashboard"
     app.run_server(debug=False, host='0.0.0.0', port=8050)
     server = app.server # required for some deployment environment like Heroku
