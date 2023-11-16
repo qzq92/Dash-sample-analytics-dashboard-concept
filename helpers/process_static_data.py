@@ -14,7 +14,7 @@ def process_traffic_cam_locations(filepath:str = "traffic_cams_location.csv") ->
         pd.DataFrame: Loaded or constructed dataframe of traffic cam location.
     """
     try:
-        traffic_cam_df = pd.read_csv(filepath)
+        traffic_cam_df = pd.read_csv(filepath, index_col="Description")
       
     except FileNotFoundError:
         logger.error("File not found. Using limited data")
@@ -25,6 +25,9 @@ def process_traffic_cam_locations(filepath:str = "traffic_cams_location.csv") ->
             "Description":	"Causeway"
 
         }
-        traffic_cam_df = pd.DataFrame.from_dict(fallback_sample_data_dict)
+        traffic_cam_df = pd.DataFrame.from_dict(
+            fallback_sample_data_dict, orient="columns"
+            )
+        traffic_cam_df.set_index("Description", inplace=True)
 
     return traffic_cam_df
