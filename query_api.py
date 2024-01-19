@@ -74,18 +74,22 @@ def geodesic_distance_filter(centre_point: Tuple[float,float] , radius_in_km: fl
 
     nearest_data_point = data_list[idx_min_distance_list]
     within_radius_idx = np.argwhere(distance_list < radius_in_km)[0]
-    nearby_points = [data_list[idx] for idx in within_radius_idx] 
+    nearby_points = [data_list[idx] for idx in within_radius_idx]
 
     return nearby_points, nearest_data_point
 
-def query_filter_surrounding_transport_artefacts(api_link:str, point_of_interest: Tuple[float,float], radius:float) -> List:
+def query_filter_surrounding_transport_artefacts(
+        api_link: str,
+        point_of_interest: Tuple[float,float],
+        radius:float
+    ) -> List:
     api_response = api_query(api_link=api_link,
                              agent_id="test",
                              api_key=LTA_API_KEY)
     api_response_data_list = api_response.get("value")
 
     # Get nearby data
-    surrounding_data_list = geodesic_distance_filter(
+    surrounding_data_list, nearest_data_list = geodesic_distance_filter(
         centre_point=point_of_interest,
         radius_in_km=radius,
         data_list=api_response_data_list,
@@ -93,8 +97,5 @@ def query_filter_surrounding_transport_artefacts(api_link:str, point_of_interest
         longitude_key_name="Longitude"
     )
 
-    distance_list = [geodesic(centre_point,)]
-    return surrounding_data_list
+    return surrounding_data_list, nearest_data_list
 
-def query_bicycle_parking_locations(api=api_url_dict["BICYCLE_PARKING_API"])
-    pass
