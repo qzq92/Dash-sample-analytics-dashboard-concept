@@ -6,33 +6,6 @@ import pandas as pd
 import dash_daq as daq
 import dash_html_components as html
 
-def build_dashboard_banner():
-    return html.Div(
-        id="banner",
-        className="banner",
-        children=[
-            html.Div(
-                id="banner-text",
-                children=[
-                    html.H5("Simple Dashboard Demo"),
-                    html.H6("Showcasing nearby transportation option and activities"),
-                ],
-            ),
-            html.Div(
-                id="banner-logo",
-                children=[
-                    html.Button(
-                        id="learn-more-button", children="LEARN MORE", n_clicks=0
-                    ),
-                    html.A(
-                        html.Img(src=r"assets/dash-logo.png"),
-                        href="https://plotly.com/dash/",
-                    ),
-                ],
-            ),
-        ],
-    )
-
 def radius_selection_button():
     return html.Div(
         id="Select-options",
@@ -53,7 +26,7 @@ def fig_map(mapbox_default_key: str):
                             lat="Lat",
                             lon="Lon",
                             zoom=7,
-                            center=dict(lon=103.851959, lat=1.290270),
+                            center={"lon": 103.851959, "lat": 1.290270},
                             mapbox_style="open-street-map",
                             title="Map of Singapore",
                             hover_name="Description of Location" #Appear in tooltip
@@ -70,7 +43,7 @@ def build_street_map_component(mapbox_default_key: str):
     return html.Div(
         id="left-column",
         children=[
-            # Search bar
+            # Search bar. Uses OneMapAPI to get location
             dcc.Input(
                 id="input_search",
                 type="text",
@@ -136,44 +109,4 @@ def show_descriptive_stats():
                 value="0",
             ),
         ]
-    )
-
-def display_tabs():
-    # To show clickable tabs
-    return html.Div(
-        id = "tabs",
-        classname="tabs",
-        children = dcc.Tabs(
-            id="multi-tabs",
-            value="tab2",
-            className="custom-tabs",
-            # Define constituent tabs
-            children=[
-                dcc.Tab(
-                    id="bus-stop-tab",
-                    label="Nearest bus stop",
-                    value="bus-stop-tab",
-                ),
-                dcc.Tab(
-                    id="bicycle-tab",
-                    label="Nearest bicycle parking",
-                    value="bicycle-tab",
-                ),
-                dcc.Tab(
-                    id="taxi-stand-tab",
-                    label="Nearest taxi stand",
-                    value="taxi-stand-tab",
-                ),
-                dcc.Tab(
-                    id="carpark-tab",
-                    label="Nearest carpark",
-                    value="carpark-tab",
-                ),
-                dcc.Tab(
-                    id="traffic-cctv-tab",
-                    label="Nearest available CCTV footage",
-                    value="cctv-tab",
-                ),
-            ]
-        )
     )
