@@ -26,11 +26,12 @@ Work in progress. To be determined.
 * [Plotly Python](https://plot.ly/python/) - Used to create the interactive plots
 * [Dash DAQ](https://dash.plot.ly/dash-daq) - Styled technical components for industrial applications
 
-### Supported by following APIs:
+### Supported by following APIs/tokens (you will need to register an account to get access tokens for use):
 
 Please refer to the provided link for more information
-* [LTA DataMall API Access](https://datamall.lta.gov.sg/content/datamall/en.html)
-* [OneMap API](https://www.onemap.gov.sg/apidocs/)
+* [LTA DataMall API Access](https://datamall.lta.gov.sg/content/datamall/en.html) - Various API supplying transportation related data
+* [OneMap API](https://www.onemap.gov.sg/apidocs/) - API used for generating train/mrt stations and its exits data
+* [Mapbox](https://docs.mapbox.com/api/overview/) - API used for embedding Mapbox in web app.
 
 ## Requirements
 We suggest you to create an Anaconda environment using the requirements.yml file provided, and install all of the required dependencies listed within.  In your Terminal/Command Prompt:
