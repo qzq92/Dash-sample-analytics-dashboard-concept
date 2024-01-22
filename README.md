@@ -2,7 +2,7 @@
 
 ## Acknowledgement
 
-### Data source
+### Data sources
 
 All data are retrieved via API calls to data.gov.sg accessible [here](https://beta.data.gov.sg/). Key data sources involved are as follows:
 1. Traffic camera
@@ -12,7 +12,55 @@ All data are retrieved via API calls to data.gov.sg accessible [here](https://be
 For developers, please refer to the link [here](https://guide.data.gov.sg/developers) on possible deprecation and updates on API and other information.
 
 
-## Traffic Camera ID geolocations information as of 13 Dec 2022.
+## Introduction
+
+## What does this app show
+
+Work in progress. To be determined.
+
+## Screenshots of app
+- To be updated
+
+## Built with following:
+* [Dash](https://dash.plot.ly/) - Main server and interactive components 
+* [Plotly Python](https://plot.ly/python/) - Used to create the interactive plots
+* [Dash DAQ](https://dash.plot.ly/dash-daq) - Styled technical components for industrial applications
+
+### Supported by following APIs:
+
+Please refer to the provided link for more information
+* [LTA DataMall API Access](https://datamall.lta.gov.sg/content/datamall/en.html)
+* [OneMap API](https://www.onemap.gov.sg/apidocs/)
+
+## Requirements
+We suggest you to create an Anaconda environment using the requirements.yml file provided, and install all of the required dependencies listed within.  In your Terminal/Command Prompt:
+
+```
+git clone https://github.com/plotly/Dash-sample-analytics-dashboard-concept.git
+cd Dash-sample-analytics-dashboard-concept
+conda create -f requirements.txt
+```
+
+If you prefer to install all of the required packages in your own Anaconda environment, simply activate your own Anaconda environment and execute the following command with your activated environment:
+
+```
+pip install -r requirements.txt
+```
+
+and all of the required `pip` packages, will be installed, and the app will be able to run.
+
+
+## Using this application
+
+Run this app locally by:
+```
+python app.py
+```
+Open http://0.0.0.0:8050/ in your browser, you will see an interactive dashboard.
+
+## Other miscellaneous information
+
+### Traffic Camera ID geolocations information as of 13 Dec 2022.
 
 |ID|Lat|Lon|Description of Location|
 |---|---|---|---|
