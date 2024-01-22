@@ -70,13 +70,26 @@ def build_street_map_component(mapbox_default_key: str):
     )
 
 
-def display_nearby_artefacts(id: str, label: str, value: str, size: int=50,):
-    return html.Div([daq.LEDDisplay(
-        id=id,
-        label=label,
-        value=value,
-        size=size)],
-    style={'display': 'flex', 'justify-content': 'center'})
+def display_artefacts(id: str, label: str, value: str, size: int=50,):
+    """Function which display artefacts as value using daq's LEDDisplay library. 
+    Args:
+        id (str): HTML division id for dash callback decorator.
+        label (str): Name of value artefact.
+        value (str): Value artefact to be displayed.
+        size (int, optional): Size of display. Defaults to 50.
+
+    Returns:
+        html.Div: HTML Division utilising LEDDisplay to show input display value.
+    """
+    return html.Div(
+        [daq.LEDDisplay(
+            id=id,
+            label=label,
+            value=value,
+            size=size)
+        ],
+    style={'display': 'flex', 'justify-content': 'center'}
+    )
 
 
 def show_descriptive_stats():
@@ -84,7 +97,7 @@ def show_descriptive_stats():
         id="Descriptive-stats",
         children=[
             # Bus stop
-            display_nearby_artefacts(
+            display_artefacts(
                 id="nearby-bus-stop-led",
                 label="Number of nearby bus stops",
                 value="0",
