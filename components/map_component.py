@@ -1,44 +1,52 @@
 from dash import html, dcc
 import dash_daq as daq
 import dash_leaflet as dl
-import os
 
 
-def radius_selection_button():
-    return html.Div(
-        id="Select-options",
-        children=[
-            dcc.RadioItems(['500 m radius', '1 km radius'], '500 m radius', inline=True)
-        ],
-        style={"textAlign": "right"},
+
+def search_bar():
+    """
+    Search bar component with integrated dropdown for displaying top 5 search results from OneMap API.
+    """
+    return dcc.Dropdown(
+        id="input_search",
+        placeholder="Search address or location in Singapore",
+        style={"width": "100%", "marginBottom": "8px"},
+        searchable=True,
+        clearable=True,
+        optionHeight=40,
+        maxHeight=240,
     )
 
 
-def build_search_bar():
-    return dcc.Input(
-        id="input_search",
-        type="text",
-        placeholder="Search address or place (OneMap)",
-        debounce=True,
-        style={"width": "100%", "marginBottom": "8px"},
+def nearest_mrt_panel():
+    return html.Div(
+        id="nearest-mrt-panel",
+        children=[],
+        style={"marginTop": "8px"}
     )
 
 
 def map_component():
     """
     Default display and layout of the map component. No API is needed as this is static rendering of map for quick loading
+    Uses OneMap tiles with EPSG:3857 (Web Mercator) projection.
+    Coordinates are provided in EPSG:4326 (WGS84 lat/lon) format, which Leaflet converts automatically.
     """
-    onemap_tiles_url = "ttps://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
+    onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
     return dl.Map(
         id="sg-map",
-        center=[1.29027, 103.851959],
-        zoom=12,
-        maxZoom=12,
+        #center=[1.29027, 103.851959],  # Singapore center in WGS84 [lat, lon]
+        center=[1.33663363411169, 103.925744921529],
+        zoom=17,
+        minZoom=12,
+        maxZoom=18,
         style={"width": "100%", "height": "72vh", "margin": "0"},
         children=[
             dl.TileLayer(
                 url=onemap_tiles_url,
-                attribution="Map data © contributors, tiles © OneMap Singapore",
+                attribution='''<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>''',
+                maxNativeZoom=19,
             ),
             dl.ScaleControl(imperial=False, position="bottomleft"),
             dl.LocateControl(locateOptions={"enableHighAccuracy": True}),

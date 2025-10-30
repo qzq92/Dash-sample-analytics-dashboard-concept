@@ -207,3 +207,174 @@ a {
 .CalendarMonth_table td {
   padding: unset;  
 }
+
+/* Ensure app fits the viewport */
+html, body, #root {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+#app-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#app-container .row {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#left-column {
+  height: 100%;
+  min-height: 0;
+}
+
+#Descriptive-stats-content-container {
+  height: 100%;
+  overflow: auto;
+  min-height: 0;
+}
+
+/* Remove forced map height; rely on component's own height (e.g., 72vh) */
+/* #sg-map { height: 100% !important; } */
+
+/* Tidy dropdown options to avoid overlap */
+.Select-menu-outer {
+  max-height: 240px; /* matches Dropdown maxHeight */
+}
+
+.VirtualizedSelectOption, .Select-option {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25rem;
+}
+
+/* Input search dropdown: white background with black text */
+#input_search .Select-control,
+#input_search .is-open .Select-control,
+#input_search .Select-menu-outer,
+#input_search .Select-option,
+#input_search .Select-placeholder,
+#input_search .Select-value-label {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+#input_search .Select-input input {
+  color: #000000 !important;
+}
+
+#input_search .Select-option.is-focused,
+#input_search .Select-option.is-selected {
+  background-color: #f0f0f0 !important;
+  color: #000000 !important;
+}
+
+#input_search .Select-control {
+  border: 1px solid #cccccc !important;
+}
+
+/* Force white background and black text for search input in all states */
+#input_search .Select-control,
+#input_search.is-open .Select-control,
+#input_search .is-focused .Select-control,
+#input_search.has-value .Select-control {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Input typing area */
+#input_search .Select-input > input,
+#input_search .Select-input input[type="text"] {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Placeholder and selected value label */
+#input_search .Select-placeholder,
+#input_search .Select-value-label {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Dropdown menu and options */
+#input_search .Select-menu-outer,
+#input_search .Select-option {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+#input_search .Select-option.is-focused,
+#input_search .Select-option.is-selected {
+  background-color: #f0f0f0 !important;
+  color: #000000 !important;
+}
+
+/* Control border and arrow */
+#input_search .Select-control {
+  border: 1px solid #cccccc !important;
+}
+#input_search .Select-arrow,
+#input_search .Select-arrow-zone {
+  color: #000000 !important;
+}
+
+/* Comprehensive white background overrides for search dropdown in ALL states */
+#input_search,
+#input_search .Select,
+#input_search .Select-control,
+#input_search.Select--single > .Select-control .Select-value,
+#input_search .Select-placeholder,
+#input_search .Select-value,
+#input_search .Select-value-label,
+#input_search .Select-input,
+#input_search .Select-input > input,
+#input_search .Select-arrow-zone,
+#input_search .Select-menu-outer,
+#input_search .Select-menu,
+#input_search .VirtualizedSelectOption,
+#input_search .Select-option,
+#input_search .Select--single .Select-control .Select-value,
+#input_search.has-value.Select--single > .Select-control .Select-value,
+#input_search.has-value .Select-control,
+#input_search.is-focused .Select-control,
+#input_search.is-open .Select-control,
+#input_search.has-value.is-pseudo-focused.Select--single > .Select-control .Select-value,
+#input_search.has-value.Select--single > .Select-control .Select-value .Select-value-label,
+#input_search.has-value.is-pseudo-focused.Select--single > .Select-control .Select-value .Select-value-label {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+#input_search .Select-control,
+#input_search.has-value .Select-control,
+#input_search.is-focused .Select-control,
+#input_search.is-open .Select-control {
+  border: 1px solid #cccccc !important;
+  box-shadow: none !important;
+  background-color: #ffffff !important;
+}
+
+#input_search .Select-menu-outer {
+  border: 1px solid #cccccc !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important;
+  background-color: #ffffff !important;
+}
+
+#input_search .Select-option.is-focused,
+#input_search .Select-option.is-selected {
+  background-color: #f2f2f2 !important;
+  color: #000000 !important;
+}
+
+#input_search .Select-value-icon,
+#input_search .Select-clear-zone,
+#input_search .Select-arrow {
+  background-color: transparent !important;
+  color: #000000 !important;
+}

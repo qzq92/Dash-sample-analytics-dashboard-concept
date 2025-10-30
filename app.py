@@ -5,11 +5,12 @@ import sys
 import logging
 from dotenv import load_dotenv
 # Load environment variables and logging
-load_dotenv()
+load_dotenv(override=True)
 
 from components.banner_component import build_dashboard_banner
-from components.map_component import map_component, show_descriptive_stats, radius_selection_button, build_search_bar
+from components.map_component import map_component, show_descriptive_stats, search_bar, nearest_mrt_panel
 from components.tab_component import display_tabs
+from callbacks.map_callback import register_search_callbacks
 
 # Dash instantiation ---------------------------------------------------------#
 app = Dash(__name__,
@@ -21,6 +22,7 @@ app = Dash(__name__,
            suppress_callback_exceptions = True, #
            title="SimpleDashboard Demo"
         )
+register_search_callbacks(app)
 
 # Dashboard app layout ------------------------------------------------------#
 app.layout = html.Div(
@@ -54,18 +56,12 @@ app.layout = html.Div(
                         ),
                         # Right column for Information around the selected point ----------------------#
                         html.Div(
-                            id="Descriptive-stats-content-container",
+                            id="Search-bar-container",
                             # Right column for map
-                            children=[
-                                # First row
-                                build_search_bar(),
-                                radius_selection_button(),
+                            children= [search_bar(),
+                                nearest_mrt_panel(),
                                 # Next row
                                 #show_descriptive_stats(),
-                                # Next div showing details in tab format(bus,bicycle,taxi,carpark and nearby available cctv footage)
-                                #display_tabs(),
-                                #Content of tab
-                                html.Div(id='tab-content')
                             ],
                             style={
                                 "display": "inline-block",
