@@ -1,77 +1,54 @@
-import dash
-import dash_core_components as dcc
-import plotly.graph_objects as go
-import plotly.express as px
-import pandas as pd
+from dash import html, dcc
 import dash_daq as daq
-import dash_html_components as html
+import dash_leaflet as dl
+import os
+
 
 def radius_selection_button():
     return html.Div(
         id="Select-options",
-        children=[   
-            dcc.RadioItems(['500m Radius', '1Km Radius'], '500m Radius', inline=True)
+        children=[
+            dcc.RadioItems(['500 m radius', '1 km radius'], '500 m radius', inline=True)
         ],
         style={"textAlign": "right"},
-    ),
+    )
 
 
-def fig_map(mapbox_default_key: str):
-
-    # Display traffic cam locations based on existing known data
-    traffic_cam_locations_df = pd.read_csv("data/traffic_cam_locations.csv")
-    # Set mapbox key for plotly express to facilitate switch to other mapbox style as necessary
-    px.set_mapbox_access_token(mapbox_default_key)
-    fig = px.scatter_mapbox(traffic_cam_locations_df,
-                            lat="Lat",
-                            lon="Lon",
-                            zoom=7,
-                            center={"lon": 103.851959, "lat": 1.290270},
-                            mapbox_style="open-street-map",
-                            title="Map of Singapore",
-                            hover_name="Description of Location" #Appear in tooltip
-                            )
-
-    # Limit map bounds
-    fig.update(mapbox_bounds={"west":1.25, "east":1.35, "south":104, "north":103})
-    fig.update(margin={"l":0, "r":0, "b":0, "t":0})
-    return fig
+def build_search_bar():
+    return dcc.Input(
+        id="input_search",
+        type="text",
+        placeholder="Search address or place (OneMap)",
+        debounce=True,
+        style={"width": "100%", "marginBottom": "8px"},
+    )
 
 
-
-def build_street_map_component(mapbox_default_key: str):
-    return html.Div(
-        id="left-column",
+def map_component():
+    """
+    Default display and layout of the map component. No API is needed as this is static rendering of map for quick loading
+    """
+    onemap_tiles_url = "ttps://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
+    return dl.Map(
+        id="sg-map",
+        center=[1.29027, 103.851959],
+        zoom=12,
+        maxZoom=12,
+        style={"width": "100%", "height": "72vh", "margin": "0"},
         children=[
-            # Search bar. Uses OneMapAPI to get location
-            dcc.Input(
-                id="input_search",
-                type="text",
-                placeholder="input search location",
+            dl.TileLayer(
+                url=onemap_tiles_url,
+                attribution="Map data © contributors, tiles © OneMap Singapore",
             ),
-            html.Div(
-                id="osm-map-container",
-                children=[
-                    html.P("Click on anywhere on the map"),
-                    dcc.Graph(
-                        id="map",
-                        config={'scrollZoom': True},
-                        figure=fig_map(mapbox_default_key)
-                    ),
-                ],
-            ),
+            dl.ScaleControl(imperial=False, position="bottomleft"),
+            dl.LocateControl(locateOptions={"enableHighAccuracy": True}),
+            dl.LayerGroup(id="markers-layer"),
         ],
-        style={
-            "display": "inline-block",
-            "padding": "20px 10px 10px 40px",
-            "width": "59%",
-        },
-        className="seven columns",
     )
 
 
 def display_artefacts(id: str, label: str, value: str, size: int=50,):
-    """Function which display artefacts as value using daq's LEDDisplay library. 
+    """Function which display artefacts as value using daq's LEDDisplay library.
     Args:
         id (str): HTML division id for dash callback decorator.
         label (str): Name of value artefact.
@@ -90,6 +67,11 @@ def display_artefacts(id: str, label: str, value: str, size: int=50,):
         ],
     style={'display': 'flex', 'justify-content': 'center'}
     )
+
+
+def display_nearby_artefacts(id: str, label: str, value: str, size: int = 50,):
+    # Wrapper to maintain existing references; delegates to display_artefacts
+    return display_artefacts(id=id, label=label, value=value, size=size)
 
 
 def show_descriptive_stats():

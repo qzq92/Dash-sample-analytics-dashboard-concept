@@ -1,28 +1,24 @@
-import dash_html_components as html
+from dash import html
 
 def build_dashboard_banner():
     return html.Div(
         id="banner",
         className="banner",
         children=[
-            html.Div(
-                id="banner-text",
-                children=[
-                    html.H5("Simple Dashboard Demo"),
-                    html.H6("Showcasing nearby transportation option and activities"),
-                ],
-            ),
-            html.Div(
-                id="banner-logo",
-                children=[
-                    html.Button(
-                        id="learn-more-button", children="LEARN MORE", n_clicks=0
-                    ),
-                    html.A(
-                        html.Img(src=r"../assets/dash-logo.png"),
-                        href="https://plotly.com/dash/",
-                    ),
-                ],
+            html.H2("Singapore City Dashboard (Simplified)"),
+            html.A(
+                html.Img(
+                    id="plotly-logo",
+                    src=r"../assets/dash-logo.png",
+                    style={"height": "40px"},
+                ),
+                href="https://plotly.com/dash/",
             ),
         ],
+        style={
+            "display": "flex",
+            "justifyContent": "space-between",
+            "alignItems": "center",
+            "padding": "0 10px",
+        },
     )

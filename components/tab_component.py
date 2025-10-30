@@ -5,7 +5,7 @@ def display_tabs():
     # To show clickable tabs
     return html.Div(
         id = "tabs",
-        classname="tabs",
+        className="tabs",
         children = dcc.Tabs(
             id="multi-tabs",
             value="tab2",
