@@ -52,114 +52,102 @@ app.layout = html.Div(
                         html.Div(
                             id="camera-feeds-section",
                             children=[
-                                html.H3("Traffic Camera Feeds", style={"padding": "10px 20px", "margin": "0"}),
                                 html.Div(
-                                    id="camera-feeds-container",
+                                    id="camera-2701-container",
                                     children=[
+                                        html.H5("Causeway", style={"textAlign": "center", "margin": "10px 0"}),
                                         html.Div(
-                                            id="camera-2701-container",
+                                            style={
+                                                "width": "100%",
+                                                "height": "calc(33.33vh - 140px)",
+                                                "overflow": "hidden",
+                                                "display": "flex",
+                                                "alignItems": "center",
+                                                "justifyContent": "center",
+                                            },
                                             children=[
-                                                html.H5("Causeway", style={"textAlign": "center", "margin": "10px 0"}),
-                                                html.Div(
+                                                html.Img(
+                                                    id="camera-feed-2701",
+                                                    src="",
                                                     style={
-                                                        "width": "100%",
-                                                        "height": "calc(33.33vh - 140px)",
-                                                        "overflow": "hidden",
-                                                        "display": "flex",
-                                                        "alignItems": "center",
-                                                        "justifyContent": "center",
-                                                    },
-                                                    children=[
-                                                        html.Img(
-                                                            id="camera-feed-2701",
-                                                            src="",
-                                                            style={
-                                                                "maxWidth": "100%",
-                                                                "maxHeight": "100%",
-                                                                "objectFit": "contain",
-                                                            }
-                                                        ),
-                                                    ]
-                                                ),
-                                                html.Div(
-                                                    id="camera-2701-metadata",
-                                                    style={
-                                                        "textAlign": "center",
-                                                        "padding": "5px",
-                                                        "fontSize": "12px",
-                                                        "color": "#ccc",
+                                                        "maxWidth": "100%",
+                                                        "maxHeight": "100%",
+                                                        "objectFit": "contain",
                                                     }
                                                 ),
-                                            ],
-                                            style={
-                                                "display": "inline-block",
-                                                "width": "48%",
-                                                "height": "calc(33.33vh - 80px)",
-                                                "padding": "10px",
-                                                "verticalAlign": "top",
-                                            }
+                                            ]
                                         ),
                                         html.Div(
-                                            id="camera-4713-container",
-                                            children=[
-                                                html.H5("Second Link", style={"textAlign": "center", "margin": "10px 0"}),
-                                                html.Div(
-                                                    style={
-                                                        "width": "100%",
-                                                        "height": "calc(33.33vh - 140px)",
-                                                        "overflow": "hidden",
-                                                        "display": "flex",
-                                                        "alignItems": "center",
-                                                        "justifyContent": "center",
-                                                    },
-                                                    children=[
-                                                        html.Img(
-                                                            id="camera-feed-4713",
-                                                            src="",
-                                                            style={
-                                                                "maxWidth": "100%",
-                                                                "maxHeight": "100%",
-                                                                "objectFit": "contain",
-                                                            }
-                                                        ),
-                                                    ]
-                                                ),
-                                                html.Div(
-                                                    id="camera-4713-metadata",
-                                                    style={
-                                                        "textAlign": "center",
-                                                        "padding": "5px",
-                                                        "fontSize": "12px",
-                                                        "color": "#ccc",
-                                                    }
-                                                ),
-                                            ],
+                                            id="camera-2701-metadata",
                                             style={
-                                                "display": "inline-block",
-                                                "width": "48%",
-                                                "height": "calc(33.33vh - 80px)",
-                                                "padding": "10px",
-                                                "verticalAlign": "top",
+                                                "textAlign": "center",
+                                                "padding": "5px",
+                                                "fontSize": "12px",
+                                                "color": "#ccc",
                                             }
                                         ),
                                     ],
                                     style={
-                                        "display": "flex",
-                                        "justifyContent": "space-around",
-                                        "padding": "10px 20px",
-                                        "height": "calc(33.33vh - 60px)",
-                                        "flexWrap": "nowrap",
+                                        "display": "inline-block",
+                                        "width": "48%",
+                                        "height": "calc(33.33vh - 80px)",
+                                        "padding": "10px",
+                                        "verticalAlign": "top",
+                                    }
+                                ),
+                                html.Div(
+                                    id="camera-4713-container",
+                                    children=[
+                                        html.H5("Second Link", style={"textAlign": "center", "margin": "10px 0"}),
+                                        html.Div(
+                                            style={
+                                                "width": "100%",
+                                                "height": "calc(33.33vh - 140px)",
+                                                "overflow": "hidden",
+                                                "display": "flex",
+                                                "alignItems": "center",
+                                                "justifyContent": "center",
+                                            },
+                                            children=[
+                                                html.Img(
+                                                    id="camera-feed-4713",
+                                                    src="",
+                                                    style={
+                                                        "maxWidth": "100%",
+                                                        "maxHeight": "100%",
+                                                        "objectFit": "contain",
+                                                    }
+                                                ),
+                                            ]
+                                        ),
+                                        html.Div(
+                                            id="camera-4713-metadata",
+                                            style={
+                                                "textAlign": "center",
+                                                "padding": "5px",
+                                                "fontSize": "12px",
+                                                "color": "#ccc",
+                                            }
+                                        ),
+                                    ],
+                                    style={
+                                        "display": "inline-block",
+                                        "width": "48%",
+                                        "height": "calc(33.33vh - 80px)",
+                                        "padding": "10px",
+                                        "verticalAlign": "top",
                                     }
                                 ),
                             ],
                             style={
                                 "backgroundColor": "#000000",
-                                "margin": "10px 20px",
+                                "margin": "10px 20px 10px 20px",
                                 "borderRadius": "5px",
-                                "padding": "10px 0",
+                                "padding": "0",
                                 "height": "33.33vh",
                                 "display": "flex",
-                                "flexDirection": "column",
+                                "justifyContent": "space-around",
+                                "flexWrap": "nowrap",
                                 "width": "48%",
                                 "verticalAlign": "top",
                             }
@@ -168,14 +156,13 @@ app.layout = html.Div(
                         html.Div(
                             id="weather-forecast-section",
                             children=[
-                                html.H3("Weather Forecast", style={"padding": "10px 20px", "margin": "0"}),
                                 html.Div(
                                     id="weather-forecast-container",
                                     children=[
                                         html.Div(
                                             id="weather-2h-container",
                                             children=[
-                                                html.H4("2-Hour Forecast", style={"textAlign": "center", "margin": "10px 0"}),
+                                                html.H4("2-Hour Weather Forecast", style={"textAlign": "center", "margin": "10px 0"}),
                                                 html.Div(
                                                     id="weather-2h-content",
                                                     children=[
@@ -183,7 +170,7 @@ app.layout = html.Div(
                                                     ],
                                                     style={
                                                         "height": "calc(33.33vh - 120px)",
-                                                        "overflowY": "auto",
+                                                        "overflow": "hidden",
                                                         "padding": "10px",
                                                     }
                                                 ),
@@ -194,12 +181,15 @@ app.layout = html.Div(
                                                 "height": "calc(33.33vh - 80px)",
                                                 "padding": "10px",
                                                 "verticalAlign": "top",
+                                                "backgroundColor": "#5a7a9a",
+                                                "borderRadius": "5px",
+                                                "marginRight": "10px",
                                             }
                                         ),
                                         html.Div(
                                             id="weather-24h-container",
                                             children=[
-                                                html.H4("24-Hour Forecast", style={"textAlign": "center", "margin": "10px 0"}),
+                                                html.H4("24-Hour Weather Forecast", style={"textAlign": "center", "margin": "10px 0"}),
                                                 html.Div(
                                                     id="weather-24h-content",
                                                     children=[
@@ -207,7 +197,7 @@ app.layout = html.Div(
                                                     ],
                                                     style={
                                                         "height": "calc(33.33vh - 120px)",
-                                                        "overflowY": "auto",
+                                                        "overflow": "hidden",
                                                         "padding": "10px",
                                                     }
                                                 ),
@@ -218,12 +208,15 @@ app.layout = html.Div(
                                                 "height": "calc(33.33vh - 80px)",
                                                 "padding": "10px",
                                                 "verticalAlign": "top",
+                                                "backgroundColor": "#4a6a8a",
+                                                "borderRadius": "5px",
+                                                "marginLeft": "10px",
                                             }
                                         ),
                                     ],
                                     style={
                                         "display": "flex",
-                                        "justifyContent": "space-around",
+                                        "justifyContent": "space-between",
                                         "padding": "10px 20px",
                                         "height": "calc(33.33vh - 60px)",
                                         "flexWrap": "nowrap",
@@ -231,10 +224,10 @@ app.layout = html.Div(
                                 ),
                             ],
                             style={
-                                "backgroundColor": "#2C3E50",
-                                "margin": "10px 20px",
+                                "backgroundColor": "#4a5a6a",
+                                "margin": "10px 20px 10px 0",
                                 "borderRadius": "5px",
-                                "padding": "10px 0",
+                                "padding": "0",
                                 "height": "33.33vh",
                                 "display": "flex",
                                 "flexDirection": "column",
