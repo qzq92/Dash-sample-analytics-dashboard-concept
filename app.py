@@ -13,6 +13,16 @@ from components.tab_component import display_tabs
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
 from callbacks.weather_callback import register_weather_callbacks
+from callbacks.mrt_callback import register_mrt_callbacks
+from callbacks.busstop_callbacks import register_busstop_callbacks
+from auth.onemap_api import initialize_onemap_token
+
+# Initialize OneMap API token on application startup
+print("Initializing OneMap API authentication...")
+if initialize_onemap_token():
+    print("OneMap API token initialized successfully")
+else:
+    print("Warning: Failed to initialize OneMap API token. Some features may not work.")
 
 # Dash instantiation ---------------------------------------------------------#
 app = Dash(__name__,
@@ -27,6 +37,8 @@ app = Dash(__name__,
 register_search_callbacks(app)
 register_camera_feed_callbacks(app)
 register_weather_callbacks(app)
+register_mrt_callbacks(app)
+register_busstop_callbacks(app)
 
 # Dashboard app layout ------------------------------------------------------#
 app.layout = html.Div(
@@ -47,32 +59,40 @@ app.layout = html.Div(
                 # Combined section for CCTV feeds and Weather forecasts
                 html.Div(
                     id="camera-weather-section",
+                    style={
+                        "display": "flex",
+                        "justifyContent": "space-between",
+                        "width": "100%",
+                        "gap": "20px",
+                        "margin": "10px 20px",
+                    },
                     children=[
-                        # First div: CCTV feeds
+                        # CCTV feeds section (left side, expanded)
                         html.Div(
                             id="camera-feeds-section",
                             children=[
                                 html.Div(
                                     id="camera-2701-container",
                                     children=[
-                                        html.H5("Causeway", style={"textAlign": "center", "margin": "10px 0"}),
+                                        html.H5("Causeway", style={"textAlign": "center", "margin": "10px 0", "color": "#fff"}),
                                         html.Div(
                                             style={
                                                 "width": "100%",
-                                                "height": "calc(33.33vh - 140px)",
+                                                "height": "calc(50vh - 100px)",
                                                 "overflow": "hidden",
                                                 "display": "flex",
                                                 "alignItems": "center",
                                                 "justifyContent": "center",
+                                                "backgroundColor": "#000",
                                             },
                                             children=[
                                                 html.Img(
                                                     id="camera-feed-2701",
                                                     src="",
                                                     style={
-                                                        "maxWidth": "100%",
-                                                        "maxHeight": "100%",
-                                                        "objectFit": "contain",
+                                                        "width": "100%",
+                                                        "height": "100%",
+                                                        "objectFit": "cover",
                                                     }
                                                 ),
                                             ]
@@ -90,7 +110,7 @@ app.layout = html.Div(
                                     style={
                                         "display": "inline-block",
                                         "width": "48%",
-                                        "height": "calc(33.33vh - 80px)",
+                                        "height": "100%",
                                         "padding": "10px",
                                         "verticalAlign": "top",
                                     }
@@ -98,24 +118,25 @@ app.layout = html.Div(
                                 html.Div(
                                     id="camera-4713-container",
                                     children=[
-                                        html.H5("Second Link", style={"textAlign": "center", "margin": "10px 0"}),
+                                        html.H5("Second Link", style={"textAlign": "center", "margin": "10px 0", "color": "#fff"}),
                                         html.Div(
                                             style={
                                                 "width": "100%",
-                                                "height": "calc(33.33vh - 140px)",
+                                                "height": "calc(50vh - 100px)",
                                                 "overflow": "hidden",
                                                 "display": "flex",
                                                 "alignItems": "center",
                                                 "justifyContent": "center",
+                                                "backgroundColor": "#000",
                                             },
                                             children=[
                                                 html.Img(
                                                     id="camera-feed-4713",
                                                     src="",
                                                     style={
-                                                        "maxWidth": "100%",
-                                                        "maxHeight": "100%",
-                                                        "objectFit": "contain",
+                                                        "width": "100%",
+                                                        "height": "100%",
+                                                        "objectFit": "cover",
                                                     }
                                                 ),
                                             ]
@@ -133,7 +154,7 @@ app.layout = html.Div(
                                     style={
                                         "display": "inline-block",
                                         "width": "48%",
-                                        "height": "calc(33.33vh - 80px)",
+                                        "height": "100%",
                                         "padding": "10px",
                                         "verticalAlign": "top",
                                     }
@@ -141,121 +162,69 @@ app.layout = html.Div(
                             ],
                             style={
                                 "backgroundColor": "#000000",
-                                "margin": "10px 20px 10px 20px",
                                 "borderRadius": "5px",
                                 "padding": "0",
-                                "height": "33.33vh",
+                                "height": "50vh",
                                 "display": "flex",
                                 "justifyContent": "space-around",
                                 "flexWrap": "nowrap",
-                                "width": "48%",
-                                "verticalAlign": "top",
+                                "flex": "1",
+                                "minWidth": "0",
                             }
                         ),
-                        # Second div: Weather forecasts
+                        # Weather forecast section (right side)
                         html.Div(
                             id="weather-forecast-section",
                             children=[
+                                html.H4(
+                                    "2-Hour Weather Forecast",
+                                    style={
+                                        "textAlign": "center",
+                                        "margin": "10px 0",
+                                        "color": "#fff",
+                                        "fontWeight": "700"
+                                    }
+                                ),
                                 html.Div(
-                                    id="weather-forecast-container",
+                                    id="weather-2h-content",
                                     children=[
-                                        html.Div(
-                                            id="weather-2h-container",
-                                            children=[
-                                                html.H4("2-Hour Weather Forecast", style={"textAlign": "center", "margin": "10px 0"}),
-                                                html.Div(
-                                                    id="weather-2h-content",
-                                                    children=[
-                                                        html.P("Loading...", style={"textAlign": "center", "padding": "20px"})
-                                                    ],
-                                                    style={
-                                                        "height": "calc(33.33vh - 120px)",
-                                                        "overflow": "hidden",
-                                                        "padding": "10px",
-                                                    }
-                                                ),
-                                            ],
-                                            style={
-                                                "display": "inline-block",
-                                                "width": "48%",
-                                                "height": "calc(33.33vh - 80px)",
-                                                "padding": "10px",
-                                                "verticalAlign": "top",
-                                                "backgroundColor": "#5a7a9a",
-                                                "borderRadius": "5px",
-                                                "marginRight": "10px",
-                                            }
-                                        ),
-                                        html.Div(
-                                            id="weather-24h-container",
-                                            children=[
-                                                html.H4("24-Hour Weather Forecast", style={"textAlign": "center", "margin": "10px 0"}),
-                                                html.Div(
-                                                    id="weather-24h-content",
-                                                    children=[
-                                                        html.P("Loading...", style={"textAlign": "center", "padding": "20px"})
-                                                    ],
-                                                    style={
-                                                        "height": "calc(33.33vh - 120px)",
-                                                        "overflow": "hidden",
-                                                        "padding": "10px",
-                                                    }
-                                                ),
-                                            ],
-                                            style={
-                                                "display": "inline-block",
-                                                "width": "48%",
-                                                "height": "calc(33.33vh - 80px)",
-                                                "padding": "10px",
-                                                "verticalAlign": "top",
-                                                "backgroundColor": "#4a6a8a",
-                                                "borderRadius": "5px",
-                                                "marginLeft": "10px",
-                                            }
-                                        ),
+                                        html.P("Loading...", style={"textAlign": "center", "padding": "20px", "color": "#999"})
                                     ],
                                     style={
-                                        "display": "flex",
-                                        "justifyContent": "space-between",
                                         "padding": "10px 20px",
-                                        "height": "calc(33.33vh - 60px)",
-                                        "flexWrap": "nowrap",
+                                        "maxHeight": "calc(50vh - 80px)",
+                                        "overflowY": "auto",
                                     }
                                 ),
                             ],
                             style={
                                 "backgroundColor": "#4a5a6a",
-                                "margin": "10px 20px 10px 0",
                                 "borderRadius": "5px",
-                                "padding": "0",
-                                "height": "33.33vh",
+                                "padding": "10px",
+                                "height": "50vh",
+                                "flex": "1",
+                                "minWidth": "0",
                                 "display": "flex",
                                 "flexDirection": "column",
-                                "width": "48%",
-                                "verticalAlign": "top",
                             }
                         ),
-                        # Interval component to update images and weather periodically
-                        dcc.Interval(
-                            id='interval-component',
-                            interval=30*1000,  # Update every 30 seconds
-                            n_intervals=0
-                        ),
-                    ],
-                    style={
-                        "display": "flex",
-                        "justifyContent": "space-between",
-                        "width": "100%",
-                    }
+                    ]
+                ),
+                # Interval component to update images and weather periodically
+                dcc.Interval(
+                    id='interval-component',
+                    interval=30*1000,  # Update every 30 seconds
+                    n_intervals=0
                 ),
                 html.Div(
+                    id="Map and search bar container",
                     className="row",
                     children=[
                         # Left column for map placement
                         html.Div(
                             id="left-column",
                             className="seven columns",
-                            children=[map_component()],
+                            children=[map_component()],  # Map will be updated via callback when search bar value changes
                             style={
                                 "display": "inline-block",
                                 "padding": "20px 10px 10px 40px",
@@ -279,6 +248,130 @@ app.layout = html.Div(
                         ),
                     ],
                 ),
+                # Three column section for nearest MRT, carpark, and bus stop
+                html.Div(
+                    id="nearest-facilities-section",
+                    style={
+                        "display": "flex",
+                        "justifyContent": "space-between",
+                        "width": "100%",
+                        "padding": "20px 40px",
+                        "gap": "20px"
+                    },
+                    children=[
+                        # Nearest MRT column
+                        html.Div(
+                            id="nearest-mrt-column",
+                            style={
+                                "flex": "1",
+                                "backgroundColor": "#2c3e50",
+                                "borderRadius": "5px",
+                                "padding": "15px",
+                                "minHeight": "200px"
+                            },
+                            children=[
+                                html.H4(
+                                    "Nearest MRT",
+                                    style={
+                                        "textAlign": "center",
+                                        "marginBottom": "15px",
+                                        "color": "#fff",
+                                        "fontWeight": "700"
+                                    }
+                                ),
+                                html.Div(
+                                    id="nearest-mrt-content",
+                                    children=[
+                                        html.P(
+                                            "Select a location to view nearest MRT stations",
+                                            style={
+                                                "textAlign": "center",
+                                                "color": "#999",
+                                                "fontSize": "14px",
+                                                "fontStyle": "italic",
+                                                "padding": "20px"
+                                            }
+                                        )
+                                    ]
+                                )
+                            ]
+                        ),
+                        # Nearest Carpark column
+                        html.Div(
+                            id="nearest-carpark-column",
+                            style={
+                                "flex": "1",
+                                "backgroundColor": "#2c3e50",
+                                "borderRadius": "5px",
+                                "padding": "15px",
+                                "minHeight": "200px"
+                            },
+                            children=[
+                                html.H4(
+                                    "Nearest Carpark",
+                                    style={
+                                        "textAlign": "center",
+                                        "marginBottom": "15px",
+                                        "color": "#fff",
+                                        "fontWeight": "700"
+                                    }
+                                ),
+                                html.Div(
+                                    id="nearest-carpark-content",
+                                    children=[
+                                        html.P(
+                                            "Select a location to view nearest carparks",
+                                            style={
+                                                "textAlign": "center",
+                                                "color": "#999",
+                                                "fontSize": "14px",
+                                                "fontStyle": "italic",
+                                                "padding": "20px"
+                                            }
+                                        )
+                                    ]
+                                )
+                            ]
+                        ),
+                        # Nearest Bus Stop column
+                        html.Div(
+                            id="nearest-bus-stop-column",
+                            style={
+                                "flex": "1",
+                                "backgroundColor": "#2c3e50",
+                                "borderRadius": "5px",
+                                "padding": "15px",
+                                "minHeight": "200px"
+                            },
+                            children=[
+                                html.H4(
+                                    "Nearest Bus Stop",
+                                    style={
+                                        "textAlign": "center",
+                                        "marginBottom": "15px",
+                                        "color": "#fff",
+                                        "fontWeight": "700"
+                                    }
+                                ),
+                                html.Div(
+                                    id="nearest-bus-stop-content",
+                                    children=[
+                                        html.P(
+                                            "Select a location to view nearest bus stops",
+                                            style={
+                                                "textAlign": "center",
+                                                "color": "#999",
+                                                "fontSize": "14px",
+                                                "fontStyle": "italic",
+                                                "padding": "20px"
+                                            }
+                                        )
+                                    ]
+                                )
+                            ]
+                        ),
+                    ]
+                ),
             ],
         ),
     ]
@@ -287,10 +380,11 @@ app.layout = html.Div(
 if __name__ == '__main__':
     logging.info(sys.version)
 
+    # Enable hot reloading to capture latest changes in code
     # If running locally in Anaconda env:
     if "conda-forge" in sys.version:
-        app.run(debug=True)
+        app.run(debug=True, dev_tools_hot_reload=False)
     else:
-        app.run(debug=False, host='0.0.0.0', port=8050)
+        app.run(debug=True, dev_tools_hot_reload=False, host='0.0.0.0', port=8050)
     # Set app title
     app.title = "SG Dashboard"
