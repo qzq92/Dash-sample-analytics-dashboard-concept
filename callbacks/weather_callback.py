@@ -73,47 +73,87 @@ def fetch_weather_forecast_24h():
 def format_weather_2h(data):
     """
     Format 2-hour weather forecast data for display.
+    Arranges towns in a grid layout with multiple columns per row.
+    Example: 48 towns arranged in 4 rows of 12 columns each.
 
     Args:
         data: JSON response from 2-hour weather forecast API
 
     Returns:
-        List of HTML elements for display
+        HTML Div containing grid of town forecast divs arranged in rows and columns
     """
     if not data or 'items' not in data or not data['items']:
-        return [html.P("No data available", style={"padding": "10px", "color": "#999"})]
+        return html.P("No data available", style={"padding": "10px", "color": "#999"})
 
-    items = []
     forecast_item = data['items'][0]
 
     # Get forecasts
     forecasts = forecast_item.get('forecasts', [])
 
     if not forecasts:
-        return [html.P("No forecast data available", style={"padding": "10px", "color": "#999"})]
+        return html.P("No forecast data available", style={"padding": "10px", "color": "#999"})
 
-    # Display forecasts
+    # Calculate grid layout: determine columns per row based on total items
+    total_items = len(forecasts)
+    
+    # Calculate optimal columns per row (aim for 4 rows if 48 items = 12 columns)
+    # For other counts, calculate to get approximately 4 rows
+    if total_items <= 12:
+        cols_per_row = total_items
+    elif total_items <= 24:
+        cols_per_row = 12
+    elif total_items <= 48:
+        cols_per_row = 12  # 4 rows of 12
+    else:
+        # For more than 48, calculate to get approximately 4-6 rows
+        cols_per_row = max(12, total_items // 4)
+    
+    # Create town divs
+    town_divs = []
     for forecast in forecasts:
         area_name = forecast.get('area', 'Unknown')
         forecast_text = forecast.get('forecast', 'N/A')
 
-        items.append(
+        town_divs.append(
             html.Div(
                 [
-                    html.Strong(area_name, style={"color": "#4CAF50"}),
-                    html.Br(),
-                    html.Span(forecast_text, style={"color": "#ddd", "fontSize": "14px"})
+                    html.Div(
+                        area_name,
+                        style={
+                            "fontWeight": "700",
+                            "fontSize": "14px",
+                            "color": "#4CAF50",
+                            "marginBottom": "4px"
+                        }
+                    ),
+                    html.Div(
+                        forecast_text,
+                        style={
+                            "color": "#ddd",
+                            "fontSize": "12px",
+                            "lineHeight": "1.3"
+                        }
+                    )
                 ],
                 style={
-                    "padding": "8px",
-                    "margin": "5px 0",
-                    "borderBottom": "1px solid #444",
-                    "borderRadius": "3px",
+                    "padding": "10px 12px",
+                    "borderRadius": "4px",
+                    "backgroundColor": "#3a4a5a",
+                    "border": "1px solid #555",
                 }
             )
         )
 
-    return items if items else [html.P("No forecast data available", style={"padding": "10px", "color": "#999"})]
+    # Return grid container with all town divs
+    return html.Div(
+        town_divs,
+        style={
+            "display": "grid",
+            "gridTemplateColumns": f"repeat({cols_per_row}, 1fr)",
+            "gap": "8px",
+            "width": "100%",
+        }
+    )
 
 
 def format_weather_24h(data):
@@ -231,19 +271,18 @@ def register_weather_callbacks(app):
         app: Dash app instance
     """
     @app.callback(
-        [Output('weather-2h-content', 'children'),
-         Output('weather-24h-content', 'children')],
+        Output('weather-2h-content', 'children'),
         Input('interval-component', 'n_intervals')
     )
-    def update_weather_forecasts(n_intervals):
+    def update_weather_forecast_2h(n_intervals):
         """
-        Update weather forecast displays periodically.
+        Update 2-hour weather forecast display periodically.
 
         Args:
             n_intervals: Number of intervals (from dcc.Interval component)
 
         Returns:
-            Tuple of HTML content for 2-hour and 24-hour forecasts
+            HTML content for 2-hour forecast (towns arranged in column)
         """
         # n_intervals is required by the callback but not used directly
         _ = n_intervals
@@ -252,9 +291,5 @@ def register_weather_callbacks(app):
         weather_2h_data = fetch_weather_forecast_2h()
         weather_2h_content = format_weather_2h(weather_2h_data)
 
-        # Fetch 24-hour forecast
-        weather_24h_data = fetch_weather_forecast_24h()
-        weather_24h_content = format_weather_24h(weather_24h_data)
-
-        return weather_2h_content, weather_24h_content
+        return weather_2h_content
 

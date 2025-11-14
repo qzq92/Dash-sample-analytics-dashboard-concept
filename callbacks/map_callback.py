@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from dash.dependencies import Input, Output
 from dash import no_update, html
 import dash_leaflet as dl
+from auth.onemap_api import get_onemap_token
 load_dotenv(override=True)
 
 def search_location_via_onemap_info(searchVal: str, returnGeom: str = "Y", getAddrDetails: str = "Y", pageNum: int = 1):
@@ -67,29 +68,6 @@ def _haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) ->
     a = sin(dlat/2.0)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2.0)**2
     c = 2.0 * asin(sqrt(a))
     return r * c
-
-
-def fetch_nearest_mrt(lat: float, lon: float, radius_m: int = 1000) -> list:
-    """Call OneMap Nearby Service to get nearest MRT/LRT stops within radius (meters)."""
-    try:
-        url = "https://www.onemap.gov.sg/api/public/nearbysvc/getNearestMrtStops"
-        params = {"latitude": lat, "longitude": lon, "radius_in_meters": radius_m}
-        # Public endpoint; add headers if key available
-        headers = {}
-        api_key = os.getenv("ONEMAP_API_KEY")
-        if api_key:
-            headers["Authorization"] = api_key
-        res = requests.get(url, params=params, headers=headers, timeout=10)
-        if res.status_code == 200:
-            data = res.json()
-            # Response structure may contain 'mrt_stops' or 'results'; be defensive
-            results = data.get("results") or data.get("mrt_stops") or data
-            return results if isinstance(results, list) else []
-        print(f"Nearest MRT API failed: status={res.status_code}, body={res.text[:200]}")
-    except Exception as e:
-        print(f"Error calling nearest MRT API: {e}")
-    return []
-
 
 def register_search_callbacks(app):
     """
@@ -162,22 +140,27 @@ def register_search_callbacks(app):
     @app.callback(
         [Output('sg-map', 'center'),
          Output('sg-map', 'zoom'),
-         Output('markers-layer', 'children')],
+         Output('markers-layer', 'children'),
+         Output('map-coordinates-store', 'data')],
         Input('input_search', 'value')
     )
     def update_map_from_search_selection(dropdown_value):
         """
         Update map when user selects a location from the dropdown.
         Centers the map on the selected location and adds a marker.
+        Also updates the coordinates store.
 
         Args:
             dropdown_value: Selected value from dropdown (format: 'lat,lon,address')
 
         Returns:
-            Tuple of (map center, zoom level, marker)
+            Tuple of (map center, zoom level, marker, coordinates store data)
         """
+        print(f"Callback triggered with dropdown_value: {dropdown_value}")
+        
         if not dropdown_value:
-            return no_update, no_update, no_update
+            print("No dropdown value, returning no_update")
+            return no_update, no_update, no_update, no_update
 
         try:
             # Parse the dropdown value
@@ -186,6 +169,8 @@ def register_search_callbacks(app):
             address = parts[2] if len(parts) > 2 else "Selected Location"
 
             lat, lon = float(lat_str), float(lon_str)
+            
+            print(f"Parsed coordinates - lat: {lat}, lon: {lon}, address: {address}")
 
             # Create marker with popup showing the address (Leaflet expects EPSG:4326)
             marker = dl.Marker(
@@ -199,72 +184,14 @@ def register_search_callbacks(app):
             # Center map on the location with appropriate zoom for street level.
             zoom_level = 18
 
+            # Update coordinates store
+            coordinates_data = {"lat": lat, "lon": lon, "address": address}
+
             print(f"Map updated to: {lat}, {lon} - {address}")
-            return [lat, lon], zoom_level, [marker]
+            return [lat, lon], zoom_level, [marker], coordinates_data
 
         except (ValueError, IndexError) as error:
-            print(f"Error parsing dropdown value: {error}")
-            return no_update, no_update, no_update
-
-    @app.callback(
-        Output('nearest-mrt-panel', 'children'),
-        Input('input_search', 'value')
-    )
-    def update_nearest_mrt_panel(dropdown_value):
-        if not dropdown_value:
-            return []
-        try:
-            parts = dropdown_value.split(',', 2)
-            lat, lon = float(parts[0]), float(parts[1])
-        except Exception:
-            return []
-
-        raw_results = fetch_nearest_mrt(lat, lon, radius_m=1000)
-        items = []
-        for r in raw_results:
-            # Try common field names defensively
-            name = r.get('NAME') or r.get('name') or r.get('STN_NAME') or r.get('stn_name') or 'Unknown Station'
-            stn_no = r.get('STN_NO') or r.get('stn_no') or ''
-            line = r.get('LINE') or r.get('line') or ''
-            rlat = r.get('LATITUDE') or r.get('latitude') or r.get('lat')
-            rlon = r.get('LONGITUDE') or r.get('longitude') or r.get('lng')
-            try:
-                rlat = float(rlat)
-                rlon = float(rlon)
-                dist_m = _haversine_distance_m(lat, lon, rlat, rlon)
-            except Exception:
-                dist_m = None
-
-            subtitle_parts = []
-            if stn_no:
-                subtitle_parts.append(str(stn_no))
-            if line:
-                subtitle_parts.append(str(line))
-            subtitle = ' • '.join(subtitle_parts)
-            dist_str = f"{dist_m:.0f} m" if dist_m is not None else "—"
-
-            items.append({
-                "name": name,
-                "subtitle": subtitle,
-                "distance": dist_m if dist_m is not None else float('inf')
-            })
-
-        # Sort by distance and take top 5
-        items = sorted(items, key=lambda x: x["distance"])[:5]
-
-        # Render as simple list
-        rendered = [
-            html.Div(
-                [
-                    html.Div(item["name"], style={"fontWeight": "600"}),
-                    html.Div(
-                        (item["subtitle"] + (" • " if item["subtitle"] else "") + f"{int(item['distance'])} m") if item["distance"] != float('inf') else item["subtitle"],
-                        style={"fontSize": "12px", "opacity": 0.8}
-                    ),
-                ],
-                style={"padding": "6px 8px", "borderBottom": "1px solid #333"}
-            ) for item in items
-        ]
-
-        header = html.Div("Nearest MRT/LRT within 1 km", style={"marginTop": "8px", "marginBottom": "4px", "fontWeight": "700"})
-        return [header] + rendered
+            print(f"Error parsing dropdown value '{dropdown_value}': {error}")
+            import traceback
+            traceback.print_exc()
+            return no_update, no_update, no_update, no_update

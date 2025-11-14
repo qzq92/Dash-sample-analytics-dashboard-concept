@@ -24,7 +24,7 @@ def api_query(api_link: str,  agent_id: str) -> Union[Dict,None]:
 
         # Check the status code before extending the number of posts
         if res.status_code == 200:
-            print("Request sucessful with %s", res.status_code)
+            print("Request sucessful for traffic_callback")
             the_json = res.json()
             return the_json['items']
         return None
