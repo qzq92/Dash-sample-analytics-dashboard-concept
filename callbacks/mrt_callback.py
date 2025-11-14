@@ -130,7 +130,7 @@ def register_mrt_callbacks(app):
             search_value: Selected value from search dropdown (format: 'lat,lon,address')
         
         Returns:
-            HTML Div containing nearest MRT/LRT stations within 500m
+            HTML Div containing nearest MRT/LRT stations within 1000m
         """
         if not search_value:
             return html.P(
@@ -160,12 +160,12 @@ def register_mrt_callbacks(app):
                 }
             )
         
-        # Fetch nearby MRT stations within 500m
-        stations = fetch_nearby_mrt_stations(lat, lon, radius_m=500)
+        # Fetch nearby MRT stations within 1000m
+        stations = fetch_nearby_mrt_stations(lat, lon, radius_m=1000)
         
         if not stations:
             return html.P(
-                "No MRT/LRT stations found within 500m",
+                "No MRT/LRT stations found within specified radius",
                 style={
                     "textAlign": "center",
                     "color": "#999",

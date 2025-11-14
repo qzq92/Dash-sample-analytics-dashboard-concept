@@ -93,21 +93,6 @@ def format_weather_2h(data):
     if not forecasts:
         return html.P("No forecast data available", style={"padding": "10px", "color": "#999"})
 
-    # Calculate grid layout: determine columns per row based on total items
-    total_items = len(forecasts)
-    
-    # Calculate optimal columns per row (aim for 4 rows if 48 items = 12 columns)
-    # For other counts, calculate to get approximately 4 rows
-    if total_items <= 12:
-        cols_per_row = total_items
-    elif total_items <= 24:
-        cols_per_row = 12
-    elif total_items <= 48:
-        cols_per_row = 12  # 4 rows of 12
-    else:
-        # For more than 48, calculate to get approximately 4-6 rows
-        cols_per_row = max(12, total_items // 4)
-    
     # Create town divs
     town_divs = []
     for forecast in forecasts:
@@ -140,18 +125,22 @@ def format_weather_2h(data):
                     "borderRadius": "4px",
                     "backgroundColor": "#3a4a5a",
                     "border": "1px solid #555",
+                    "width": "100%",
                 }
             )
         )
 
-    # Return grid container with all town divs
+    # Return scrollable column container with all town divs
     return html.Div(
         town_divs,
         style={
-            "display": "grid",
-            "gridTemplateColumns": f"repeat({cols_per_row}, 1fr)",
+            "display": "flex",
+            "flexDirection": "column",
             "gap": "8px",
             "width": "100%",
+            "overflowX": "hidden",
+            "overflowY": "auto",
+            "padding": "5px",
         }
     )
 

@@ -56,7 +56,6 @@ def carpark_availability_panel():
 def map_component(lat=1.33663363411169, lon=103.925744921529):
     """
     Default display and layout of the map component. No API is needed as this is static rendering of map for quick loading
-    Uses OneMap tiles with EPSG:3857 (Web Mercator) projection.
     Coordinates are provided in EPSG:4326 (WGS84 lat/lon) format, which Leaflet converts automatically.
     
     Note: The map center will be updated via callback when search bar value changes.
@@ -75,7 +74,7 @@ def map_component(lat=1.33663363411169, lon=103.925744921529):
             zoom=17,
             minZoom=12,
             maxZoom=18,
-            style={"width": "100%", "height": "72vh", "margin": "0"},
+            style={"width": "100%", "height": "100%", "margin": "0"},
             children=[
                 dl.TileLayer(
                     url=onemap_tiles_url,
@@ -87,7 +86,7 @@ def map_component(lat=1.33663363411169, lon=103.925744921529):
                 dl.LayerGroup(id="markers-layer"),
             ],
         )
-    ])
+    ], style={"width": "100%", "height": "100%", "display": "flex", "flexDirection": "column"})
 
 
 def map_coordinates_display():

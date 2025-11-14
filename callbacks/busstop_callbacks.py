@@ -160,6 +160,9 @@ def register_busstop_callbacks(app):
         # Fetch nearby bus stops within 500m
         bus_stops = fetch_nearby_bus_stops(lat, lon, radius_m=500)
         
+        # Limit to top 5 nearest
+        bus_stops = bus_stops[:5]
+        
         if not bus_stops:
             return html.P(
                 "No bus stops found within 500m",

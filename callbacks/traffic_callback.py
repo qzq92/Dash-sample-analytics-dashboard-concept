@@ -148,6 +148,8 @@ def format_metadata_text(metadata_dict, camera_id):
         camera_meta = metadata_dict[camera_id]
         timestamp = camera_meta.get('timestamp', 'N/A')
 
+        location = "Causeway" if camera_id=="2701" else "Second Link"
+
         # Format timestamp (assuming ISO format like "2024-01-01T12:00:00+08:00")
         try:
             from datetime import datetime
@@ -160,7 +162,7 @@ def format_metadata_text(metadata_dict, camera_id):
         except (ValueError, AttributeError):
             formatted_time = str(timestamp)
 
-        return f"Time: {formatted_time}"
+        return f"Time: {formatted_time} {location}"
     except (KeyError, AttributeError, TypeError, ValueError) as error:
         print(f"Error formatting metadata: {error}")
         return "Metadata unavailable"

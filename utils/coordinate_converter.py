@@ -8,7 +8,7 @@ import pandas as pd
 
 def convert_svy21_to_wgs84(x_coord: float, y_coord: float) -> Tuple[float, float]:
     """
-    Convert coordinates from SVY21 (EPSG:3414) to WGS84 lat/lon (EPSG:4326).
+    Convert coordinates from SVY21 (EPSG:3414) to WGS84 (EPSG:4326) lat/lon.
     
     SVY21 is Singapore's projected coordinate system, and this function converts
     it to standard latitude/longitude coordinates (WGS84).
@@ -27,7 +27,11 @@ def convert_svy21_to_wgs84(x_coord: float, y_coord: float) -> Tuple[float, float
     # Create transformer from SVY21 (EPSG:3414) to WGS84 (EPSG:4326)
     svy21_to_wgs84 = Transformer.from_crs("EPSG:3414", "EPSG:4326")
     
-    # Transform coordinates: returns (latitude, longitude)
+    # Transform coordinates
+    # Note: pyproj respects the axis order of each CRS
+    # EPSG:3414 (SVY21) uses (X, Y) order (Easting, Northing)
+    # EPSG:4326 (WGS84) uses (lat, lon) order (Northing, Easting)
+    # So transform(x, y) returns (lat, lon)
     lat, lon = svy21_to_wgs84.transform(x_coord, y_coord)
     
     return lat, lon

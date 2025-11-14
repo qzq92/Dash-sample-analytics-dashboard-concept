@@ -138,8 +138,7 @@ def register_search_callbacks(app):
         return options
 
     @app.callback(
-        [Output('sg-map', 'center'),
-         Output('sg-map', 'zoom'),
+        [Output('sg-map', 'viewport'),
          Output('markers-layer', 'children'),
          Output('map-coordinates-store', 'data')],
         Input('input_search', 'value')
@@ -154,13 +153,13 @@ def register_search_callbacks(app):
             dropdown_value: Selected value from dropdown (format: 'lat,lon,address')
 
         Returns:
-            Tuple of (map center, zoom level, marker, coordinates store data)
+            Tuple of (viewport dict, marker, coordinates store data)
         """
         print(f"Callback triggered with dropdown_value: {dropdown_value}")
         
         if not dropdown_value:
             print("No dropdown value, returning no_update")
-            return no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update
 
         try:
             # Parse the dropdown value
@@ -181,17 +180,22 @@ def register_search_callbacks(app):
                 ]
             )
 
-            # Center map on the location with appropriate zoom for street level.
-            zoom_level = 18
+            # Create viewport dict to force map re-centering
+            # This is more reliable than updating center and zoom separately
+            viewport = {
+                'center': [lat, lon],
+                'zoom': 18,
+                'transition': 'flyTo'  # Smooth animation to new location
+            }
 
             # Update coordinates store
             coordinates_data = {"lat": lat, "lon": lon, "address": address}
 
-            print(f"Map updated to: {lat}, {lon} - {address}")
-            return [lat, lon], zoom_level, [marker], coordinates_data
+            print(f"Map viewport updated to: center=[{lat}, {lon}], zoom=18")
+            return viewport, [marker], coordinates_data
 
         except (ValueError, IndexError) as error:
             print(f"Error parsing dropdown value '{dropdown_value}': {error}")
             import traceback
             traceback.print_exc()
-            return no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update
