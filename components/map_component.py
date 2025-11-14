@@ -27,31 +27,95 @@ def nearest_mrt_panel():
     )
 
 
-def map_component():
+def carpark_availability_panel():
+    """
+    Panel component for displaying carpark availability information.
+    Automatically shows carparks within 500m of the map center.
+    """
+    return html.Div(
+        [
+            html.Div(
+                id="carpark-availability-panel",
+                children=[
+                    html.Div(
+                        "Carparks within 500m of map center will be displayed here",
+                        style={
+                            "padding": "10px",
+                            "color": "#999",
+                            "fontSize": "14px",
+                            "fontStyle": "italic"
+                        }
+                    )
+                ],
+                style={"marginTop": "8px"}
+            )
+        ]
+    )
+
+
+def map_component(lat=1.33663363411169, lon=103.925744921529):
     """
     Default display and layout of the map component. No API is needed as this is static rendering of map for quick loading
     Uses OneMap tiles with EPSG:3857 (Web Mercator) projection.
     Coordinates are provided in EPSG:4326 (WGS84 lat/lon) format, which Leaflet converts automatically.
+    
+    Note: The map center will be updated via callback when search bar value changes.
+    The initial center coordinates are used only for initial rendering.
     """
     onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
-    return dl.Map(
-        id="sg-map",
-        #center=[1.29027, 103.851959],  # Singapore center in WGS84 [lat, lon]
-        center=[1.33663363411169, 103.925744921529],
-        zoom=17,
-        minZoom=12,
-        maxZoom=18,
-        style={"width": "100%", "height": "72vh", "margin": "0"},
+    return html.Div([
+        # Store component to hold map coordinates that can be updated by callbacks
+        dcc.Store(
+            id="map-coordinates-store",
+            data={"lat": lat, "lon": lon}
+        ),
+        dl.Map(
+            id="sg-map",
+            center=[lat, lon],  # Initial center, will be updated by callback
+            zoom=17,
+            minZoom=12,
+            maxZoom=18,
+            style={"width": "100%", "height": "72vh", "margin": "0"},
+            children=[
+                dl.TileLayer(
+                    url=onemap_tiles_url,
+                    attribution='''<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>''',
+                    maxNativeZoom=19,
+                ),
+                dl.ScaleControl(imperial=False, position="bottomleft"),
+                dl.LocateControl(locateOptions={"enableHighAccuracy": True}),
+                dl.LayerGroup(id="markers-layer"),
+            ],
+        )
+    ])
+
+
+def map_coordinates_display():
+    """
+    Component to display the current map center coordinates (lat/lon) underneath the map.
+    """
+    return html.Div(
+        id="map-coordinates-display",
         children=[
-            dl.TileLayer(
-                url=onemap_tiles_url,
-                attribution='''<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>''',
-                maxNativeZoom=19,
-            ),
-            dl.ScaleControl(imperial=False, position="bottomleft"),
-            dl.LocateControl(locateOptions={"enableHighAccuracy": True}),
-            dl.LayerGroup(id="markers-layer"),
+            html.Div(
+                "Lat: --, Lon: --",
+                id="coordinates-text",
+                style={
+                    "padding": "8px 12px",
+                    "backgroundColor": "#2c3e50",
+                    "borderRadius": "4px",
+                    "fontSize": "13px",
+                    "color": "#fff",
+                    "fontFamily": "monospace",
+                    "textAlign": "center",
+                    "border": "1px solid #444"
+                }
+            )
         ],
+        style={
+            "marginTop": "8px",
+            "width": "100%"
+        }
     )
 
 
