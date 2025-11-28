@@ -215,7 +215,7 @@ def _build_weather_grid(general):
     if forecast:
         text = forecast.get('text', 'N/A')
         grid_items.append(_create_weather_card(
-            "Forecast", get_weather_icon(text), "#4CAF50", text
+            "Rain Forecast", get_weather_icon(text), "#4CAF50", text
         ))
 
     return grid_items
