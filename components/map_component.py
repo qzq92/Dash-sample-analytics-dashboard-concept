@@ -74,6 +74,8 @@ def map_component(lat=1.33663363411169, lon=103.925744921529):
             zoom=17,
             minZoom=12,
             maxZoom=18,
+            # Map bounds to restrict view to Singapore area
+            maxBounds=[[1.1304753, 103.6020882], [1.492007, 104.145897]],
             style={"width": "100%", "height": "100%", "margin": "0"},
             children=[
                 dl.TileLayer(
