@@ -1,13 +1,16 @@
 """
 Callback functions for handling weather forecast API integration.
 References:
-- 2-hour forecast: https://data.gov.sg/datasets?query=weather&resultId=d_3f9e064e25005b0e42969944ccaf2e7a
-- 24-hour forecast: https://data.gov.sg/datasets?query=weather&resultId=d_ce2eb1e307bda31993c533285834ef2b
+- 2-hour forecast:
+  https://data.gov.sg/datasets?query=weather&resultId=d_3f9e064e25005b0e42969944ccaf2e7a
+- 24-hour forecast:
+  https://data.gov.sg/datasets?query=weather&resultId=d_ce2eb1e307bda31993c533285834ef2b
 """
 import os
 import requests
 from dash import Input, Output, html
 from dotenv import load_dotenv
+from conf.weather_icons import get_weather_icon
 
 load_dotenv(override=True)
 
@@ -15,7 +18,8 @@ load_dotenv(override=True)
 def fetch_weather_forecast_2h():
     """
     Fetch 2-hour weather forecast from data.gov.sg API.
-    Reference: https://data.gov.sg/datasets?query=weather&resultId=d_3f9e064e25005b0e42969944ccaf2e7a
+    Reference:
+    https://data.gov.sg/datasets?query=weather&resultId=d_3f9e064e25005b0e42969944ccaf2e7a
 
     Returns:
         Dictionary containing forecast data or None if error
@@ -41,33 +45,6 @@ def fetch_weather_forecast_2h():
     return None
 
 
-def fetch_weather_forecast_24h():
-    """
-    Fetch 24-hour weather forecast from data.gov.sg API.
-    Reference: https://data.gov.sg/datasets?query=weather&resultId=d_ce2eb1e307bda31993c533285834ef2b
-
-    Returns:
-        Dictionary containing forecast data or None if error
-    """
-    api_key = os.getenv('DATA_GOV_API')
-    if not api_key:
-        print("DATA_GOV_API environment variable not set")
-        return None
-
-    url = "https://api.data.gov.sg/v1/environment/24-hour-weather-forecast"
-    headers = {
-        "X-API-Key": api_key,
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            return res.json()
-        print(f"24-hour weather forecast API failed: status={res.status_code}")
-    except (requests.exceptions.RequestException, ValueError) as error:
-        print(f"Error calling 24-hour weather forecast API: {error}")
-    return None
 
 
 def format_weather_2h(data):
@@ -98,6 +75,7 @@ def format_weather_2h(data):
     for forecast in forecasts:
         area_name = forecast.get('area', 'Unknown')
         forecast_text = forecast.get('forecast', 'N/A')
+        weather_icon = get_weather_icon(forecast_text)
 
         town_divs.append(
             html.Div(
@@ -112,11 +90,19 @@ def format_weather_2h(data):
                         }
                     ),
                     html.Div(
-                        forecast_text,
+                        [
+                            html.Span(
+                                weather_icon,
+                                style={"marginRight": "6px", "fontSize": "14px"}
+                            ),
+                            html.Span(forecast_text)
+                        ],
                         style={
                             "color": "#ddd",
                             "fontSize": "12px",
-                            "lineHeight": "1.3"
+                            "lineHeight": "1.3",
+                            "display": "flex",
+                            "alignItems": "center"
                         }
                     )
                 ],
@@ -145,111 +131,177 @@ def format_weather_2h(data):
     )
 
 
-def format_weather_24h(data):
+def _create_weather_card(title, emoji, color, value):
     """
-    Format 24-hour weather forecast data for display.
+    Helper to create a weather info card with large value display.
 
     Args:
-        data: JSON response from 24-hour weather forecast API
+        title: Card title
+        emoji: Icon/emoji for the card
+        color: Theme color for the card
+        value: Main value to display (e.g., "23 °C - 33 °C")
+    """
+    return html.Div(
+        [
+            html.Div(
+                f"{emoji} {title}",
+                style={
+                    "fontSize": "14px",
+                    "fontWeight": "700",
+                    "color": color,
+                    "marginBottom": "12px",
+                    "textAlign": "center"
+                }
+            ),
+            html.Div(
+                value,
+                style={
+                    "fontSize": "24px",
+                    "fontWeight": "700",
+                    "color": color,
+                    "textAlign": "center",
+                    "whiteSpace": "nowrap"
+                }
+            )
+        ],
+        style={
+            "flex": "1",
+            "padding": "15px",
+            "backgroundColor": "#3a4a5a",
+            "borderRadius": "8px",
+            "border": "1px solid #555",
+            "minWidth": "120px"
+        }
+    )
+
+
+def _build_weather_grid(general):
+    """
+    Build weather info cards from general forecast data.
+    Returns 4 cards: Temperature, Humidity, Wind, and General Forecast.
+    Values shown as ranges with units beside each value (e.g., "23 °C - 33 °C").
+    """
+    grid_items = []
+
+    # Temperature card: "23 °C - 33 °C"
+    temp = general.get('temperature', {})
+    if temp:
+        grid_items.append(_create_weather_card(
+            "Temperature", "🌡️", "#FF9800",
+            f"{temp.get('low', 'N/A')} °C - {temp.get('high', 'N/A')} °C"
+        ))
+
+    # Humidity card: "65 % - 95 %"
+    hum = general.get('relativeHumidity', {})
+    if hum:
+        grid_items.append(_create_weather_card(
+            "Humidity", "💧", "#2196F3",
+            f"{hum.get('low', 'N/A')} % - {hum.get('high', 'N/A')} %"
+        ))
+
+    # Wind card: "15 km/h - 35 km/h SW"
+    wind = general.get('wind', {})
+    if wind:
+        spd = wind.get('speed', {})
+        direction = wind.get('direction', '')
+        dir_text = f" {direction}" if direction else ""
+        grid_items.append(_create_weather_card(
+            "Wind", "🌬️", "#9C27B0",
+            f"{spd.get('low', 'N/A')} - {spd.get('high', 'N/A')} km/h{dir_text}"
+        ))
+
+    # General Forecast card
+    forecast = general.get('forecast', {})
+    if forecast:
+        text = forecast.get('text', 'N/A')
+        grid_items.append(_create_weather_card(
+            "Forecast", get_weather_icon(text), "#4CAF50", text
+        ))
+
+    return grid_items
+
+
+def fetch_and_format_weather_24h():
+    """
+    Fetch and format 24-hour weather forecast data for main dashboard display.
+    Shows temperature, relative humidity, general forecast and wind information.
+    Reference:
+    https://data.gov.sg/datasets?query=weather&resultId=d_ce2eb1e307bda31993c533285834ef2b
+
+    API structure: data.records[0].general contains all forecast info:
+    - temperature: {low, high, unit}
+    - relativeHumidity: {low, high, unit}
+    - forecast: {code, text}
+    - validPeriod: {start, end, text}
+    - wind: {speed: {low, high}, direction}
 
     Returns:
-        List of HTML elements for display
+        HTML Div with structured forecast display
     """
-    if not data or 'items' not in data or not data['items']:
-        return [html.P("No data available", style={"padding": "10px", "color": "#999"})]
-
-    items = []
-    forecast_item = data['items'][0]
-
-    # Get general forecast
-    general_forecast = forecast_item.get('general', {})
-    relative_humidity = forecast_item.get('relative_humidity', {})
-    temperature = forecast_item.get('temperature', {})
-    wind = forecast_item.get('wind', {})
-
-    # Display general forecast
-    if general_forecast:
-        forecast_text = general_forecast.get('forecast', 'N/A')
-        items.append(
-            html.Div(
-                [
-                    html.Strong("General Forecast", style={"color": "#4CAF50", "fontSize": "16px"}),
-                    html.Br(),
-                    html.Span(forecast_text, style={"color": "#ddd", "fontSize": "14px"})
-                ],
-                style={
-                    "padding": "10px",
-                    "margin": "5px 0",
-                    "borderBottom": "2px solid #444",
-                    "borderRadius": "3px",
-                }
-            )
+    # Fetch data from API
+    api_key = os.getenv('DATA_GOV_API')
+    if not api_key:
+        print("DATA_GOV_API environment variable not set")
+        return html.P(
+            "API key not configured",
+            style={"padding": "10px", "color": "#999", "textAlign": "center"}
         )
 
-    # Display temperature
-    if temperature:
-        temp_high = temperature.get('high', 'N/A')
-        temp_low = temperature.get('low', 'N/A')
-        items.append(
-            html.Div(
-                [
-                    html.Strong("Temperature", style={"color": "#FF9800"}),
-                    html.Br(),
-                    html.Span(f"High: {temp_high}°C | Low: {temp_low}°C", style={"color": "#ddd", "fontSize": "14px"})
-                ],
-                style={
-                    "padding": "8px",
-                    "margin": "5px 0",
-                    "borderBottom": "1px solid #444",
-                    "borderRadius": "3px",
-                }
+    url = "https://api-open.data.gov.sg/v2/real-time/api/twenty-four-hr-forecast"
+    headers = {
+        "X-API-Key": api_key,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code != 200:
+            print(f"24-hour weather forecast API failed: status={res.status_code}")
+            return html.P(
+                "Failed to fetch weather data",
+                style={"padding": "10px", "color": "#999", "textAlign": "center"}
             )
+        data = res.json()
+    except (requests.exceptions.RequestException, ValueError) as error:
+        print(f"Error calling 24-hour weather forecast API: {error}")
+        return html.P(
+            "Error fetching weather data",
+            style={"padding": "10px", "color": "#999", "textAlign": "center"}
         )
 
-    # Display relative humidity
-    if relative_humidity:
-        rh_high = relative_humidity.get('high', 'N/A')
-        rh_low = relative_humidity.get('low', 'N/A')
-        items.append(
-            html.Div(
-                [
-                    html.Strong("Relative Humidity", style={"color": "#2196F3"}),
-                    html.Br(),
-                    html.Span(f"High: {rh_high}% | Low: {rh_low}%", style={"color": "#ddd", "fontSize": "14px"})
-                ],
-                style={
-                    "padding": "8px",
-                    "margin": "5px 0",
-                    "borderBottom": "1px solid #444",
-                    "borderRadius": "3px",
-                }
-            )
+    # Handle API structure: data.records[0].general
+    records = data.get('data', {}).get('records', []) if data else []
+    if not records:
+        return html.P(
+            "No data available",
+            style={"padding": "10px", "color": "#999", "textAlign": "center"}
         )
 
-    # Display wind
-    if wind:
-        wind_speed = wind.get('speed', {})
-        wind_direction = wind.get('direction', 'N/A')
-        speed_low = wind_speed.get('low', 'N/A')
-        speed_high = wind_speed.get('high', 'N/A')
-        items.append(
-            html.Div(
-                [
-                    html.Strong("Wind", style={"color": "#9C27B0"}),
-                    html.Br(),
-                    html.Span(f"Speed: {speed_low}-{speed_high} km/h | Direction: {wind_direction}",
-                             style={"color": "#ddd", "fontSize": "14px"})
-                ],
-                style={
-                    "padding": "8px",
-                    "margin": "5px 0",
-                    "borderBottom": "1px solid #444",
-                    "borderRadius": "3px",
-                }
-            )
+    # Extract data from general key
+    general = records[0].get('general', {})
+
+    # Build weather info cards (4 cards: Temperature, Humidity, Wind, Forecast)
+    grid_items = _build_weather_grid(general)
+
+    if not grid_items:
+        return html.P(
+            "No forecast data available",
+            style={"padding": "10px", "color": "#999", "textAlign": "center"}
         )
 
-    return items if items else [html.P("No forecast data available", style={"padding": "10px", "color": "#999"})]
+    # Return 2x2 grid layout
+    return html.Div(
+        grid_items,
+        style={
+            "display": "grid",
+            "gridTemplateColumns": "1fr 1fr",
+            "gridTemplateRows": "1fr 1fr",
+            "gap": "10px",
+            "width": "100%",
+            "padding": "10px",
+            "height": "100%",
+        }
+    )
 
 
 def register_weather_callbacks(app):
@@ -282,3 +334,22 @@ def register_weather_callbacks(app):
 
         return weather_2h_content
 
+    @app.callback(
+        Output('weather-24h-content', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_weather_forecast_24h_main(n_intervals):
+        """
+        Update 24-hour weather forecast display on main dashboard periodically.
+
+        Args:
+            n_intervals: Number of intervals (from dcc.Interval component)
+
+        Returns:
+            HTML content for 24-hour forecast (temperature, humidity, forecast, wind)
+        """
+        # n_intervals is required by the callback but not used directly
+        _ = n_intervals
+
+        # Fetch and format 24-hour forecast
+        return fetch_and_format_weather_24h()
