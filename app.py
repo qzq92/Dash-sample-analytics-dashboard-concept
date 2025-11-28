@@ -10,9 +10,11 @@ load_dotenv(override=True)
 from components.banner_component import build_dashboard_banner
 from components.map_component import map_component, search_bar
 from components.weather_page import weather_forecast_page
+from components.realtime_weather_page import realtime_weather_page
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
 from callbacks.weather_callback import register_weather_callbacks
+from callbacks.realtime_weather_callback import register_realtime_weather_callbacks
 from callbacks.mrt_callback import register_mrt_callbacks
 from callbacks.busstop_callbacks import register_busstop_callbacks
 from callbacks.carpark_callback import register_carpark_callbacks
@@ -39,6 +41,7 @@ app = Dash(__name__,
 register_search_callbacks(app)
 register_camera_feed_callbacks(app)
 register_weather_callbacks(app)
+register_realtime_weather_callbacks(app)
 register_mrt_callbacks(app)
 register_busstop_callbacks(app)
 register_carpark_callbacks(app)
@@ -102,6 +105,8 @@ app.layout = html.Div(
             children=[
                 # Weather forecast page (hidden by default, shown when weather tab is selected)
                 weather_forecast_page(),
+                # Realtime weather page (hidden by default)
+                realtime_weather_page(),
                 # Main content area with map and right panel side by side
                 html.Div(
                     id="main-content-area",
@@ -272,15 +277,18 @@ app.layout = html.Div(
                                                 "padding": "10px",
                                                 "display": "flex",
                                                 "flexDirection": "column",
+                                                "overflow": "hidden",
+                                                "minHeight": "0",
                                             },
                                             children=[
                                                 html.H4(
-                                                    "Next 24-Hour Weather Forecast",
+                                                    "Next 24-Hour Forecast",
                                                     style={
                                                         "textAlign": "center",
-                                                        "margin": "10px 0",
+                                                        "margin": "5px 0",
                                                         "color": "#fff",
-                                                        "fontWeight": "700"
+                                                        "fontWeight": "700",
+                                                        "flexShrink": "0",
                                                     }
                                                 ),
                                                 html.Div(
@@ -289,8 +297,13 @@ app.layout = html.Div(
                                                         html.P("Loading...", style={"textAlign": "center", "padding": "20px", "color": "#999"})
                                                     ],
                                                     style={
-                                                        "overflowY": "auto",
                                                         "flex": "1",
+                                                        "display": "flex",
+                                                        "alignItems": "center",
+                                                        "justifyContent": "center",
+                                                        "overflow": "hidden",
+                                                        "minHeight": "0",
+                                                        "minWidth": "0",
                                                     }
                                                 ),
                                             ]
