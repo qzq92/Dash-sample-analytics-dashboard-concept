@@ -33,7 +33,7 @@ def build_dashboard_banner():
         id="banner",
         className="banner",
         children=[
-            html.H2("Singapore City Dashboard (Simplified)"),
+            html.H2("Situation Dashboard"),
             # Navigation tabs with glossy styling
             html.Div(
                 dcc.Tabs(
@@ -50,6 +50,12 @@ def build_dashboard_banner():
                         dcc.Tab(
                             label="🌦️ 2-Hour Weather Forecast",
                             value="weather-2h",
+                            style=TAB_STYLE,
+                            selected_style=TAB_SELECTED_STYLE,
+                        ),
+                        dcc.Tab(
+                            label="📡 Realtime Weather",
+                            value="realtime-weather",
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
                         ),
