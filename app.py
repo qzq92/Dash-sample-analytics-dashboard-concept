@@ -8,14 +8,15 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from components.banner_component import build_dashboard_banner
-from components.map_component import map_component, show_descriptive_stats, search_bar, nearest_mrt_panel
-from components.tab_component import display_tabs
+from components.map_component import map_component, search_bar
+from components.weather_page import weather_forecast_page
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
 from callbacks.weather_callback import register_weather_callbacks
 from callbacks.mrt_callback import register_mrt_callbacks
 from callbacks.busstop_callbacks import register_busstop_callbacks
 from callbacks.carpark_callback import register_carpark_callbacks
+from callbacks.tab_navigation_callback import register_tab_navigation_callback
 from auth.onemap_api import initialize_onemap_token
 
 # Initialize OneMap API token on application startup
@@ -41,6 +42,7 @@ register_weather_callbacks(app)
 register_mrt_callbacks(app)
 register_busstop_callbacks(app)
 register_carpark_callbacks(app)
+register_tab_navigation_callback(app)
 
 # Dashboard app layout ------------------------------------------------------#
 app.layout = html.Div(
@@ -98,6 +100,8 @@ app.layout = html.Div(
         html.Div(
             id="app-container",
             children=[
+                # Weather forecast page (hidden by default, shown when weather tab is selected)
+                weather_forecast_page(),
                 # Main content area with map and right panel side by side
                 html.Div(
                     id="main-content-area",
@@ -134,7 +138,7 @@ app.layout = html.Div(
                                 "height": "100%",
                             },
                             children=[
-                                # Top row: CCTV feeds and Weather forecast side by side
+                                # Top row: CCTV feeds and 24-hour Weather forecast side by side
                                 html.Div(
                                     id="top-right-section",
                                     style={
@@ -144,7 +148,7 @@ app.layout = html.Div(
                                         "minHeight": "0",
                                     },
                                     children=[
-                                        # CCTV feeds section (left side) - arranged in column
+                                        # CCTV feeds section (left side)
                                         html.Div(
                                             id="camera-feeds-section",
                                             style={
@@ -258,9 +262,9 @@ app.layout = html.Div(
                                                 ),
                                             ]
                                         ),
-                                        # Weather forecast section (right side)
+                                        # 24-hour Weather forecast section (right side)
                                         html.Div(
-                                            id="weather-forecast-section",
+                                            id="weather-forecast-24h-section",
                                             style={
                                                 "flex": "1",
                                                 "backgroundColor": "#4a5a6a",
@@ -271,7 +275,7 @@ app.layout = html.Div(
                                             },
                                             children=[
                                                 html.H4(
-                                                    "Next 2-Hour Weather Forecast",
+                                                    "Next 24-Hour Weather Forecast",
                                                     style={
                                                         "textAlign": "center",
                                                         "margin": "10px 0",
@@ -280,13 +284,11 @@ app.layout = html.Div(
                                                     }
                                                 ),
                                                 html.Div(
-                                                    id="weather-2h-content",
+                                                    id="weather-24h-content",
                                                     children=[
                                                         html.P("Loading...", style={"textAlign": "center", "padding": "20px", "color": "#999"})
                                                     ],
                                                     style={
-                                                        "padding": "10px 20px",
-                                                        "maxHeight": "calc(50vh - 80px)",
                                                         "overflowY": "auto",
                                                         "flex": "1",
                                                     }
