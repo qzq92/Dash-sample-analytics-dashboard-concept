@@ -10,9 +10,77 @@ import os
 import requests
 from dash import Input, Output, html
 from dotenv import load_dotenv
+import dash_leaflet as dl
 from conf.weather_icons import get_weather_icon
 
 load_dotenv(override=True)
+
+
+def create_weather_markers(data):
+    """
+    Create weather icon markers for the 2-hour forecast map.
+
+    Args:
+        data: JSON response from 2-hour weather forecast API containing
+              area_metadata (lat/lon) and items with forecasts
+
+    Returns:
+        List of dash_leaflet DivMarker components with weather icons
+    """
+    if not data or 'items' not in data or not data['items']:
+        return []
+
+    if 'area_metadata' not in data:
+        return []
+
+    # Build area name to lat/lon lookup from area_metadata
+    area_coords = {}
+    for area in data.get('area_metadata', []):
+        name = area.get('name', '')
+        loc = area.get('label_location', {})
+        if name and loc:
+            area_coords[name] = {
+                'lat': loc.get('latitude'),
+                'lon': loc.get('longitude')
+            }
+
+    forecast_item = data['items'][0]
+    forecasts = forecast_item.get('forecasts', [])
+
+    markers = []
+    for forecast in forecasts:
+        area_name = forecast.get('area', '')
+        forecast_text = forecast.get('forecast', 'N/A')
+
+        # Get coordinates for this area
+        coords = area_coords.get(area_name)
+        if not coords or not coords['lat'] or not coords['lon']:
+            continue
+
+        weather_icon = get_weather_icon(forecast_text)
+
+        # Create a DivMarker with the weather icon
+        icon_style = "font-size: 20px; text-shadow: 0 0 3px #000, 0 0 5px #000;"
+        icon_html = f'<div style="{icon_style}">{weather_icon}</div>'
+        marker = dl.DivMarker(
+            position=[coords['lat'], coords['lon']],
+            iconOptions={
+                'className': 'weather-icon-marker',
+                'html': icon_html,
+                'iconSize': [30, 30],
+                'iconAnchor': [15, 15],
+            },
+            children=[
+                dl.Tooltip(
+                    f"{area_name}: {forecast_text}",
+                    permanent=False,
+                    direction="top"
+                )
+            ]
+        )
+        markers.append(marker)
+
+    return markers
 
 
 def fetch_weather_forecast_2h():
@@ -50,14 +118,13 @@ def fetch_weather_forecast_2h():
 def format_weather_2h(data):
     """
     Format 2-hour weather forecast data for display.
-    Arranges towns in a grid layout with multiple columns per row.
-    Example: 48 towns arranged in 4 rows of 12 columns each.
+    Arranges towns in a grid layout with 4 columns and at least 12 rows.
 
     Args:
         data: JSON response from 2-hour weather forecast API
 
     Returns:
-        HTML Div containing grid of town forecast divs arranged in rows and columns
+        HTML Div containing grid of town forecast divs (4 columns x 12+ rows)
     """
     if not data or 'items' not in data or not data['items']:
         return html.P("No data available", style={"padding": "10px", "color": "#999"})
@@ -70,7 +137,7 @@ def format_weather_2h(data):
     if not forecasts:
         return html.P("No forecast data available", style={"padding": "10px", "color": "#999"})
 
-    # Create town divs
+    # Create compact town divs for grid layout
     town_divs = []
     for forecast in forecasts:
         area_name = forecast.get('area', 'Unknown')
@@ -81,51 +148,57 @@ def format_weather_2h(data):
             html.Div(
                 [
                     html.Div(
-                        area_name,
-                        style={
-                            "fontWeight": "700",
-                            "fontSize": "14px",
-                            "color": "#4CAF50",
-                            "marginBottom": "4px"
-                        }
-                    ),
-                    html.Div(
                         [
                             html.Span(
                                 weather_icon,
-                                style={"marginRight": "6px", "fontSize": "14px"}
+                                style={"fontSize": "16px", "marginRight": "4px"}
                             ),
-                            html.Span(forecast_text)
+                            html.Span(
+                                area_name,
+                                style={
+                                    "fontWeight": "600",
+                                    "fontSize": "11px",
+                                    "color": "#4CAF50",
+                                }
+                            ),
                         ],
                         style={
-                            "color": "#ddd",
-                            "fontSize": "12px",
-                            "lineHeight": "1.3",
                             "display": "flex",
-                            "alignItems": "center"
+                            "alignItems": "center",
+                            "marginBottom": "2px"
+                        }
+                    ),
+                    html.Div(
+                        forecast_text,
+                        style={
+                            "color": "#bbb",
+                            "fontSize": "10px",
+                            "lineHeight": "1.2",
+                            "whiteSpace": "nowrap",
+                            "overflow": "hidden",
+                            "textOverflow": "ellipsis"
                         }
                     )
                 ],
                 style={
-                    "padding": "10px 12px",
+                    "padding": "6px 8px",
                     "borderRadius": "4px",
                     "backgroundColor": "#3a4a5a",
                     "border": "1px solid #555",
-                    "width": "100%",
                 }
             )
         )
 
-    # Return scrollable column container with all town divs
+    # Return grid container with 4 columns
     return html.Div(
         town_divs,
         style={
-            "display": "flex",
-            "flexDirection": "column",
-            "gap": "8px",
+            "display": "grid",
+            "gridTemplateColumns": "repeat(4, 1fr)",
+            "gap": "6px",
             "width": "100%",
-            "overflowX": "hidden",
             "overflowY": "auto",
+            "overflowX": "hidden",
             "padding": "5px",
         }
     )
@@ -134,6 +207,7 @@ def format_weather_2h(data):
 def _create_weather_card(title, emoji, color, value):
     """
     Helper to create a weather info card with large value display.
+    Values are self-contained and proportional to container size.
 
     Args:
         title: Card title
@@ -146,31 +220,41 @@ def _create_weather_card(title, emoji, color, value):
             html.Div(
                 f"{emoji} {title}",
                 style={
-                    "fontSize": "14px",
+                    "fontSize": "clamp(10px, 1.2vw, 14px)",
                     "fontWeight": "700",
                     "color": color,
-                    "marginBottom": "12px",
-                    "textAlign": "center"
+                    "marginBottom": "clamp(6px, 1vh, 12px)",
+                    "textAlign": "center",
+                    "overflow": "hidden",
+                    "textOverflow": "ellipsis",
+                    "whiteSpace": "nowrap",
                 }
             ),
             html.Div(
                 value,
                 style={
-                    "fontSize": "24px",
+                    "fontSize": "clamp(12px, 2vw, 24px)",
                     "fontWeight": "700",
                     "color": color,
                     "textAlign": "center",
-                    "whiteSpace": "nowrap"
+                    "wordBreak": "break-word",
+                    "overflowWrap": "break-word",
+                    "overflow": "hidden",
+                    "lineHeight": "1.3",
                 }
             )
         ],
         style={
             "flex": "1",
-            "padding": "15px",
+            "padding": "clamp(8px, 1.5vw, 15px)",
             "backgroundColor": "#3a4a5a",
             "borderRadius": "8px",
             "border": "1px solid #555",
-            "minWidth": "120px"
+            "minWidth": "0",
+            "overflow": "hidden",
+            "display": "flex",
+            "flexDirection": "column",
+            "justifyContent": "center",
         }
     )
 
@@ -289,17 +373,18 @@ def fetch_and_format_weather_24h():
             style={"padding": "10px", "color": "#999", "textAlign": "center"}
         )
 
-    # Return 2x2 grid layout
+    # Return 2x2 grid layout with responsive sizing, fully contained
     return html.Div(
         grid_items,
         style={
             "display": "grid",
-            "gridTemplateColumns": "1fr 1fr",
-            "gridTemplateRows": "1fr 1fr",
-            "gap": "10px",
+            "gridTemplateColumns": "repeat(2, minmax(0, 1fr))",
+            "gridTemplateRows": "repeat(2, minmax(0, 1fr))",
+            "gap": "clamp(6px, 1vw, 10px)",
             "width": "100%",
-            "padding": "10px",
             "height": "100%",
+            "overflow": "hidden",
+            "boxSizing": "border-box",
         }
     )
 
@@ -312,18 +397,19 @@ def register_weather_callbacks(app):
         app: Dash app instance
     """
     @app.callback(
-        Output('weather-2h-content', 'children'),
+        [Output('weather-2h-content', 'children'),
+         Output('weather-markers-layer', 'children')],
         Input('interval-component', 'n_intervals')
     )
     def update_weather_forecast_2h(n_intervals):
         """
-        Update 2-hour weather forecast display periodically.
+        Update 2-hour weather forecast display and map markers periodically.
 
         Args:
             n_intervals: Number of intervals (from dcc.Interval component)
 
         Returns:
-            HTML content for 2-hour forecast (towns arranged in column)
+            Tuple of (HTML content for forecast list, list of map markers)
         """
         # n_intervals is required by the callback but not used directly
         _ = n_intervals
@@ -332,7 +418,10 @@ def register_weather_callbacks(app):
         weather_2h_data = fetch_weather_forecast_2h()
         weather_2h_content = format_weather_2h(weather_2h_data)
 
-        return weather_2h_content
+        # Create weather markers for the map
+        weather_markers = create_weather_markers(weather_2h_data)
+
+        return weather_2h_content, weather_markers
 
     @app.callback(
         Output('weather-24h-content', 'children'),
