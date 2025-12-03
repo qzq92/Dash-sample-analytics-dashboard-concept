@@ -11,10 +11,12 @@ from components.banner_component import build_dashboard_banner
 from components.map_component import map_component, search_bar
 from components.weather_page import weather_forecast_page
 from components.realtime_weather_page import realtime_weather_page
+from components.weather_indices_page import weather_indices_page
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
 from callbacks.weather_callback import register_weather_callbacks
 from callbacks.realtime_weather_callback import register_realtime_weather_callbacks
+from callbacks.weather_indices_callback import register_weather_indices_callbacks
 from callbacks.mrt_callback import register_mrt_callbacks
 from callbacks.busstop_callbacks import register_busstop_callbacks
 from callbacks.carpark_callback import register_carpark_callbacks
@@ -42,6 +44,7 @@ register_search_callbacks(app)
 register_camera_feed_callbacks(app)
 register_weather_callbacks(app)
 register_realtime_weather_callbacks(app)
+register_weather_indices_callbacks(app)
 register_mrt_callbacks(app)
 register_busstop_callbacks(app)
 register_carpark_callbacks(app)
@@ -107,6 +110,8 @@ app.layout = html.Div(
                 weather_forecast_page(),
                 # Realtime weather page (hidden by default)
                 realtime_weather_page(),
+                # Weather indices page (hidden by default)
+                weather_indices_page(),
                 # Main content area with map and right panel side by side
                 html.Div(
                     id="main-content-area",
