@@ -15,6 +15,7 @@ def register_tab_navigation_callback(app):
         [Output('main-content-area', 'style'),
          Output('weather-forecast-page', 'style'),
          Output('realtime-weather-page', 'style'),
+         Output('weather-indices-page', 'style'),
          Output('search-bar-section', 'style')],
         Input('navigation-tabs', 'value')
     )
@@ -23,7 +24,8 @@ def register_tab_navigation_callback(app):
         Switch between dashboard pages.
 
         Args:
-            tab_value: Selected tab value ('main', 'weather-2h', 'realtime-weather')
+            tab_value: Selected tab value
+                ('main', 'weather-2h', 'realtime-weather', 'weather-indices')
 
         Returns:
             Tuple of style dictionaries for each page and search bar
@@ -32,6 +34,7 @@ def register_tab_navigation_callback(app):
         main_style = {'display': 'none'}
         weather_2h_style = {'display': 'none'}
         realtime_style = {'display': 'none'}
+        indices_style = {'display': 'none'}
         search_bar_style = {'display': 'none'}
 
         if tab_value == 'weather-2h':
@@ -43,6 +46,13 @@ def register_tab_navigation_callback(app):
             }
         elif tab_value == 'realtime-weather':
             realtime_style = {
+                "display": "block",
+                "padding": "20px",
+                "height": "calc(100vh - 120px)",
+                "width": "100%",
+            }
+        elif tab_value == 'weather-indices':
+            indices_style = {
                 "display": "block",
                 "padding": "20px",
                 "height": "calc(100vh - 120px)",
@@ -64,26 +74,28 @@ def register_tab_navigation_callback(app):
                 "borderBottom": "1px solid #444",
             }
 
-        return main_style, weather_2h_style, realtime_style, search_bar_style
+        return (main_style, weather_2h_style, realtime_style,
+                indices_style, search_bar_style)
 
     # Clientside callback to fix map rendering after tab switch and force center
     app.clientside_callback(
         """
         function(tab_value) {
-            if (tab_value === 'weather-2h' || tab_value === 'realtime-weather') {
+            var mapTabs = ['weather-2h', 'realtime-weather', 'weather-indices'];
+            if (mapTabs.includes(tab_value)) {
                 // Delay to ensure DOM is fully updated
                 setTimeout(function() {
                     // Find all Leaflet map containers and invalidate size
-                    var maps = ['weather-2h-map', 'realtime-weather-map'];
+                    var maps = [
+                        'weather-2h-map',
+                        'realtime-weather-map',
+                        'weather-indices-map'
+                    ];
                     maps.forEach(function(id) {
                         var mapEl = document.getElementById(id);
                         if (mapEl) {
                             // Trigger resize event for simple fix
                             window.dispatchEvent(new Event('resize'));
-                            
-                            // Try to find Leaflet instance and force set view
-                            // This is a more direct way if the map object is accessible
-                            // But dispatching resize is usually sufficient for size issues
                         }
                     });
                 }, 200);
