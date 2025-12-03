@@ -1,5 +1,5 @@
 """
-Component for the realtime weather readings page.
+Component for the realtime weather metrics page.
 Displays live weather station data across Singapore.
 """
 from dash import html, dcc
@@ -8,11 +8,11 @@ import dash_leaflet as dl
 
 def realtime_weather_page():
     """
-    Create the realtime weather readings page layout.
+    Create the realtime weather metrics page layout.
     Features: temperature, rainfall, humidity, wind readings with map.
 
     Returns:
-        HTML Div containing the realtime weather section
+        HTML Div containing the realtime weather metrics section
     """
     # Singapore center coordinates (Adjusted to frame Singapore nicely)
     sg_center = [1.36, 103.82]
@@ -33,7 +33,7 @@ def realtime_weather_page():
         children=[
             # Header
             html.H4(
-                "Realtime Weather Readings",
+                "Realtime Weather Metrics",
                 style={
                     "textAlign": "center",
                     "margin": "0 0 15px 0",
