@@ -17,6 +17,35 @@ from conf.windspeed_icon import get_windspeed_icon, get_windspeed_description
 load_dotenv(override=True)
 
 
+def fetch_flood_alerts():
+    """
+    Fetch flood alerts from data.gov.sg v2 API.
+    Reference: https://api-open.data.gov.sg/v2/real-time/api/weather/flood-alerts
+
+    Returns:
+        Dictionary containing flood alert data or None if error
+    """
+    api_key = os.getenv('DATA_GOV_API')
+    if not api_key:
+        print("DATA_GOV_API environment variable not set")
+        return None
+
+    url = "https://api-open.data.gov.sg/v2/real-time/api/weather/flood-alerts"
+    headers = {
+        "X-API-Key": api_key,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            return res.json()
+        print(f"Flood alerts API failed: status={res.status_code}")
+    except (requests.exceptions.RequestException, ValueError) as error:
+        print(f"Error calling flood alerts API: {error}")
+    return None
+
+
 def fetch_realtime_data(endpoint):
     """
     Fetch realtime weather data from data.gov.sg v2 API.
@@ -51,6 +80,34 @@ def fetch_realtime_data(endpoint):
         print(f"Realtime {endpoint} API failed: status={res.status_code}")
     except (requests.exceptions.RequestException, ValueError) as error:
         print(f"Error calling {endpoint} API: {error}")
+    return None
+
+
+def fetch_lightning_data():
+    """
+    Fetch lightning observations from data.gov.sg weather API.
+
+    Returns:
+        Dictionary containing lightning data or None if error
+    """
+    api_key = os.getenv('DATA_GOV_API')
+    if not api_key:
+        print("DATA_GOV_API environment variable not set")
+        return None
+
+    url = "https://api-open.data.gov.sg/v2/real-time/api/weather?api=lightning"
+    headers = {
+        "X-API-Key": api_key,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            return res.json()
+        print(f"Lightning API failed: status={res.status_code}")
+    except (requests.exceptions.RequestException, ValueError) as error:
+        print(f"Error calling lightning API: {error}")
     return None
 
 
@@ -390,6 +447,370 @@ def create_wind_markers(data):
     return markers
 
 
+def _create_lightning_marker(lat, lon, reading_info, marker_index):
+    """Create a single lightning marker."""
+    marker_html = (
+        '<div style="width:20px;height:20px;background:#FFD700;'
+        'border-radius:3px;border:2px solid #fff;'
+        'box-shadow:0 2px 8px rgba(255,215,0,0.6);'
+        'cursor:pointer;display:flex;align-items:center;'
+        'justify-content:center;font-size:14px;color:#fff;'
+        'font-weight:bold;">⚡</div>'
+    )
+    text = reading_info.get('text', 'Lightning')
+    lightning_type = reading_info.get('type', 'C')
+    datetime_str = reading_info.get('datetime', '')
+    tooltip_text = f"{text} ({lightning_type})\n{datetime_str}"
+    marker_id = f"lightning-{lat}-{lon}-{marker_index}"
+
+    return dl.DivMarker(
+        id=marker_id,
+        position=[lat, lon],
+        iconOptions={
+            'className': 'lightning-pin',
+            'html': marker_html,
+            'iconSize': [24, 24],
+            'iconAnchor': [12, 12],
+        },
+        children=[dl.Tooltip(tooltip_text)]
+    )
+
+
+def _process_lightning_reading(reading, marker_index):
+    """Process a single lightning reading and return marker if valid."""
+    location = reading.get('location', {})
+    # Handle typo in API: 'longtitude' instead of 'longitude'
+    lat_str = location.get('latitude')
+    lon_str = location.get('longtitude') or location.get('longitude')
+
+    if not lat_str or not lon_str:
+        return None, marker_index
+
+    try:
+        lat = float(lat_str)
+        lon = float(lon_str)
+        reading_info = {
+            'text': reading.get('text', 'Lightning'),
+            'type': reading.get('type', 'C'),
+            'datetime': reading.get('datetime', '')
+        }
+
+        marker = _create_lightning_marker(lat, lon, reading_info, marker_index)
+        return marker, marker_index + 1
+    except (ValueError, TypeError):
+        return None, marker_index
+
+
+def create_lightning_markers(data):
+    """Create lightning markers for map (yellow/white flash icons)."""
+    markers = []
+    if not data or 'data' not in data:
+        return markers
+
+    records = data['data'].get('records', [])
+    if not records:
+        return markers
+
+    marker_index = 0
+    # Extract readings from all records
+    for record in records:
+        item = record.get('item', {})
+        readings = item.get('readings', [])
+        if not readings:
+            continue
+
+        for reading in readings:
+            marker, marker_index = _process_lightning_reading(reading, marker_index)
+            if marker:
+                markers.append(marker)
+
+    return markers
+
+
+def _create_single_flood_marker(lat, lon, description, instruction, marker_index):
+    """Create a single flood marker."""
+    # Combine description and instruction for tooltip
+    if description and instruction:
+        tooltip_text = f"{description} {instruction}"
+    elif description:
+        tooltip_text = description
+    elif instruction:
+        tooltip_text = instruction
+    else:
+        tooltip_text = "Flood alert"
+
+    # Create flood marker (red circle with wave icon)
+    marker_html = (
+        '<div style="width:20px;height:20px;background:#ff4444;'
+        'border-radius:50%;border:2px solid #fff;'
+        'box-shadow:0 2px 8px rgba(255,68,68,0.6);'
+        'cursor:pointer;display:flex;align-items:center;'
+        'justify-content:center;font-size:14px;color:#fff;'
+        'font-weight:bold;">🌊</div>'
+    )
+    marker_id = f"flood-{lat}-{lon}-{marker_index}"
+
+    return dl.DivMarker(
+        id=marker_id,
+        position=[lat, lon],
+        iconOptions={
+            'className': 'flood-pin',
+            'html': marker_html,
+            'iconSize': [24, 24],
+            'iconAnchor': [12, 12],
+        },
+        children=[dl.Tooltip(tooltip_text)]
+    )
+
+
+def create_flood_markers(data):
+    """Create flood markers for map from circle coordinates."""
+    markers = []
+    if not data or 'data' not in data:
+        return markers
+
+    records = data['data'].get('records', [])
+    if not records:
+        return markers
+
+    # Extract first record
+    first_record = records[0]
+    item = first_record.get('item', {})
+    readings = item.get('readings', [])
+
+    if not readings:
+        return markers
+
+    marker_index = 0
+    for reading in readings:
+        area = reading.get('area', {})
+        circle = area.get('circle', [])
+
+        # Circle format: [latitude, longitude, radius]
+        if circle and len(circle) >= 2:
+            try:
+                lat = float(circle[0])
+                lon = float(circle[1])
+                description = reading.get('description', 'Flood alert')
+                instruction = reading.get('instruction', '')
+
+                markers.append(_create_single_flood_marker(
+                    lat, lon, description, instruction, marker_index
+                ))
+                marker_index += 1
+            except (ValueError, TypeError):
+                continue
+
+    return markers
+
+
+def format_lightning_indicator(data):
+    """Format lightning status indicator."""
+    if not data or 'data' not in data:
+        return html.Div(
+            [
+                html.Span("⚡", style={"fontSize": "16px"}),
+                html.Span("Error", style={"color": "#ff6b6b"})
+            ],
+            style={
+                "display": "inline-flex",
+                "alignItems": "center",
+                "gap": "8px",
+                "padding": "6px 12px",
+                "borderRadius": "6px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+                "backgroundColor": "#3a4a5a",
+            }
+        )
+
+    records = data['data'].get('records', [])
+    if not records:
+        return html.Div(
+            [
+                html.Span("⚡", style={"fontSize": "16px"}),
+                html.Span("No lightning detected", style={"color": "#888"})
+            ],
+            style={
+                "display": "inline-flex",
+                "alignItems": "center",
+                "gap": "8px",
+                "padding": "6px 12px",
+                "borderRadius": "6px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+                "backgroundColor": "#3a4a5a",
+            }
+        )
+
+    # Check if any record has readings
+    has_readings = False
+    for record in records:
+        item = record.get('item', {})
+        readings = item.get('readings', [])
+        if readings:
+            has_readings = True
+            break
+
+    if has_readings:
+        return html.Div(
+            [
+                html.Span("⚡", style={"fontSize": "16px"}),
+                html.Span("Lightning detected", style={"color": "#FFD700"})
+            ],
+            style={
+                "display": "inline-flex",
+                "alignItems": "center",
+                "gap": "8px",
+                "padding": "6px 12px",
+                "borderRadius": "6px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+                "backgroundColor": "#3a4a5a",
+                "border": "1px solid #FFD700",
+            }
+        )
+
+    return html.Div(
+        [
+            html.Span("⚡", style={"fontSize": "16px"}),
+            html.Span("No lightning detected", style={"color": "#888"})
+        ],
+        style={
+            "display": "inline-flex",
+            "alignItems": "center",
+            "gap": "8px",
+            "padding": "6px 12px",
+            "borderRadius": "6px",
+            "fontSize": "12px",
+            "fontWeight": "600",
+            "backgroundColor": "#3a4a5a",
+        }
+    )
+
+
+def format_flood_indicator(data):
+    """Format flood status indicator from v2 API response."""
+    if not data or 'data' not in data:
+        return html.Div(
+            [
+                html.Span("🌊", style={"fontSize": "16px"}),
+                html.Span("No flooding notice at the moment", style={"color": "#888"})
+            ],
+            style={
+                "display": "inline-flex",
+                "alignItems": "center",
+                "gap": "8px",
+                "padding": "6px 12px",
+                "borderRadius": "6px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+                "backgroundColor": "#3a4a5a",
+            }
+        )
+
+    records = data['data'].get('records', [])
+    if not records:
+        return html.Div(
+            [
+                html.Span("🌊", style={"fontSize": "16px"}),
+                html.Span("No flooding notice at the moment", style={"color": "#888"})
+            ],
+            style={
+                "display": "inline-flex",
+                "alignItems": "center",
+                "gap": "8px",
+                "padding": "6px 12px",
+                "borderRadius": "6px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+                "backgroundColor": "#3a4a5a",
+            }
+        )
+
+    # Extract first record
+    first_record = records[0]
+    item = first_record.get('item', {})
+    readings = item.get('readings', [])
+
+    if not readings:
+        return html.Div(
+            [
+                html.Span("🌊", style={"fontSize": "16px"}),
+                html.Span("No flooding notice at the moment", style={"color": "#888"})
+            ],
+            style={
+                "display": "inline-flex",
+                "alignItems": "center",
+                "gap": "8px",
+                "padding": "6px 12px",
+                "borderRadius": "6px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+                "backgroundColor": "#3a4a5a",
+            }
+        )
+
+    # Combine description and instruction for each reading
+    alert_messages = []
+    for reading in readings:
+        description = reading.get('description', '')
+        instruction = reading.get('instruction', '')
+
+        # Combine description and instruction as a sentence
+        if description and instruction:
+            alert_text = f"{description} {instruction}"
+        elif description:
+            alert_text = description
+        elif instruction:
+            alert_text = instruction
+        else:
+            alert_text = "Flood alert"
+
+        alert_messages.append(alert_text)
+
+    if not alert_messages:
+        return html.Div(
+            [
+                html.Span("🌊", style={"fontSize": "16px"}),
+                html.Span("No flooding notice at the moment", style={"color": "#888"})
+            ],
+            style={
+                "display": "inline-flex",
+                "alignItems": "center",
+                "gap": "8px",
+                "padding": "6px 12px",
+                "borderRadius": "6px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+                "backgroundColor": "#3a4a5a",
+            }
+        )
+
+    # Show flood alert (limit to first alert for indicator)
+    alert_text = alert_messages[0]
+    if len(alert_messages) > 1:
+        alert_text += f" (+{len(alert_messages) - 1} more)"
+
+    return html.Div(
+        [
+            html.Span("🌊", style={"fontSize": "16px"}),
+            html.Span(alert_text, style={"color": "#ff6b6b"})
+        ],
+        style={
+            "display": "inline-flex",
+            "alignItems": "center",
+            "gap": "8px",
+            "padding": "6px 12px",
+            "borderRadius": "6px",
+            "fontSize": "12px",
+            "fontWeight": "600",
+            "backgroundColor": "#3a4a5a",
+            "border": "1px solid #ff6b6b",
+        }
+    )
+
+
 def register_realtime_weather_callbacks(app):
     """
     Register callbacks for realtime weather readings.
@@ -509,6 +930,50 @@ def register_realtime_weather_callbacks(app):
             data = fetch_realtime_data(endpoint)
             if data:
                 return create_fn(data)
+        return []
+
+    @app.callback(
+        Output('lightning-indicator', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_lightning_indicator(n_intervals):
+        """Update lightning status indicator periodically."""
+        _ = n_intervals
+        data = fetch_lightning_data()
+        return format_lightning_indicator(data)
+
+    @app.callback(
+        Output('lightning-markers', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_lightning_markers(n_intervals):
+        """Update lightning markers on map periodically."""
+        _ = n_intervals
+        data = fetch_lightning_data()
+        if data:
+            return create_lightning_markers(data)
+        return []
+
+    @app.callback(
+        Output('flood-indicator', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_flood_indicator(n_intervals):
+        """Update flood status indicator periodically."""
+        _ = n_intervals
+        data = fetch_flood_alerts()
+        return format_flood_indicator(data)
+
+    @app.callback(
+        Output('flood-markers', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_flood_markers(n_intervals):
+        """Update flood markers on map periodically."""
+        _ = n_intervals
+        data = fetch_flood_alerts()
+        if data:
+            return create_flood_markers(data)
         return []
 
 

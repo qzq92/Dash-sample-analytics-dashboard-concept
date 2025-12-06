@@ -193,16 +193,6 @@ def format_uv_display(data):
     return html.Div(
         children=[
             html.Div(
-                "Hourly Trend",
-                style={
-                    "color": "#fff",
-                    "fontSize": "14px",
-                    "fontWeight": "600",
-                    "marginBottom": "8px",
-                    "paddingLeft": "8px",
-                }
-            ),
-            html.Div(
                 style={
                     "backgroundColor": "#3a4a5a",
                     "borderRadius": "6px",
