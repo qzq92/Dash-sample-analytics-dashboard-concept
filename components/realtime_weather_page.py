@@ -36,10 +36,57 @@ def realtime_weather_page():
                 "Realtime Weather Metrics",
                 style={
                     "textAlign": "center",
-                    "margin": "0 0 15px 0",
+                    "margin": "0 0 10px 0",
                     "color": "#fff",
                     "fontWeight": "700"
                 }
+            ),
+            # Status indicators (Lightning and Flood)
+            html.Div(
+                id="status-indicators",
+                style={
+                    "display": "flex",
+                    "justifyContent": "center",
+                    "gap": "15px",
+                    "margin": "0 0 15px 0",
+                    "flexWrap": "wrap",
+                },
+                children=[
+                    html.Div(
+                        id="lightning-indicator",
+                        style={
+                            "display": "inline-flex",
+                            "alignItems": "center",
+                            "gap": "8px",
+                            "padding": "6px 12px",
+                            "borderRadius": "6px",
+                            "fontSize": "12px",
+                            "fontWeight": "600",
+                            "backgroundColor": "#3a4a5a",
+                        },
+                        children=[
+                            html.Span("⚡", style={"fontSize": "16px"}),
+                            html.Span("Loading...", style={"color": "#888"})
+                        ]
+                    ),
+                    html.Div(
+                        id="flood-indicator",
+                        style={
+                            "display": "inline-flex",
+                            "alignItems": "center",
+                            "gap": "8px",
+                            "padding": "6px 12px",
+                            "borderRadius": "6px",
+                            "fontSize": "12px",
+                            "fontWeight": "600",
+                            "backgroundColor": "#3a4a5a",
+                        },
+                        children=[
+                            html.Span("🌊", style={"fontSize": "16px"}),
+                            html.Span("No flooding notice at the moment", style={"color": "#888"})
+                        ]
+                    ),
+                ]
             ),
             # Main content: readings grid on left, map on right
             html.Div(
@@ -373,6 +420,8 @@ def realtime_weather_page():
                                                 maxNativeZoom=19,
                                             ),
                                             dl.LayerGroup(id="realtime-weather-markers"),
+                                            dl.LayerGroup(id="lightning-markers"),
+                                            dl.LayerGroup(id="flood-markers"),
                                         ],
                                     )
                                 ]

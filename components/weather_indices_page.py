@@ -89,7 +89,7 @@ def weather_indices_page():
                                         },
                                         children=[
                                             html.H5(
-                                                "☀️ UV Index",
+                                                "☀️ UV Index Today (Daylight hourly trend)",
                                                 style={
                                                     "margin": "0",
                                                     "color": "#fff",
@@ -143,7 +143,7 @@ def weather_indices_page():
                                         },
                                         children=[
                                             html.H5(
-                                                "🌡️ WBGT (Heat Stress)",
+                                                "🌡️ Wet-Bulb Globe Temperature (WBGT) (Heat Stress) across detected areas",
                                                 style={
                                                     "margin": "0",
                                                     "color": "#fff",
