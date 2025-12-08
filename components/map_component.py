@@ -53,7 +53,7 @@ def carpark_availability_panel():
     )
 
 
-def map_component(lat=1.33663363411169, lon=103.925744921529):
+def map_component(lat=1.35, lon=103.81):
     """
     Default display and layout of the map component. No API is needed as this is static rendering of map for quick loading
     Coordinates are provided in EPSG:4326 (WGS84 lat/lon) format, which Leaflet converts automatically.
@@ -71,9 +71,9 @@ def map_component(lat=1.33663363411169, lon=103.925744921529):
         dl.Map(
             id="sg-map",
             center=[lat, lon],  # Initial center, will be updated by callback
-            zoom=17,
-            minZoom=12,
-            maxZoom=18,
+            zoom=12,
+            minZoom=11,
+            maxZoom=20,
             # Map bounds to restrict view to Singapore area
             maxBounds=[[1.1304753, 103.6020882], [1.492007, 104.145897]],
             style={"width": "100%", "height": "100%", "margin": "0"},
@@ -86,6 +86,8 @@ def map_component(lat=1.33663363411169, lon=103.925744921529):
                 dl.ScaleControl(imperial=False, position="bottomleft"),
                 dl.LocateControl(locateOptions={"enableHighAccuracy": True}),
                 dl.LayerGroup(id="markers-layer"),
+                dl.LayerGroup(id="bus-stop-markers"),
+                dl.LayerGroup(id="carpark-markers"),
             ],
         )
     ], style={"width": "100%", "height": "100%", "display": "flex", "flexDirection": "column"})
