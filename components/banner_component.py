@@ -60,7 +60,7 @@ def build_dashboard_banner():
                             selected_style=TAB_SELECTED_STYLE,
                         ),
                         dcc.Tab(
-                            label="📊 Realtime Exposure Indexes",
+                            label="📊 Pollutant & Exposure Indexes",
                             value="weather-indices",
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
