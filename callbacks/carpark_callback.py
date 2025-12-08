@@ -6,8 +6,8 @@ import requests
 import pandas as pd
 import numpy as np
 import os
-from dash.dependencies import Input, Output, State, ALL
-from dash import html, dcc
+from dash.dependencies import Input, Output
+from dash import html
 import dash_leaflet as dl
 from typing import List, Optional, Dict, Tuple
 from pyproj import Transformer
@@ -236,11 +236,15 @@ def _get_label_letter(index):
     return labels[index] if index < len(labels) else str(index + 1)
 
 
-def create_carpark_markers(nearby_carparks):
+def create_carpark_markers(nearby_carparks, availability_lookup=None):
     """Create map markers for carparks with carpark ID labels.
     
     Note: lat/lon coordinates are derived from CSV file (SVY21 converted to WGS84),
     not from the carpark availability API which only provides lot availability data.
+    
+    Args:
+        nearby_carparks: List of carpark dictionaries with location data
+        availability_lookup: Optional dict mapping carpark numbers to availability data
     """
     markers = []
     for idx, carpark in enumerate(nearby_carparks):
@@ -262,11 +266,29 @@ def create_carpark_markers(nearby_carparks):
         else:
             distance_str = f"{distance_km:.2f}km"
 
-        # Build tooltip text
-        tooltip_text = f"{carpark_number}"
+        # Build tooltip text with availability
+        tooltip_parts = []
+        tooltip_parts.append(carpark_number)
         if address and address != 'N/A':
-            tooltip_text += f" - {address}"
-        tooltip_text += f" ({distance_str})"
+            tooltip_parts.append(address)
+        tooltip_parts.append(distance_str)
+        
+        # Add availability info to tooltip if available
+        if availability_lookup:
+            availability = availability_lookup.get(carpark_number.upper(), {})
+            carpark_info = availability.get('carpark_info', [])
+            if carpark_info:
+                tooltip_parts.append("")  # Empty line for spacing
+                tooltip_parts.append("Availability:")
+                for lot_info in carpark_info:
+                    lot_type = lot_info.get('lot_type', '')
+                    total_lots = lot_info.get('total_lots', '0')
+                    lots_available = lot_info.get('lots_available', '0')
+                    lot_type_name = format_lot_type_display(lot_type)
+                    tooltip_parts.append(f"  {lot_type_name}: {lots_available}/{total_lots}")
+        
+        # Join all parts with line breaks
+        tooltip_text = "\n".join(tooltip_parts)
 
         # Create marker HTML with carpark ID as label
         marker_html = (
@@ -328,135 +350,7 @@ def register_carpark_callbacks(app):
     """
     
     @app.callback(
-        [Output('carpark-detail-panel', 'style'),
-         Output('carpark-detail-content', 'children')],
-        [Input({'type': 'carpark-card', 'index': ALL}, 'n_clicks'),
-         Input('close-carpark-detail', 'n_clicks')],
-        State('carpark-data-store', 'data'),
-        prevent_initial_call=True
-    )
-    def toggle_carpark_detail(n_clicks_list, close_clicks, carpark_data_store):
-        """
-        Toggle the carpark detail side panel when a carpark card is clicked.
-        """
-        from dash import ctx
-        
-        if not ctx.triggered:
-            return {'display': 'none'}, []
-        
-        triggered_id = ctx.triggered_id
-        
-        # Check if close button was clicked
-        if triggered_id == 'close-carpark-detail':
-            return {'display': 'none'}, []
-        
-        # Check if a carpark card was clicked
-        if not triggered_id or not isinstance(triggered_id, dict):
-            return {'display': 'none'}, []
-        
-        carpark_number = triggered_id['index']
-        
-        # Get carpark data from store
-        if not carpark_data_store or carpark_number not in carpark_data_store:
-            return {'display': 'none'}, []
-        
-        carpark_info = carpark_data_store[carpark_number]
-        
-        # Build availability display
-        availability_items = []
-        for avail in carpark_info.get('availability', []):
-            availability_items.append(
-                html.Div(
-                    [
-                        html.Span(
-                            f"{avail['type_name']}:",
-                            style={
-                                "fontWeight": "bold",
-                                "fontSize": "14px",
-                                "color": "#ccc",
-                                "minWidth": "180px",
-                                "display": "inline-block"
-                            }
-                        ),
-                        html.Span(
-                            f" {avail['available']}/{avail['total']}",
-                            style={
-                                "fontSize": "18px",
-                                "color": avail['color'],
-                                "fontWeight": "bold",
-                                "marginLeft": "10px"
-                            }
-                        ),
-                    ],
-                    style={"marginBottom": "15px"}
-                )
-            )
-        
-        # Build detail panel content
-        detail_content = html.Div([
-            html.Div(
-                [
-                    html.H3(
-                        f"Carpark {carpark_number}",
-                        style={
-                            "color": "#60a5fa",
-                            "marginBottom": "8px",
-                            "fontSize": "18px",
-                            "paddingRight": "40px"
-                        }
-                    ),
-                    html.Div(
-                        carpark_info['address'],
-                        style={
-                            "color": "#ccc",
-                            "fontSize": "12px",
-                            "marginBottom": "5px"
-                        }
-                    ),
-                    html.Div(
-                        f"📍 {carpark_info['distance']}",
-                        style={
-                            "color": "#888",
-                            "fontSize": "11px",
-                            "marginBottom": "20px"
-                        }
-                    ),
-                ],
-                style={"marginBottom": "25px"}
-            ),
-            html.H4(
-                "Availability",
-                style={
-                    "color": "#fff",
-                    "fontSize": "14px",
-                    "marginBottom": "15px",
-                    "borderBottom": "1px solid #333",
-                    "paddingBottom": "8px"
-                }
-            ),
-            html.Div(availability_items if availability_items else html.P("No availability data", style={"color": "#999"}))
-        ])
-        
-        panel_style = {
-            'position': 'fixed',
-            'right': '0',
-            'top': '0',
-            'width': '320px',
-            'height': '100vh',
-            'backgroundColor': '#1e1e1e',
-            'borderLeft': '2px solid #60a5fa',
-            'padding': '25px',
-            'zIndex': '1000',
-            'display': 'block',
-            'overflowY': 'auto',
-            'boxShadow': '-4px 0 6px rgba(0, 0, 0, 0.3)'
-        }
-        
-        return panel_style, detail_content
-    
-    @app.callback(
         [Output('nearest-carpark-content', 'children'),
-         Output('carpark-data-store', 'data'),
          Output('carpark-markers', 'children')],
         Input('map-coordinates-store', 'data')
     )
@@ -481,7 +375,7 @@ def register_carpark_callbacks(app):
                     "fontSize": "12px",
                     "fontStyle": "italic"
                 }
-            ), {}, []
+            ), []
         
         try:
             center_lat = float(map_coords.get('lat'))
@@ -495,7 +389,7 @@ def register_carpark_callbacks(app):
                     "fontSize": "12px",
                     "textAlign": "center"
                 }
-            ), {}, []
+            ), []
         
         # Find carparks within 500m and limit to top 5
         print(f"Searching for carparks near ({center_lat}, {center_lon})")
@@ -515,7 +409,7 @@ def register_carpark_callbacks(app):
                     "fontSize": "12px",
                     "fontStyle": "italic"
                 }
-            ), {}, []
+            ), []
         
         # Fetch availability data from API
         api_data = fetch_carpark_availability()
@@ -529,7 +423,7 @@ def register_carpark_callbacks(app):
                     "color": "#ff6b6b",
                     "fontSize": "12px"
                 }
-            ), {}, []
+            ), []
         
         # Extract carpark data from API response
         items = api_data.get('items', [])
@@ -542,7 +436,7 @@ def register_carpark_callbacks(app):
                     "color": "#ff6b6b",
                     "fontSize": "12px"
                 }
-            ), {}, []
+            ), []
         
         # Get carpark data from first item (latest timestamp)
         carpark_availability_data = items[0].get('carpark_data', [])
@@ -553,8 +447,8 @@ def register_carpark_callbacks(app):
             for cp in carpark_availability_data
         }
         
-        # Create markers for map
-        markers = create_carpark_markers(nearby_carparks)
+        # Create markers for map with availability data
+        markers = create_carpark_markers(nearby_carparks, availability_lookup)
 
         # Build display components for each nearby carpark
         carpark_cards = []
@@ -575,8 +469,7 @@ def register_carpark_callbacks(app):
             else:
                 distance_str = f"{distance_km:.2f}km"
             
-            # Store carpark info as JSON for the side panel
-            import json
+            # Store carpark availability data
             carpark_data = {
                 'carpark_number': carpark_number,
                 'address': address,
@@ -611,106 +504,109 @@ def register_carpark_callbacks(app):
                     'color': status_color
                 })
             
-            # Create simplified clickable card without vacancy info
-            carpark_card = html.Div(
-                [
-                    # Carpark ID label and distance
+            # Build availability display for card
+            availability_elements = []
+            for avail_info in carpark_data['availability']:
+                availability_elements.append(
                     html.Div(
                         [
                             html.Span(
-                                carpark_number,
+                                f"{avail_info['type_name'][0]}: ",
                                 style={
-                                    "display": "inline-block",
-                                    "padding": "2px 8px",
-                                    "backgroundColor": "#2196F3",
-                                    "color": "#fff",
-                                    "borderRadius": "4px",
-                                    "fontSize": "11px",
-                                    "fontWeight": "bold",
-                                    "marginRight": "8px",
-                                }
-                            ),
-                            html.Span(
-                                f"{distance_str}",
-                                style={
-                                    "fontSize": "10px",
+                                    "fontSize": "9px",
                                     "color": "#999",
                                 }
                             ),
+                            html.Span(
+                                f"{avail_info['available']}/{avail_info['total']}",
+                                style={
+                                    "fontSize": "9px",
+                                    "color": avail_info['color'],
+                                    "fontWeight": "bold",
+                                }
+                            ),
                         ],
-                        style={
-                            "marginBottom": "3px",
-                            "display": "flex",
-                            "alignItems": "center"
-                        }
-                    ),
-                    # Address only
+                        style={"marginBottom": "2px"}
+                    )
+                )
+
+            # Create card with availability info on the right
+            carpark_card = html.Div(
+                [
+                    # Left side: Carpark info
                     html.Div(
-                        address if address != 'N/A' else 'No address',
+                        [
+                            # Carpark ID label and distance
+                            html.Div(
+                                [
+                                    html.Span(
+                                        carpark_number,
+                                        style={
+                                            "display": "inline-block",
+                                            "padding": "2px 8px",
+                                            "backgroundColor": "#2196F3",
+                                            "color": "#fff",
+                                            "borderRadius": "4px",
+                                            "fontSize": "11px",
+                                            "fontWeight": "bold",
+                                            "marginRight": "8px",
+                                        }
+                                    ),
+                                    html.Span(
+                                        f"{distance_str}",
+                                        style={
+                                            "fontSize": "10px",
+                                            "color": "#999",
+                                        }
+                                    ),
+                                ],
+                                style={
+                                    "marginBottom": "3px",
+                                    "display": "flex",
+                                    "alignItems": "center"
+                                }
+                            ),
+                            # Address
+                            html.Div(
+                                address if address != 'N/A' else 'No address',
+                                style={
+                                    "fontSize": "9px",
+                                    "color": "#ccc",
+                                    "overflow": "hidden",
+                                    "textOverflow": "ellipsis",
+                                    "whiteSpace": "nowrap"
+                                }
+                            ),
+                        ],
+                        style={"flex": "1", "minWidth": "0"}
+                    ),
+                    # Right side: Availability info
+                    html.Div(
+                        availability_elements if availability_elements else html.Span("No data", style={"fontSize": "9px", "color": "#666"}),
                         style={
-                            "fontSize": "9px",
-                            "color": "#ccc",
-                            "overflow": "hidden",
-                            "textOverflow": "ellipsis",
-                            "whiteSpace": "nowrap"
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "flex-end",
+                            "justifyContent": "center",
+                            "marginLeft": "8px"
                         }
                     )
                 ],
-                id={'type': 'carpark-card', 'index': carpark_number},
-                n_clicks=0,
                 style={
                     "padding": "6px 8px",
                     "marginBottom": "4px",
                     "backgroundColor": "#000000",
                     "borderRadius": "4px",
                     "borderLeft": "3px solid #60a5fa",
-                    "cursor": "pointer",
-                    "transition": "background-color 0.2s"
-                },
-                **{'data-carpark': json.dumps(carpark_data)}
+                    "display": "flex",
+                    "alignItems": "center",
+                    "gap": "8px"
+                }
             )
             
             carpark_cards.append(carpark_card)
         
-        # Store carpark details for the side panel
-        all_carpark_data = {}
-        for carpark in nearby_carparks:
-            carpark_number = carpark['carpark_number']
-            availability = availability_lookup.get(carpark_number.upper(), {})
-            carpark_info = availability.get('carpark_info', [])
-            
-            all_carpark_data[carpark_number] = {
-                'carpark_number': carpark_number,
-                'address': carpark.get('address', 'N/A'),
-                'distance': f"{carpark['distance_km'] * 1000:.0f}m" if carpark['distance_km'] < 0.1 else f"{carpark['distance_km']:.2f}km",
-                'availability': []
-            }
-            
-            for lot_info in carpark_info:
-                lot_type = lot_info.get('lot_type', 'N/A')
-                total_lots = lot_info.get('total_lots', '0')
-                lots_available = lot_info.get('lots_available', '0')
-                
-                try:
-                    total = int(total_lots)
-                    available = int(lots_available)
-                    percentage = (available / total * 100) if total > 0 else 0
-                    status_color = "#4ade80" if percentage > 20 else "#fbbf24" if percentage > 0 else "#ef4444"
-                except (ValueError, TypeError):
-                    percentage = 0
-                    status_color = "#999"
-                    available = 0
-                
-                all_carpark_data[carpark_number]['availability'].append({
-                    'type': lot_type.upper(),
-                    'type_name': format_lot_type_display(lot_type),
-                    'available': available,
-                    'total': total,
-                    'percentage': percentage,
-                    'color': status_color
-                })
-        
-        # Return cards and store data
+        # Return cards and markers
         cards_output = carpark_cards if carpark_cards else html.P(
             "No carpark data available",
             style={
@@ -721,4 +617,4 @@ def register_carpark_callbacks(app):
             }
         )
         
-        return cards_output, all_carpark_data, markers
+        return cards_output, markers
