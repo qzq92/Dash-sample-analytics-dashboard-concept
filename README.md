@@ -5,9 +5,11 @@
 ### Data sources
 
 All data are retrieved via API calls to data.gov.sg accessible [here](https://beta.data.gov.sg/). Key data sources involved are as follows:
-1. Traffic camera
-2. Weather data (Temperature and rainfall)
-3. Taxi location data
+1. **Weather Metrics**: Temperature, rainfall, relative humidity, and wind speed (V2 APIs)
+2. **Environmental Alerts**: Lightning observations and flood alerts
+3. **Exposure Indexes**: UV Index, WBGT (Wet-Bulb Globe Temperature), and PSI (Pollutant Standards Index)
+4. **Transportation**: Bus stop locations (LTA DataMall), carpark availability (HDB)
+5. **Traffic**: Traffic camera feeds
 
 For developers, please refer to the link [here](https://guide.data.gov.sg/developers) on possible deprecation and updates on API and other information.
 
@@ -16,10 +18,22 @@ For developers, please refer to the link [here](https://guide.data.gov.sg/develo
 
 ## What does this app show
 
-Work in progress. To be determined.
+This analytics dashboard provides real-time information on:
+- **Weather Metrics**: Temperature, rainfall, humidity, and wind speed across Singapore with interactive map markers
+- **Environmental Conditions**: Lightning detection and flood alerts
+- **Pollutant & Exposure Indexes**: UV Index, Wet-Bulb Globe Temperature (WBGT), and 24-hour Pollutant Standards Index (PSI) for all regions
+- **Transportation**: Nearby bus stops and carpark availability with real-time updates
+- **Traffic Cameras**: Live traffic camera feeds at key locations
 
 ## Screenshots of app
-- To be updated
+
+### Main Dashboard Page
+![Main Page](assets/img/main_page.jpg)
+*The main dashboard showing real-time weather metrics with interactive map markers, indicators for lightning and flood alerts, and nearby transportation information.*
+
+### Pollutant & Exposure Indexes Page
+![Pollutant & Exposure Indexes](assets/img/pollutant_exp_index.jpg)
+*Displays UV Index hourly trends, WBGT heat stress measurements, and regional PSI values with color-coded risk levels across Singapore's five regions (North, South, East, West, Central).*
 
 ## Built with following:
 * [Dash](https://dash.plot.ly/) - Main server and interactive components 
