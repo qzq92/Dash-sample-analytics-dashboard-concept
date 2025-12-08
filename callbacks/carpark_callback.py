@@ -330,8 +330,11 @@ def format_lot_type_display(lot_type: str) -> str:
         lot_type: Lot type code (e.g., 'C', 'H', 'S', 'Y')
     
     Returns:
-        Formatted lot type name
+        Formatted lot type name (defaults to "Unknown" for empty strings)
     """
+    if not lot_type:
+        return "Unknown"
+    
     lot_type_map = {
         'C': 'Cars',
         'H': 'Heavy vehicles',
@@ -507,11 +510,14 @@ def register_carpark_callbacks(app):
             # Build availability display for card
             availability_elements = []
             for avail_info in carpark_data['availability']:
+                # Get first character safely (default to '?' if empty string)
+                type_initial = (avail_info['type_name'][0]
+                                if avail_info['type_name'] else '?')
                 availability_elements.append(
                     html.Div(
                         [
                             html.Span(
-                                f"{avail_info['type_name'][0]}: ",
+                                f"{type_initial}: ",
                                 style={
                                     "fontSize": "9px",
                                     "color": "#999",
