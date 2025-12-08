@@ -54,34 +54,6 @@ register_tab_navigation_callback(app)
 app.layout = html.Div(
     id="root",
     children=[
-        # Carpark data store (holds detailed info for side panel)
-        dcc.Store(id='carpark-data-store', data={}),
-        # Carpark detail side panel (hidden by default)
-        html.Div(
-            id="carpark-detail-panel",
-            style={'display': 'none'},
-            children=[
-                html.Button(
-                    "×",
-                    id="close-carpark-detail",
-                    n_clicks=0,
-                    style={
-                        "position": "absolute",
-                        "top": "25px",
-                        "right": "25px",
-                        "background": "none",
-                        "border": "none",
-                        "color": "#999",
-                        "fontSize": "28px",
-                        "cursor": "pointer",
-                        "padding": "0",
-                        "lineHeight": "1",
-                        "zIndex": "1001"
-                    }
-                ),
-                html.Div(id="carpark-detail-content")
-            ]
-        ),
         # Header/Banner -------------------------------------------------#
         html.Div(
             id="header",
