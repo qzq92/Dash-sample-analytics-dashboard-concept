@@ -1,5 +1,5 @@
 """
-Component for the realtime exposure indexes page.
+Component for the Pollutant & Exposure Indexes page.
 Displays various exposure indexes across Singapore.
 """
 from dash import html, dcc
@@ -8,11 +8,11 @@ import dash_leaflet as dl
 
 def weather_indices_page():
     """
-    Create the realtime exposure indexes page layout.
+    Create the Pollutant & Exposure Indexes page layout.
     Features: UV Index, WBGT, and other exposure indexes.
 
     Returns:
-        HTML Div containing the realtime exposure indexes section
+        HTML Div containing the Pollutant & Exposure Indexes section
     """
     # Singapore center coordinates
     sg_center = [1.36, 103.82]
@@ -35,7 +35,7 @@ def weather_indices_page():
             dcc.Store(id="exposure-marker-type", data={'type': None, 'ts': 0}),
             # Header
             html.H4(
-                "Realtime Exposure Indexes",
+                "Pollutant & Exposure Indexes",
                 style={
                     "textAlign": "center",
                     "margin": "0 0 15px 0",
@@ -220,6 +220,9 @@ def weather_indices_page():
                                     ),
                                     dl.LayerGroup(
                                         id="weather-indices-markers"
+                                    ),
+                                    dl.LayerGroup(
+                                        id="psi-markers"
                                     ),
                                 ],
                                 zoomControl=True,
