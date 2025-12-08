@@ -16,6 +16,16 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 
+# PSI (Pollutant Standards Index) categories
+PSI_CATEGORIES = [
+    (0, 50, "#3ea72d", "Good"),
+    (51, 100, "#fff300", "Moderate"),
+    (101, 200, "#f18b00", "Unhealthy"),
+    (201, 300, "#e53210", "Very Unhealthy"),
+    (301, 999, "#b567a4", "Hazardous"),
+]
+
+
 
 # WBGT Heat Stress color coding
 WBGT_CATEGORIES = [
@@ -27,6 +37,20 @@ WBGT_CATEGORIES = [
 ]
 
 
+
+
+def get_psi_category(value):
+    """Get PSI category info (color and label) based on value."""
+    if value is None:
+        return "#888", "Unknown"
+    try:
+        val = float(value)
+    except (ValueError, TypeError):
+        return "#888", "Unknown"
+    for min_val, max_val, color, label in PSI_CATEGORIES:
+        if min_val <= val <= max_val:
+            return color, label
+    return "#888", "Unknown"
 
 
 def get_wbgt_category(value):
@@ -44,6 +68,26 @@ def get_wbgt_category(value):
     if val >= 34:
         return "#b567a4", "Extreme"
     return "#888", "Unknown"
+
+
+def fetch_psi_data():
+    """Fetch PSI data from Data.gov.sg API."""
+    api_key = os.getenv('DATA_GOV_API')
+    if not api_key:
+        print("DATA_GOV_API environment variable not set")
+        return None
+
+    url = "https://api-open.data.gov.sg/v2/real-time/api/psi"
+    headers = {"X-Api-Key": api_key}
+
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            return res.json()
+        print(f"PSI API failed: status={res.status_code}")
+    except (requests.exceptions.RequestException, ValueError) as error:
+        print(f"Error calling PSI API: {error}")
+    return None
 
 
 def fetch_uv_data():
@@ -211,6 +255,249 @@ def format_uv_display(data):
                     "fontStyle": "italic",
                 }
             ),
+        ]
+    )
+
+
+def _build_pollutant_row_html(pollutant_key, pollutant_name, value):
+    """Build HTML for a single pollutant row."""
+    if pollutant_key == "psi_twenty_four_hourly":
+        color, category = get_psi_category(value)
+        return (
+            f'<div style="margin: 2px 0;">'
+            f'{pollutant_name}: '
+            f'<span style="color:{color};font-weight:bold;">{value}</span> '
+            f'({category})'
+            f'</div>'
+        )
+    return f'<div style="margin: 2px 0;">{pollutant_name}: {value}</div>'
+
+
+def _create_single_psi_marker(region_info, readings, pollutants):
+    """Create a single PSI text box for a region."""
+    region_name = region_info.get("name", "")
+    label_location = region_info.get("labelLocation", {})
+    lat = label_location.get("latitude")
+    lon = label_location.get("longitude")
+
+    if not lat or not lon or not region_name:
+        return None
+
+    # Build the pollutant values HTML
+    pollutant_rows = []
+    for pollutant_key, pollutant_name in pollutants:
+        pollutant_data = readings.get(pollutant_key, {})
+        value = pollutant_data.get(region_name)
+        if value is not None:
+            row_html = _build_pollutant_row_html(pollutant_key,
+                                                  pollutant_name, value)
+            pollutant_rows.append(row_html)
+
+    pollutant_html = "".join(pollutant_rows)
+
+    # Create text box HTML
+    text_box_html = f'''
+        <div style="
+            background-color: rgba(74, 90, 106, 0.95);
+            border: 2px solid #60a5fa;
+            border-radius: 8px;
+            padding: 8px 10px;
+            min-width: 140px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        ">
+            <div style="
+                font-weight: bold;
+                font-size: 12px;
+                color: #60a5fa;
+                margin-bottom: 4px;
+                text-align: center;
+                border-bottom: 1px solid #60a5fa;
+                padding-bottom: 3px;
+            ">{region_name.upper()}</div>
+            <div style="
+                font-size: 10px;
+                color: #fff;
+                line-height: 1.3;
+            ">{pollutant_html}</div>
+        </div>
+    '''
+
+    return dl.DivMarker(
+        id=f"psi-{region_name}",
+        position=[lat, lon],
+        iconOptions={
+            'className': 'psi-textbox',
+            'html': text_box_html,
+            'iconSize': [160, 100],
+            'iconAnchor': [80, 50],
+        }
+    )
+
+
+def create_psi_markers(data):
+    """Create map markers for PSI regions with pollutant data in tooltips."""
+    if not data or data.get("code") != 0:
+        return []
+
+    items = data.get("data", {}).get("items", [])
+    region_metadata = data.get("data", {}).get("regionMetadata", [])
+
+    if not items or not region_metadata:
+        return []
+
+    readings = items[0].get("readings", {})
+    pollutants = [
+        ("psi_twenty_four_hourly", "24H PSI"),
+        ("pm25_twenty_four_hourly", "24H PM2.5"),
+        ("pm10_twenty_four_hourly", "24H PM10"),
+        ("so2_twenty_four_hourly", "SO₂")
+    ]
+
+    markers = [
+        _create_single_psi_marker(region_info, readings, pollutants)
+        for region_info in region_metadata
+    ]
+    return [m for m in markers if m is not None]
+
+
+def format_psi_display(data):
+    """Format PSI data as a table with regions as rows and pollutants as columns."""
+    if not data or data.get("code") != 0:
+        return html.P(
+            "Error retrieving PSI data",
+            style={"color": "#ff6b6b", "textAlign": "center"}
+        )
+
+    items = data.get("data", {}).get("items", [])
+    if not items:
+        return html.P(
+            "No PSI data available",
+            style={"color": "#ccc", "textAlign": "center"}
+        )
+
+    readings = items[0].get("readings", {})
+    update_time_str = _parse_timestamp(items[0].get("updatedTimestamp", ""))
+
+    # Define pollutants and regions
+    pollutants = [
+        ("psi_twenty_four_hourly", "24H PSI"),
+        ("pm25_twenty_four_hourly", "24H PM2.5"),
+        ("pm10_twenty_four_hourly", "24H PM10"),
+        ("so2_twenty_four_hourly", "SO₂")
+    ]
+    regions = ["north", "south", "east", "west", "central"]
+
+    # Create table header
+    header_row = html.Div(
+        style={
+            "display": "grid",
+            "gridTemplateColumns": "80px repeat(4, 1fr)",
+            "gap": "4px",
+            "padding": "8px 4px",
+            "backgroundColor": "#2a3a4a",
+            "borderRadius": "4px 4px 0 0",
+            "fontWeight": "bold",
+        },
+        children=[
+            html.Div("Region", style={
+                "fontSize": "10px",
+                "color": "#60a5fa",
+                "textAlign": "center"
+            })
+        ] + [
+            html.Div(name, style={
+                "fontSize": "10px",
+                "color": "#60a5fa",
+                "textAlign": "center"
+            })
+            for _, name in pollutants
+        ]
+    )
+
+    # Create table rows for each region
+    table_rows = []
+    for region in regions:
+        cells = [
+            html.Div(
+                region.capitalize(),
+                style={
+                    "fontSize": "10px",
+                    "color": "#ccc",
+                    "textAlign": "center",
+                    "fontWeight": "600"
+                }
+            )
+        ]
+
+        # Add cell for each pollutant
+        for pollutant_key, _ in pollutants:
+            pollutant_data = readings.get(pollutant_key, {})
+            value = pollutant_data.get(region)
+
+            if value is not None:
+                # Color code PSI values, use blue for others
+                if pollutant_key == "psi_twenty_four_hourly":
+                    color, _ = get_psi_category(value)
+                else:
+                    color = "#60a5fa"
+
+                cells.append(
+                    html.Div(
+                        str(value),
+                        style={
+                            "fontSize": "11px",
+                            "color": color,
+                            "textAlign": "center",
+                            "fontWeight": "bold"
+                        }
+                    )
+                )
+            else:
+                cells.append(
+                    html.Div(
+                        "-",
+                        style={
+                            "fontSize": "11px",
+                            "color": "#666",
+                            "textAlign": "center"
+                        }
+                    )
+                )
+
+        table_rows.append(
+            html.Div(
+                style={
+                    "display": "grid",
+                    "gridTemplateColumns": "80px repeat(4, 1fr)",
+                    "gap": "4px",
+                    "padding": "8px 4px",
+                    "backgroundColor": "#3a4a5a",
+                    "borderBottom": "1px solid #2a3a4a",
+                },
+                children=cells
+            )
+        )
+
+    return html.Div(
+        children=[
+            html.Div(
+                style={
+                    "backgroundColor": "#3a4a5a",
+                    "borderRadius": "6px",
+                    "overflow": "hidden"
+                },
+                children=[header_row] + table_rows
+            ),
+            html.Div(
+                f"Updated: {update_time_str}",
+                style={
+                    "textAlign": "center",
+                    "color": "#888",
+                    "fontSize": "11px",
+                    "marginTop": "10px",
+                    "fontStyle": "italic",
+                }
+            )
         ]
     )
 
@@ -452,19 +739,16 @@ def register_weather_indices_callbacks(app):
         State('exposure-marker-type', 'data'),
         prevent_initial_call=True
     )
-    def toggle_wbgt_markers(n_clicks, current_data):
+    def toggle_wbgt_markers(_n_clicks, current_data):
         """Toggle WBGT markers on map."""
-        if not n_clicks:
-            return current_data, _get_toggle_style(False)
-
         current_type = current_data.get('type') if current_data else None
 
         if current_type == 'wbgt':
-            # Turn off
+            # Turn off WBGT
             new_data = {'type': None, 'ts': time.time()}
             return new_data, _get_toggle_style(False)
 
-        # Turn on
+        # Turn on WBGT
         new_data = {'type': 'wbgt', 'ts': time.time()}
         return new_data, _get_toggle_style(True)
 
@@ -473,7 +757,7 @@ def register_weather_indices_callbacks(app):
         Input('exposure-marker-type', 'data')
     )
     def update_exposure_map_markers(marker_data):
-        """Update map markers based on selected type."""
+        """Update map markers based on selected type (WBGT only)."""
         if not marker_data:
             return []
 
@@ -483,6 +767,15 @@ def register_weather_indices_callbacks(app):
             return create_wbgt_markers(data)
 
         return []
+
+    @app.callback(
+        Output('psi-markers', 'children'),
+        Input('weather-indices-interval', 'n_intervals')
+    )
+    def update_psi_markers(_n_intervals):
+        """Update PSI markers on map (always displayed)."""
+        data = fetch_psi_data()
+        return create_psi_markers(data)
 
 
 def _get_toggle_style(active):
