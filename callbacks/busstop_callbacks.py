@@ -5,6 +5,7 @@ Reference: https://www.onemap.gov.sg/apidocs/nearbytransport
 import requests
 from dash.dependencies import Input, Output
 from dash import html
+import dash_leaflet as dl
 from callbacks.map_callback import _haversine_distance_m
 #from auth.onemap_api import get_onemap_token
 import os
@@ -110,13 +111,82 @@ def fetch_nearby_bus_stops(lat: float, lon: float, radius_m: int = 500) -> list:
         return []
 
 
+def _get_label_letter(index):
+    """Get label letter (A, B, C, D, E) for index."""
+    labels = ['A', 'B', 'C', 'D', 'E']
+    return labels[index] if index < len(labels) else str(index + 1)
+
+
+def create_bus_stop_markers(bus_stops):
+    """Create map markers for bus stops with labels."""
+    markers = []
+    for idx, bus_stop in enumerate(bus_stops):
+        lat = bus_stop.get('latitude')
+        lon = bus_stop.get('longitude')
+        name = bus_stop.get('name', 'Bus Stop')
+        code = bus_stop.get('code', '')
+        distance_m = bus_stop.get('distance_m', 0)
+
+        if lat is None or lon is None:
+            continue
+
+        # Format distance
+        if distance_m < 1000:
+            distance_str = f"{int(distance_m)}m"
+        else:
+            distance_str = f"{distance_m/1000:.2f}km"
+
+        # Get label letter
+        label = _get_label_letter(idx)
+
+        # Build tooltip text
+        tooltip_text = f"{label}: {name}"
+        if code:
+            tooltip_text += f" ({code})"
+        tooltip_text += f" - {distance_str}"
+
+        # Create marker HTML with label
+        marker_html = (
+            f'<div style="width:32px;height:32px;background:#4CAF50;'
+            f'border-radius:50%;border:3px solid #fff;'
+            f'box-shadow:0 2px 8px rgba(76,175,80,0.6);'
+            f'cursor:pointer;display:flex;align-items:center;'
+            f'justify-content:center;font-size:14px;color:#fff;'
+            f'font-weight:bold;position:relative;">'
+            f'<span style="font-size:16px;">🚌</span>'
+            f'<div style="position:absolute;top:-8px;right:-8px;'
+            f'background:#FF5722;color:#fff;width:20px;height:20px;'
+            f'border-radius:50%;border:2px solid #fff;'
+            f'display:flex;align-items:center;justify-content:center;'
+            f'font-size:12px;font-weight:bold;">{label}</div>'
+            f'</div>'
+        )
+
+        marker_id = f"bus-stop-{lat}-{lon}-{idx}"
+
+        markers.append(dl.DivMarker(
+            id=marker_id,
+            position=[lat, lon],
+            iconOptions={
+                'className': 'bus-stop-pin',
+                'html': marker_html,
+                'iconSize': [32, 32],
+                'iconAnchor': [16, 16],
+            },
+            children=[dl.Tooltip(tooltip_text)]
+        ))
+
+    return markers
+
+
 def register_busstop_callbacks(app):
     """
     Register callbacks for displaying nearest bus stops.
     """
     
     @app.callback(
-        Output('nearest-bus-stop-content', 'children'),
+        [Output('nearest-bus-stop-content', 'children'),
+         Output('bus-stop-markers', 'children')],
         Input('input_search', 'value')
     )
     def update_nearest_bus_stop_content(search_value):
@@ -139,7 +209,7 @@ def register_busstop_callbacks(app):
                     "fontStyle": "italic",
                     "padding": "20px"
                 }
-            )
+            ), []
         
         try:
             # Parse the search value to get coordinates
@@ -155,7 +225,7 @@ def register_busstop_callbacks(app):
                     "fontSize": "14px",
                     "padding": "20px"
                 }
-            )
+            ), []
         
         # Fetch nearby bus stops within 500m
         bus_stops = fetch_nearby_bus_stops(lat, lon, radius_m=500)
@@ -173,36 +243,68 @@ def register_busstop_callbacks(app):
                     "fontStyle": "italic",
                     "padding": "20px"
                 }
-            )
-        
-        # Build display items for each bus stop
+            ), []
+
+        # Create markers for map
+        markers = create_bus_stop_markers(bus_stops)
+
+        # Build display items for each bus stop with labels
         bus_stop_items = []
-        for bus_stop in bus_stops:
+        for idx, bus_stop in enumerate(bus_stops):
             name = bus_stop['name']
             code = bus_stop['code']
             distance_m = bus_stop['distance_m']
-            
+
+            # Get label letter
+            label = _get_label_letter(idx)
+
             # Format distance display
             if distance_m < 1000:
                 distance_str = f"{int(distance_m)}m"
             else:
                 distance_str = f"{distance_m/1000:.2f}km"
-            
+
             # Build display text with name and code if available
             display_name = name
             if code:
                 display_name = f"{name} ({code})"
-            
+
             bus_stop_items.append(
                 html.Div(
                     [
                         html.Div(
-                            display_name,
+                            [
+                                html.Span(
+                                    label,
+                                    style={
+                                        "display": "inline-block",
+                                        "width": "24px",
+                                        "height": "24px",
+                                        "lineHeight": "24px",
+                                        "textAlign": "center",
+                                        "backgroundColor": "#FF5722",
+                                        "color": "#fff",
+                                        "borderRadius": "50%",
+                                        "fontSize": "12px",
+                                        "fontWeight": "bold",
+                                        "marginRight": "8px",
+                                        "verticalAlign": "middle"
+                                    }
+                                ),
+                                html.Span(
+                                    display_name,
+                                    style={
+                                        "fontWeight": "600",
+                                        "fontSize": "14px",
+                                        "color": "#fff",
+                                        "verticalAlign": "middle"
+                                    }
+                                )
+                            ],
                             style={
-                                "fontWeight": "600",
-                                "fontSize": "14px",
-                                "color": "#fff",
-                                "marginBottom": "4px"
+                                "marginBottom": "4px",
+                                "display": "flex",
+                                "alignItems": "center"
                             }
                         ),
                         html.Div(
@@ -223,7 +325,7 @@ def register_busstop_callbacks(app):
                     }
                 )
             )
-        
-        # Return all bus stop items
-        return bus_stop_items
+
+        # Return all bus stop items and markers
+        return bus_stop_items, markers
 
