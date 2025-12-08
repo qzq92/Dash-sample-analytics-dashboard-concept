@@ -8,6 +8,7 @@ import numpy as np
 import os
 from dash.dependencies import Input, Output, State, ALL
 from dash import html, dcc
+import dash_leaflet as dl
 from typing import List, Optional, Dict, Tuple
 from pyproj import Transformer
 
@@ -114,10 +115,10 @@ def convert_svy21_to_wgs84_vectorized(x_array: np.ndarray, y_array: np.ndarray) 
         transformer = Transformer.from_crs("EPSG:3414", "EPSG:4326")
         
         # Transform coordinates (vectorized)
-        # EPSG:3414 uses (X, Y) = (Easting, Northing)
-        # EPSG:4326 uses (lat, lon) = (Northing, Easting)
-        # So transform(x, y) returns (lat, lon)
-        lat_array, lon_array = transformer.transform(x_array, y_array)
+        # EPSG:3414 uses (Northing, Easting) = (Y, X) axis order
+        # EPSG:4326 uses (Lat, Lon) axis order
+        # So we must pass (y_array, x_array) to get (lat_array, lon_array)
+        lat_array, lon_array = transformer.transform(y_array, x_array)
         
         return lat_array, lon_array
     except Exception as e:
@@ -227,6 +228,76 @@ def filter_carparks_by_distance(
     
     print(f"Found {len(results)} carparks within radius of {radius_m}m")
     return results
+
+
+def _get_label_letter(index):
+    """Get label letter (A, B, C, D, E) for index."""
+    labels = ['A', 'B', 'C', 'D', 'E']
+    return labels[index] if index < len(labels) else str(index + 1)
+
+
+def create_carpark_markers(nearby_carparks):
+    """Create map markers for carparks with carpark ID labels.
+    
+    Note: lat/lon coordinates are derived from CSV file (SVY21 converted to WGS84),
+    not from the carpark availability API which only provides lot availability data.
+    """
+    markers = []
+    for idx, carpark in enumerate(nearby_carparks):
+        lat = carpark.get('latitude')
+        lon = carpark.get('longitude')
+        carpark_number = carpark.get('carpark_number', '')
+        address = carpark.get('address', 'N/A')
+        distance_km = carpark.get('distance_km', 0)
+
+        if lat is None or lon is None:
+            print(f"Skipping carpark {carpark_number}: missing lat/lon coordinates")
+            continue
+        
+        print(f"Creating marker for {carpark_number} at ({lat}, {lon})")
+
+        # Format distance
+        if distance_km < 0.1:
+            distance_str = f"{distance_km * 1000:.0f}m"
+        else:
+            distance_str = f"{distance_km:.2f}km"
+
+        # Build tooltip text
+        tooltip_text = f"{carpark_number}"
+        if address and address != 'N/A':
+            tooltip_text += f" - {address}"
+        tooltip_text += f" ({distance_str})"
+
+        # Create marker HTML with carpark ID as label
+        marker_html = (
+            f'<div style="position:relative;display:flex;flex-direction:column;'
+            f'align-items:center;">'
+            f'<div style="background:#2196F3;color:#fff;padding:4px 8px;'
+            f'border-radius:4px;border:2px solid #fff;'
+            f'box-shadow:0 2px 8px rgba(33,150,243,0.6);'
+            f'font-size:11px;font-weight:bold;white-space:nowrap;">'
+            f'{carpark_number}</div>'
+            f'<div style="width:0;height:0;border-left:8px solid transparent;'
+            f'border-right:8px solid transparent;border-top:8px solid #2196F3;'
+            f'margin-top:-2px;"></div>'
+            f'</div>'
+        )
+
+        marker_id = f"carpark-{carpark_number}-{lat}-{lon}-{idx}"
+
+        markers.append(dl.DivMarker(
+            id=marker_id,
+            position=[lat, lon],
+            iconOptions={
+                'className': 'carpark-pin',
+                'html': marker_html,
+                'iconSize': [60, 40],
+                'iconAnchor': [30, 40],
+            },
+            children=[dl.Tooltip(tooltip_text)]
+        ))
+
+    return markers
 
 
 def format_lot_type_display(lot_type: str) -> str:
@@ -385,7 +456,8 @@ def register_carpark_callbacks(app):
     
     @app.callback(
         [Output('nearest-carpark-content', 'children'),
-         Output('carpark-data-store', 'data')],
+         Output('carpark-data-store', 'data'),
+         Output('carpark-markers', 'children')],
         Input('map-coordinates-store', 'data')
     )
     def update_carpark_availability(map_coords):
@@ -409,7 +481,7 @@ def register_carpark_callbacks(app):
                     "fontSize": "12px",
                     "fontStyle": "italic"
                 }
-            )
+            ), {}, []
         
         try:
             center_lat = float(map_coords.get('lat'))
@@ -423,7 +495,7 @@ def register_carpark_callbacks(app):
                     "fontSize": "12px",
                     "textAlign": "center"
                 }
-            )
+            ), {}, []
         
         # Find carparks within 500m and limit to top 5
         print(f"Searching for carparks near ({center_lat}, {center_lon})")
@@ -443,7 +515,7 @@ def register_carpark_callbacks(app):
                     "fontSize": "12px",
                     "fontStyle": "italic"
                 }
-            )
+            ), {}, []
         
         # Fetch availability data from API
         api_data = fetch_carpark_availability()
@@ -457,7 +529,7 @@ def register_carpark_callbacks(app):
                     "color": "#ff6b6b",
                     "fontSize": "12px"
                 }
-            )
+            ), {}, []
         
         # Extract carpark data from API response
         items = api_data.get('items', [])
@@ -470,7 +542,7 @@ def register_carpark_callbacks(app):
                     "color": "#ff6b6b",
                     "fontSize": "12px"
                 }
-            )
+            ), {}, []
         
         # Get carpark data from first item (latest timestamp)
         carpark_availability_data = items[0].get('carpark_data', [])
@@ -481,6 +553,9 @@ def register_carpark_callbacks(app):
             for cp in carpark_availability_data
         }
         
+        # Create markers for map
+        markers = create_carpark_markers(nearby_carparks)
+
         # Build display components for each nearby carpark
         carpark_cards = []
         
@@ -539,27 +614,35 @@ def register_carpark_callbacks(app):
             # Create simplified clickable card without vacancy info
             carpark_card = html.Div(
                 [
-                    # Carpark number and distance
+                    # Carpark ID label and distance
                     html.Div(
                         [
                             html.Span(
-                                f"{carpark_number}",
+                                carpark_number,
                                 style={
-                                    "fontWeight": "700",
+                                    "display": "inline-block",
+                                    "padding": "2px 8px",
+                                    "backgroundColor": "#2196F3",
+                                    "color": "#fff",
+                                    "borderRadius": "4px",
                                     "fontSize": "11px",
-                                    "color": "#60a5fa"
+                                    "fontWeight": "bold",
+                                    "marginRight": "8px",
                                 }
                             ),
                             html.Span(
-                                f" • {distance_str}",
+                                f"{distance_str}",
                                 style={
                                     "fontSize": "10px",
                                     "color": "#999",
-                                    "marginLeft": "4px"
                                 }
                             ),
                         ],
-                        style={"marginBottom": "3px"}
+                        style={
+                            "marginBottom": "3px",
+                            "display": "flex",
+                            "alignItems": "center"
+                        }
                     ),
                     # Address only
                     html.Div(
@@ -638,4 +721,4 @@ def register_carpark_callbacks(app):
             }
         )
         
-        return cards_output, all_carpark_data
+        return cards_output, all_carpark_data, markers
