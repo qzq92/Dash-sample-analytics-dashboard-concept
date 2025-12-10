@@ -4,6 +4,7 @@ Displays transport-related information including taxi availability.
 """
 from dash import html, dcc
 import dash_leaflet as dl
+from utils.map_utils import get_onemap_attribution
 
 
 def transport_page():
@@ -18,6 +19,7 @@ def transport_page():
     sg_center = [1.36, 103.82]
     onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
     fixed_zoom = 12
+    onemap_attribution = get_onemap_attribution()
 
     # Map bounds to restrict view to Singapore area
     sg_bounds = [[1.1304753, 103.6020882], [1.492007, 104.145897]]
@@ -31,16 +33,6 @@ def transport_page():
             "width": "100%",
         },
         children=[
-            # Header
-            html.H4(
-                "Transport Information",
-                style={
-                    "textAlign": "center",
-                    "margin": "0 0 15px 0",
-                    "color": "#fff",
-                    "fontWeight": "700"
-                }
-            ),
             # Main content container
             html.Div(
                 id="transport-content",
@@ -304,7 +296,8 @@ def transport_page():
                                 children=[
                                     dl.TileLayer(
                                         url=onemap_tiles_url,
-                                        attribution="&copy; OneMap Singapore"
+                                        attribution=onemap_attribution,
+                                        maxNativeZoom=19,
                                     ),
                                     dl.LayerGroup(id="taxi-markers"),
                                     dl.LayerGroup(id="cctv-markers"),

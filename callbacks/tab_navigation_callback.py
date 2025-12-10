@@ -13,7 +13,6 @@ def register_tab_navigation_callback(app):
     """
     @app.callback(
         [Output('main-content-area', 'style'),
-         Output('weather-forecast-page', 'style'),
          Output('realtime-weather-page', 'style'),
          Output('weather-indices-page', 'style'),
          Output('transport-page', 'style'),
@@ -26,27 +25,19 @@ def register_tab_navigation_callback(app):
 
         Args:
             tab_value: Selected tab value
-                ('main', 'weather-2h', 'realtime-weather', 'weather-indices', 'transport')
+                ('main', 'realtime-weather', 'weather-indices', 'transport')
 
         Returns:
             Tuple of style dictionaries for each page and search bar
         """
         # Default hidden styles
         main_style = {'display': 'none'}
-        weather_2h_style = {'display': 'none'}
         realtime_style = {'display': 'none'}
         indices_style = {'display': 'none'}
         transport_style = {'display': 'none'}
         search_bar_style = {'display': 'none'}
 
-        if tab_value == 'weather-2h':
-            weather_2h_style = {
-                "display": "block",
-                "padding": "20px",
-                "height": "calc(100vh - 120px)",
-                "width": "100%",
-            }
-        elif tab_value == 'realtime-weather':
+        if tab_value == 'realtime-weather':
             realtime_style = {
                 "display": "block",
                 "padding": "20px",
@@ -80,7 +71,7 @@ def register_tab_navigation_callback(app):
             # Keep search bar section hidden (placeholder for callback compatibility)
             search_bar_style = {"display": "none"}
 
-        return (main_style, weather_2h_style, realtime_style,
+        return (main_style, realtime_style,
                 indices_style, transport_style, search_bar_style)
 
     # Clientside callback to fix map rendering after tab switch
@@ -91,7 +82,6 @@ def register_tab_navigation_callback(app):
             // Map ID for each tab
             var tabMapIds = {
                 'main': 'sg-map',
-                'weather-2h': 'weather-2h-map',
                 'realtime-weather': 'realtime-weather-map',
                 'weather-indices': 'weather-indices-map',
                 'transport': 'transport-map'
@@ -125,7 +115,7 @@ def register_tab_navigation_callback(app):
             return window.dash_clientside.no_update;
         }
         """,
-        Output('weather-2h-map', 'id'),
+        Output('realtime-weather-map', 'id'),
         Input('navigation-tabs', 'value'),
         prevent_initial_call=True
     )

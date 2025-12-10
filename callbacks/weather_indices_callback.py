@@ -49,6 +49,61 @@ WBGT_CATEGORIES = [
     (34, 999, "#1a1a1a", "Extreme"),       # Black - Extreme risk
 ]
 
+# Pollutant category thresholds (based on WHO/EPA standards)
+# PM2.5 (24h average, µg/m³)
+PM25_CATEGORIES = [
+    (0, 15, "#3ea72d", "Good"),
+    (15, 35, "#fff300", "Moderate"),
+    (35, 55, "#f18b00", "Unhealthy"),
+    (55, 150, "#e53210", "Very Unhealthy"),
+    (150, 9999, "#b567a4", "Hazardous"),
+]
+
+# PM10 (24h average, µg/m³)
+PM10_CATEGORIES = [
+    (0, 45, "#3ea72d", "Good"),
+    (45, 100, "#fff300", "Moderate"),
+    (100, 200, "#f18b00", "Unhealthy"),
+    (200, 300, "#e53210", "Very Unhealthy"),
+    (300, 9999, "#b567a4", "Hazardous"),
+]
+
+# SO2 (24h average, µg/m³)
+SO2_CATEGORIES = [
+    (0, 20, "#3ea72d", "Good"),
+    (20, 50, "#fff300", "Moderate"),
+    (50, 125, "#f18b00", "Unhealthy"),
+    (125, 250, "#e53210", "Very Unhealthy"),
+    (250, 9999, "#b567a4", "Hazardous"),
+]
+
+# CO (8h average, mg/m³)
+CO_CATEGORIES = [
+    (0, 4, "#3ea72d", "Good"),
+    (4, 9, "#fff300", "Moderate"),
+    (9, 15, "#f18b00", "Unhealthy"),
+    (15, 30, "#e53210", "Very Unhealthy"),
+    (30, 9999, "#b567a4", "Hazardous"),
+]
+
+# O3 (8h average, µg/m³)
+O3_CATEGORIES = [
+    (0, 100, "#3ea72d", "Good"),
+    (100, 160, "#fff300", "Moderate"),
+    (160, 240, "#f18b00", "Unhealthy"),
+    (240, 300, "#e53210", "Very Unhealthy"),
+    (300, 9999, "#b567a4", "Hazardous"),
+]
+
+# NO2 (1h average, µg/m³)
+NO2_CATEGORIES = [
+    (0, 200, "#3ea72d", "Good"),
+    (200, 400, "#fff300", "Moderate"),
+    (400, 1000, "#f18b00", "Unhealthy"),
+    (1000, 2000, "#e53210", "Very Unhealthy"),
+    (2000, 9999, "#b567a4", "Hazardous"),
+]
+
 
 
 
@@ -80,6 +135,38 @@ def get_wbgt_category(value):
     # Check last category (extreme)
     if val >= 34:
         return "#b567a4", "Extreme"
+    return "#888", "Unknown"
+
+
+def get_pollutant_category(pollutant_key, value):
+    """Get pollutant category info (color and label) based on value and pollutant type."""
+    if value is None:
+        return "#888", "Unknown"
+    try:
+        val = float(value)
+    except (ValueError, TypeError):
+        return "#888", "Unknown"
+
+    # Select appropriate category thresholds based on pollutant type
+    if pollutant_key == "pm25_twenty_four_hourly":
+        categories = PM25_CATEGORIES
+    elif pollutant_key == "pm10_twenty_four_hourly":
+        categories = PM10_CATEGORIES
+    elif pollutant_key == "so2_twenty_four_hourly":
+        categories = SO2_CATEGORIES
+    elif pollutant_key == "co_eight_hour_max":
+        categories = CO_CATEGORIES
+    elif pollutant_key == "o3_eight_hour_max":
+        categories = O3_CATEGORIES
+    elif pollutant_key == "no2_one_hour_max":
+        categories = NO2_CATEGORIES
+    else:
+        return "#888", "Unknown"
+
+    # Find matching category
+    for min_val, max_val, color, label in categories:
+        if min_val <= val <= max_val:
+            return color, label
     return "#888", "Unknown"
 
 
@@ -326,42 +413,93 @@ def _create_single_psi_marker(region_info, readings, pollutants):
     if not lat or not lon or not region_name:
         return None
 
-    # Build the pollutant values HTML
-    pollutant_rows = []
+    # Get 24H PSI value and category for the title
+    psi_value = readings.get("psi_twenty_four_hourly", {}).get(region_name)
+    psi_color = "#60a5fa"  # Default blue color
+    if psi_value is not None:
+        psi_color, psi_category = get_psi_category(psi_value)
+        psi_title = (f"{region_name.upper()} (24H Avg PSI: "
+                    f'<span style="color: {psi_color};">{psi_value}</span> '
+                    f"({psi_category}))")
+    else:
+        psi_title = region_name.upper()
+
+    # Separate pollutants into PM (left) and others (right)
+    pm_pollutants = []  # PM2.5, PM10
+    other_pollutants = []  # SO2, CO, O3, NO2 (PSI excluded, shown in title)
+
     for pollutant_key, pollutant_name in pollutants:
-        pollutant_data = readings.get(pollutant_key, {})
-        value = pollutant_data.get(region_name)
+        # Skip PSI as it's shown in the title
+        if pollutant_key == "psi_twenty_four_hourly":
+            continue
+
+        value = readings.get(pollutant_key, {}).get(region_name)
         if value is not None:
-            row_html = _build_pollutant_row_html(pollutant_key,
-                                                  pollutant_name, value)
-            pollutant_rows.append(row_html)
+            unit = _get_pollutant_unit(pollutant_key)
 
-    pollutant_html = "".join(pollutant_rows)
+            # Get color category for pollutant
+            color, _ = get_pollutant_category(pollutant_key, value)
 
-    # Create text box HTML
+            # Categorize pollutants (store value and unit separately for color coding)
+            if pollutant_key in ["pm25_twenty_four_hourly", "pm10_twenty_four_hourly"]:
+                pm_pollutants.append((pollutant_name, value, unit, color))
+            else:
+                other_pollutants.append((pollutant_name, value, unit, color))
+
+    # Build left column (PM pollutants) as bulleted list
+    # Only color-code the numeric value, not the entire line
+    pm_list_items = "".join([
+        f'<li style="margin: 2px 0; font-size: 10px; color: #fff;">'
+        f'{name}: <span style="color: {color if color else "#fff"}; '
+        f'font-weight: bold;">{val}</span>'
+        f'{f" {unit}" if unit else ""}</li>'
+        for name, val, unit, color in pm_pollutants
+    ])
+    ul_style = 'margin: 0; padding-left: 18px; list-style-type: disc;'
+    pm_column = (f'<ul style="{ul_style}">{pm_list_items}</ul>'
+                 if pm_pollutants else f'<ul style="{ul_style}"></ul>')
+
+    # Build right column (other pollutants) as bulleted list
+    # Only color-code the numeric value, not the entire line
+    other_list_items = "".join([
+        f'<li style="margin: 2px 0; font-size: 10px; color: #fff;">'
+        f'{name}: <span style="color: {color if color else "#fff"}; '
+        f'font-weight: bold;">{val}</span>'
+        f'{f" {unit}" if unit else ""}</li>'
+        for name, val, unit, color in other_pollutants
+    ])
+    other_column = (f'<ul style="{ul_style}">{other_list_items}</ul>'
+                    if other_pollutants else f'<ul style="{ul_style}"></ul>')
+
+    # Create text box HTML with two columns
     text_box_html = f'''
         <div style="
             background-color: rgba(74, 90, 106, 0.95);
             border: 2px solid #60a5fa;
             border-radius: 8px;
             padding: 8px 10px;
-            min-width: 140px;
+            min-width: 200px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         ">
             <div style="
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 11px;
                 color: #60a5fa;
-                margin-bottom: 4px;
+                margin-bottom: 6px;
                 text-align: center;
                 border-bottom: 1px solid #60a5fa;
                 padding-bottom: 3px;
-            ">{region_name.upper()}</div>
+            ">{psi_title}</div>
             <div style="
+                display: flex;
+                gap: 12px;
                 font-size: 10px;
                 color: #fff;
-                line-height: 1.3;
-            ">{pollutant_html}</div>
+                line-height: 1.4;
+            ">
+                <div style="flex: 1;">{pm_column}</div>
+                <div style="flex: 1;">{other_column}</div>
+            </div>
         </div>
     '''
 
@@ -371,8 +509,8 @@ def _create_single_psi_marker(region_info, readings, pollutants):
         iconOptions={
             'className': 'psi-textbox',
             'html': text_box_html,
-            'iconSize': [160, 130],
-            'iconAnchor': [80, 65],
+            'iconSize': [220, 180],
+            'iconAnchor': [110, 90],
         }
     )
 
@@ -390,13 +528,13 @@ def create_psi_markers(data):
 
     readings = items[0].get("readings", {})
     pollutants = [
-        ("psi_twenty_four_hourly", "24H Avg PSI"),
-        ("pm25_twenty_four_hourly", "24H Avg PM2.5"),
-        ("pm10_twenty_four_hourly", "24H Avg PM10"),
-        ("so2_twenty_four_hourly", "Max 24H Avg SO₂"),
-        ("co_eight_hour_max", "Max 8H Avg CO"),
-        ("o3_eight_hour_max", "Max 8H Avg O₃"),
-        ("no2_one_hour_max", "Max 1H NO₂")
+        ("psi_twenty_four_hourly", "PSI (24H Avg)"),
+        ("pm25_twenty_four_hourly", "PM2.5 (24H Avg)"),
+        ("pm10_twenty_four_hourly", "PM10 (24H Avg)"),
+        ("so2_twenty_four_hourly", "SO₂ (Max 24H Avg)"),
+        ("co_eight_hour_max", "CO (Max 8H Avg)"),
+        ("o3_eight_hour_max", "O₃ (Max 8H Avg)"),
+        ("no2_one_hour_max", "NO₂ (Max 1H)")
     ]
 
     markers = [

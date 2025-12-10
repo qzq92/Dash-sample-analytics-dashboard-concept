@@ -8,7 +8,7 @@ References:
 """
 import os
 import requests
-from dash import Input, Output, html
+from dash import Input, Output, State, html
 from dotenv import load_dotenv
 import dash_leaflet as dl
 from conf.weather_icons import get_weather_icon
@@ -396,32 +396,74 @@ def register_weather_callbacks(app):
     Args:
         app: Dash app instance
     """
+    # Toggle callback for 2H forecast section
     @app.callback(
-        [Output('weather-2h-content', 'children'),
-         Output('weather-markers-layer', 'children')],
-        Input('interval-component', 'n_intervals')
+        Output('toggle-2h-forecast', 'children'),
+        Input('toggle-2h-forecast', 'n_clicks'),
+        State('2h-forecast-toggle-state', 'data')
     )
-    def update_weather_forecast_2h(n_intervals):
+    def toggle_2h_forecast(n_clicks, current_state):
         """
-        Update 2-hour weather forecast display and map markers periodically.
+        Toggle 2H weather forecast markers visibility on main map.
+
+        Args:
+            n_clicks: Number of button clicks
+            current_state: Current toggle state from store
+
+        Returns:
+            Button label
+        """
+        if n_clicks is None or n_clicks == 0:
+            # Default state: hidden
+            return "🌦️ Show 2H Forecast"
+
+        # Toggle state
+        is_visible = not current_state if current_state else True
+
+        if is_visible:
+            return "🌦️ Hide 2H Forecast"
+        return "🌦️ Show 2H Forecast"
+
+    @app.callback(
+        Output('2h-forecast-toggle-state', 'data'),
+        Input('toggle-2h-forecast', 'n_clicks'),
+        State('2h-forecast-toggle-state', 'data')
+    )
+    def update_toggle_state(n_clicks, current_state):
+        """Update toggle state in store."""
+        if n_clicks is None or n_clicks == 0:
+            return False
+        return not current_state if current_state else True
+
+    @app.callback(
+        Output('weather-2h-markers', 'children'),
+        Input('realtime-weather-interval', 'n_intervals'),
+        State('2h-forecast-toggle-state', 'data')
+    )
+    def update_weather_forecast_2h(_n_intervals, is_visible):
+        """
+        Update 2-hour weather forecast markers on main map periodically.
+        Only updates when toggle is enabled.
 
         Args:
             n_intervals: Number of intervals (from dcc.Interval component)
+            is_visible: Whether the 2H forecast markers should be visible
 
         Returns:
-            Tuple of (HTML content for forecast list, list of map markers)
+            List of map markers
         """
-        # n_intervals is required by the callback but not used directly
-        _ = n_intervals
+        # Only fetch data if toggle is enabled
+        if not is_visible:
+            return []
 
         # Fetch 2-hour forecast
         weather_2h_data = fetch_weather_forecast_2h()
-        weather_2h_content = format_weather_2h(weather_2h_data)
 
         # Create weather markers for the map
         weather_markers = create_weather_markers(weather_2h_data)
 
-        return weather_2h_content, weather_markers
+        return weather_markers
+
 
     @app.callback(
         Output('weather-24h-content', 'children'),

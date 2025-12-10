@@ -48,12 +48,6 @@ def build_dashboard_banner():
                             selected_style=TAB_SELECTED_STYLE,
                         ),
                         dcc.Tab(
-                            label="🌦️ 2-Hour Weather Forecast",
-                            value="weather-2h",
-                            style=TAB_STYLE,
-                            selected_style=TAB_SELECTED_STYLE,
-                        ),
-                        dcc.Tab(
                             label="📡 Realtime Weather Metrics",
                             value="realtime-weather",
                             style=TAB_STYLE,

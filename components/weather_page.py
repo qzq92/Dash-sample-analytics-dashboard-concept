@@ -9,7 +9,7 @@ def weather_forecast_page():
     """
     Create the 2-hour weather forecast page layout.
     Features side-by-side layout: weather info on left, static map with icons on right.
-    
+
     Returns:
         HTML Div containing the weather forecast section with map
     """
@@ -17,7 +17,7 @@ def weather_forecast_page():
     sg_center = [1.36, 103.82]
     onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
     fixed_zoom = 12
-    
+
     # Map bounds to restrict view to Singapore area (approximate)
     sg_bounds = [[1.1304753, 103.6020882], [1.492007, 104.145897]]
 
@@ -25,27 +25,17 @@ def weather_forecast_page():
         id="weather-forecast-page",
         style={
             "display": "none",  # Hidden by default, shown when weather tab is selected
-            "padding": "20px",
+            "padding": "10px",
             "height": "calc(100vh - 180px)",
             "width": "100%",
         },
         children=[
-            # Header
-            html.H4(
-                "Next 2-Hour Weather Forecast",
-                style={
-                    "textAlign": "center",
-                    "margin": "0 0 15px 0",
-                    "color": "#fff",
-                    "fontWeight": "700"
-                }
-            ),
             # Main content: side-by-side layout
             html.Div(
                 id="weather-forecast-section",
                 style={
                     "display": "flex",
-                    "gap": "20px",
+                    "gap": "10px",
                     "height": "calc(100% - 50px)",
                     "maxWidth": "1600px",
                     "margin": "0 auto",
@@ -58,7 +48,7 @@ def weather_forecast_page():
                             "flex": "1.2",
                             "backgroundColor": "#4a5a6a",
                             "borderRadius": "5px",
-                            "padding": "10px",
+                            "padding": "6px",
                             "display": "flex",
                             "flexDirection": "column",
                             "minWidth": "500px",
@@ -68,7 +58,7 @@ def weather_forecast_page():
                                 "Area Forecasts",
                                 style={
                                     "textAlign": "center",
-                                    "margin": "5px 0 10px 0",
+                                    "margin": "3px 0 6px 0",
                                     "color": "#fff",
                                     "fontWeight": "600",
                                     "fontSize": "14px"
@@ -80,7 +70,7 @@ def weather_forecast_page():
                                     html.P("Loading...", style={"textAlign": "center", "padding": "20px", "color": "#999"})
                                 ],
                                 style={
-                                    "padding": "5px",
+                                    "padding": "3px",
                                     "overflowY": "auto",
                                     "flex": "1",
                                 }
@@ -94,7 +84,7 @@ def weather_forecast_page():
                             "flex": "1.5",
                             "backgroundColor": "#4a5a6a",
                             "borderRadius": "5px",
-                            "padding": "10px",
+                            "padding": "6px",
                             "display": "flex",
                             "flexDirection": "column",
                             "minWidth": "400px",
@@ -104,7 +94,7 @@ def weather_forecast_page():
                                 "Weather Map",
                                 style={
                                     "textAlign": "center",
-                                    "margin": "5px 0 10px 0",
+                                    "margin": "3px 0 6px 0",
                                     "color": "#fff",
                                     "fontWeight": "600",
                                     "fontSize": "14px"
@@ -155,4 +145,3 @@ def weather_forecast_page():
             ),
         ]
     )
-

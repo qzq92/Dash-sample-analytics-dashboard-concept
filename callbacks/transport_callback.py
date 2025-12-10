@@ -14,7 +14,15 @@ from utils.async_fetcher import fetch_url
 TAXI_API_URL = "https://api.data.gov.sg/v1/transport/taxi-availability"
 TRAFFIC_IMAGES_API_URL = "https://api.data.gov.sg/v1/transport/traffic-images"
 ERP_GANTRY_DATASET_ID = "d_753090823cc9920ac41efaa6530c5893"
-ERP_GANTRY_API_URL = f"https://api-open.data.gov.sg/v1/public/api/datasets/{ERP_GANTRY_DATASET_ID}/poll-download"
+# ERP_GANTRY_API_URL uses initiate-download endpoint to get download URL
+ERP_GANTRY_API_URL = (
+    f"https://api-open.data.gov.sg/v1/public/api/datasets/"
+    f"{ERP_GANTRY_DATASET_ID}/initiate-download"
+)
+
+# Cache for ERP gantry data (static dataset downloaded from S3, cache for 24 hours)
+_erp_gantry_cache = {'data': None, 'timestamp': 0}
+ERP_GANTRY_CACHE_TTL = 24 * 60 * 60  # 24 hours in seconds
 
 
 def fetch_taxi_availability():
@@ -395,25 +403,64 @@ def format_cctv_count_display(camera_data):
 
 def fetch_erp_gantry_data():
     """
-    Fetch ERP gantry GeoJSON data from Data.gov.sg API.
-    First gets the download URL, then fetches the actual GeoJSON file.
+    Fetch ERP gantry GeoJSON data using initiate-download API endpoint.
+    
+    The initiate-download endpoint returns a download URL which is then used to fetch
+    the actual GeoJSON file. Since this is a static dataset, the data is cached for
+    24 hours to avoid redundant downloads.
     
     Returns:
         Dictionary containing GeoJSON data or None if error
     """
-    # Step 1: Get download URL
-    poll_response = fetch_url(ERP_GANTRY_API_URL)
-    if not poll_response or poll_response.get('code') != 0:
-        print("Failed to get ERP gantry download URL")
+    import time
+    global _erp_gantry_cache
+
+    current_time = time.time()
+
+    # Check if cache is valid (24 hours)
+    if (_erp_gantry_cache['data'] is not None and
+            current_time - _erp_gantry_cache['timestamp'] < ERP_GANTRY_CACHE_TTL):
+        print("Using cached ERP gantry data")
+        return _erp_gantry_cache['data']
+
+    # Step 1: Call initiate-download to get download URL
+    print(f"Initiating ERP gantry download: {ERP_GANTRY_API_URL}")
+    init_response = fetch_url(ERP_GANTRY_API_URL)
+    
+    
+    if init_response.get('code') != 0:
+        error_msg = init_response.get('errorMsg', 'Unknown error')
+        print(f"Failed to initiate ERP gantry download: {error_msg}")
         return None
 
-    download_url = poll_response.get('data', {}).get('url')
+    # Extract URL from response structure: {"code": 0, "data": {"url": "..."}}
+    data = init_response.get('data', {})
+    download_url = data.get('url')
+    
     if not download_url:
-        print("No download URL in response")
+        print("No download URL in initiate-download response")
+        print(f"Response data: {data}")
         return None
 
-    # Step 2: Fetch the actual GeoJSON file
-    return fetch_url(download_url)
+    print(f"Download URL extracted successfully: {download_url[:80]}...")
+    print(f"Downloading ERP gantry GeoJSON from: {download_url[:80]}...")
+
+    # Step 2: Fetch the actual GeoJSON file from the extracted download URL
+    geojson_data = fetch_url(download_url)
+    
+    if not geojson_data:
+        print("Failed to download ERP gantry GeoJSON data from URL")
+        return None
+    
+    print("Successfully downloaded ERP gantry GeoJSON data")
+
+    # Update cache if successful
+    if geojson_data is not None:
+        _erp_gantry_cache['data'] = geojson_data
+        _erp_gantry_cache['timestamp'] = current_time
+        print("ERP gantry data cached successfully")
+
+    return geojson_data
 
 
 def extract_gantry_number(description_html):

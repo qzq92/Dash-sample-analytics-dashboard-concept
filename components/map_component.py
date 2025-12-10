@@ -1,6 +1,7 @@
 from dash import html, dcc
 import dash_daq as daq
 import dash_leaflet as dl
+from utils.map_utils import get_onemap_attribution
 
 
 
@@ -62,6 +63,7 @@ def map_component(lat=1.35, lon=103.81):
     The initial center coordinates are used only for initial rendering.
     """
     onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
+    onemap_attribution = get_onemap_attribution()
     return html.Div([
         # Store component to hold map coordinates that can be updated by callbacks
         dcc.Store(
@@ -80,7 +82,7 @@ def map_component(lat=1.35, lon=103.81):
             children=[
                 dl.TileLayer(
                     url=onemap_tiles_url,
-                    attribution='''<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>''',
+                    attribution=onemap_attribution,
                     maxNativeZoom=19,
                 ),
                 dl.ScaleControl(imperial=False, position="bottomleft"),

@@ -9,7 +9,6 @@ load_dotenv(override=True)
 
 from components.banner_component import build_dashboard_banner
 from components.map_component import map_component, search_bar
-from components.weather_page import weather_forecast_page
 from components.realtime_weather_page import realtime_weather_page
 from components.weather_indices_page import weather_indices_page
 from components.transport_page import transport_page
@@ -74,8 +73,6 @@ app.layout = html.Div(
         html.Div(
             id="app-container",
             children=[
-                # Weather forecast page (hidden by default, shown when weather tab is selected)
-                weather_forecast_page(),
                 # Realtime weather page (hidden by default)
                 realtime_weather_page(),
                 # Weather indices page (hidden by default)
@@ -308,7 +305,7 @@ app.layout = html.Div(
                                                         "flex": "1",
                                                         "backgroundColor": "#4a5a6a",
                                                         "borderRadius": "5px",
-                                                        "padding": "10px",
+                                                        "padding": "6px",
                                                         "display": "flex",
                                                         "flexDirection": "column",
                                                         "overflow": "hidden",
