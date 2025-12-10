@@ -77,6 +77,26 @@ def get_wbgt_category(value):
     return "#888", "Unknown"
 
 
+# Pollutant units mapping
+# SO₂, PM2.5, PM10, O₃, NO₂ are measured in µg/m³
+# CO is measured in mg/m³
+# PSI is an index (no unit)
+POLLUTANT_UNITS = {
+    "so2_twenty_four_hourly": "µg/m³",
+    "pm25_twenty_four_hourly": "µg/m³",
+    "pm10_twenty_four_hourly": "µg/m³",
+    "o3_eight_hour_max": "µg/m³",
+    "no2_one_hour_max": "µg/m³",
+    "co_eight_hour_max": "mg/m³",
+    "psi_twenty_four_hourly": "",  # PSI is an index, no unit
+}
+
+
+def _get_pollutant_unit(pollutant_key):
+    """Get the unit of measurement for a pollutant."""
+    return POLLUTANT_UNITS.get(pollutant_key, "")
+
+
 def fetch_psi_data():
     """Fetch PSI data from Data.gov.sg API."""
     return fetch_url(PSI_URL, get_default_headers())
@@ -254,7 +274,10 @@ def format_uv_display(data):
 
 
 def _build_pollutant_row_html(pollutant_key, pollutant_name, value):
-    """Build HTML for a single pollutant row."""
+    """Build HTML for a single pollutant row with unit."""
+    unit = _get_pollutant_unit(pollutant_key)
+    value_with_unit = f"{value} {unit}" if unit else str(value)
+
     if pollutant_key == "psi_twenty_four_hourly":
         color, category = get_psi_category(value)
         return (
@@ -264,7 +287,7 @@ def _build_pollutant_row_html(pollutant_key, pollutant_name, value):
             f'({category})'
             f'</div>'
         )
-    return f'<div style="margin: 2px 0;">{pollutant_name}: {value}</div>'
+    return f'<div style="margin: 2px 0;">{pollutant_name}: {value_with_unit}</div>'
 
 
 def _create_single_psi_marker(region_info, readings, pollutants):
@@ -322,8 +345,8 @@ def _create_single_psi_marker(region_info, readings, pollutants):
         iconOptions={
             'className': 'psi-textbox',
             'html': text_box_html,
-            'iconSize': [160, 100],
-            'iconAnchor': [80, 50],
+            'iconSize': [160, 130],
+            'iconAnchor': [80, 65],
         }
     )
 
@@ -341,10 +364,13 @@ def create_psi_markers(data):
 
     readings = items[0].get("readings", {})
     pollutants = [
-        ("psi_twenty_four_hourly", "24H PSI"),
-        ("pm25_twenty_four_hourly", "24H PM2.5"),
-        ("pm10_twenty_four_hourly", "24H PM10"),
-        ("so2_twenty_four_hourly", "SO₂")
+        ("psi_twenty_four_hourly", "24H Avg PSI"),
+        ("pm25_twenty_four_hourly", "24H Avg PM2.5"),
+        ("pm10_twenty_four_hourly", "24H Avg PM10"),
+        ("so2_twenty_four_hourly", "24H Avg SO₂"),
+        ("co_eight_hour_max", "8H Avg CO"),
+        ("o3_eight_hour_max", "8H Avg O₃"),
+        ("no2_one_hour_max", "1H Max NO₂")
     ]
 
     markers = [
@@ -374,10 +400,13 @@ def format_psi_display(data):
 
     # Define pollutants and regions
     pollutants = [
-        ("psi_twenty_four_hourly", "24H PSI"),
-        ("pm25_twenty_four_hourly", "24H PM2.5"),
-        ("pm10_twenty_four_hourly", "24H PM10"),
-        ("so2_twenty_four_hourly", "SO₂")
+        ("psi_twenty_four_hourly", "24H Mean PSI"),
+        ("pm25_twenty_four_hourly", "24H Mean PM2.5 Particulate Matter"),
+        ("pm10_twenty_four_hourly", "24H Mean PM10 Particulate Matter"),
+        ("so2_twenty_four_hourly", "24H Mean Sulphur Dioxide"),
+        ("co_eight_hour_max", "8H Mean Carbon Monoxide"),
+        ("o3_eight_hour_max", "8H Mean Ozone"),
+        ("no2_one_hour_max", "1H Max Nitrogen Dioxide")
     ]
     regions = ["north", "south", "east", "west", "central"]
 
@@ -385,7 +414,7 @@ def format_psi_display(data):
     header_row = html.Div(
         style={
             "display": "grid",
-            "gridTemplateColumns": "80px repeat(4, 1fr)",
+            "gridTemplateColumns": "70px repeat(7, 1fr)",
             "gap": "4px",
             "padding": "8px 4px",
             "backgroundColor": "#2a3a4a",
@@ -394,13 +423,13 @@ def format_psi_display(data):
         },
         children=[
             html.Div("Region", style={
-                "fontSize": "10px",
+                "fontSize": "9px",
                 "color": "#60a5fa",
                 "textAlign": "center"
             })
         ] + [
             html.Div(name, style={
-                "fontSize": "10px",
+                "fontSize": "9px",
                 "color": "#60a5fa",
                 "textAlign": "center"
             })
@@ -435,11 +464,15 @@ def format_psi_display(data):
                 else:
                     color = "#60a5fa"
 
+                # Get unit for pollutant
+                unit = _get_pollutant_unit(pollutant_key)
+                display_value = f"{value} {unit}" if unit else str(value)
+
                 cells.append(
                     html.Div(
-                        str(value),
+                        display_value,
                         style={
-                            "fontSize": "11px",
+                            "fontSize": "10px",
                             "color": color,
                             "textAlign": "center",
                             "fontWeight": "bold"
@@ -451,7 +484,7 @@ def format_psi_display(data):
                     html.Div(
                         "-",
                         style={
-                            "fontSize": "11px",
+                            "fontSize": "10px",
                             "color": "#666",
                             "textAlign": "center"
                         }
@@ -462,7 +495,7 @@ def format_psi_display(data):
             html.Div(
                 style={
                     "display": "grid",
-                    "gridTemplateColumns": "80px repeat(4, 1fr)",
+                    "gridTemplateColumns": "70px repeat(7, 1fr)",
                     "gap": "4px",
                     "padding": "8px 4px",
                     "backgroundColor": "#3a4a5a",
@@ -770,6 +803,91 @@ def register_weather_indices_callbacks(app):
         """Update PSI markers on map (always displayed)."""
         data = fetch_psi_data()
         return create_psi_markers(data)
+
+    @app.callback(
+        Output('psi-24h-content', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_main_page_psi(_n_intervals):
+        """Update 24H PSI display on main page."""
+        data = fetch_psi_data()
+        return format_main_page_psi(data)
+
+
+def format_main_page_psi(data):
+    """Format 24H PSI data for compact display on main page."""
+    if not data or data.get("code") != 0:
+        return html.P(
+            "Error loading PSI data",
+            style={"color": "#ff6b6b", "textAlign": "center", "fontSize": "11px"}
+        )
+
+    items = data.get("data", {}).get("items", [])
+    if not items:
+        return html.P(
+            "No PSI data available",
+            style={"color": "#999", "textAlign": "center", "fontSize": "11px"}
+        )
+
+    readings = items[0].get("readings", {})
+    psi_data = readings.get("psi_twenty_four_hourly", {})
+
+    regions = ["north", "south", "east", "west", "central"]
+
+    # Create compact row of PSI values
+    psi_items = []
+    for region in regions:
+        value = psi_data.get(region)
+        if value is not None:
+            color, category = get_psi_category(value)
+            psi_items.append(
+                html.Div(
+                    [
+                        html.Div(
+                            region.capitalize(),
+                            style={
+                                "fontSize": "10px",
+                                "color": "#aaa",
+                                "textAlign": "center",
+                                "marginBottom": "2px",
+                            }
+                        ),
+                        html.Div(
+                            str(value),
+                            style={
+                                "fontSize": "16px",
+                                "fontWeight": "bold",
+                                "color": color,
+                                "textAlign": "center",
+                            }
+                        ),
+                        html.Div(
+                            category,
+                            style={
+                                "fontSize": "9px",
+                                "color": color,
+                                "textAlign": "center",
+                            }
+                        ),
+                    ],
+                    style={
+                        "flex": "1",
+                        "padding": "4px",
+                        "backgroundColor": "#1a2a3a",
+                        "borderRadius": "4px",
+                        "minWidth": "50px",
+                    }
+                )
+            )
+
+    return html.Div(
+        psi_items,
+        style={
+            "display": "flex",
+            "gap": "6px",
+            "justifyContent": "space-between",
+        }
+    )
 
 
 def _get_toggle_style(active):
