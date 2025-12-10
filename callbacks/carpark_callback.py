@@ -275,29 +275,26 @@ def create_carpark_markers(nearby_carparks, availability_lookup=None):
         else:
             distance_str = f"{distance_km:.2f}km"
 
-        # Build tooltip text with availability
+        # Build tooltip text with address and availability (bulleted)
         tooltip_parts = []
-        tooltip_parts.append(carpark_number)
+
+        # Add address as bullet point
         if address and address != 'N/A':
-            tooltip_parts.append(address)
-        tooltip_parts.append(distance_str)
-        
-        # Add availability info to tooltip if available
+            tooltip_parts.append(f"• {address}")
+
+        # Add availability info as bullet points
         if availability_lookup:
             availability = availability_lookup.get(carpark_number.upper(), {})
             carpark_info = availability.get('carpark_info', [])
-            if carpark_info:
-                tooltip_parts.append("")  # Empty line for spacing
-                tooltip_parts.append("Availability:")
-                for lot_info in carpark_info:
-                    lot_type = lot_info.get('lot_type', '')
-                    total_lots = lot_info.get('total_lots', '0')
-                    lots_available = lot_info.get('lots_available', '0')
-                    lot_type_name = format_lot_type_display(lot_type)
-                    tooltip_parts.append(f"  {lot_type_name}: {lots_available}/{total_lots}")
-        
+            for lot_info in carpark_info:
+                lot_type = lot_info.get('lot_type', '')
+                total_lots = lot_info.get('total_lots', '0')
+                lots_available = lot_info.get('lots_available', '0')
+                lot_type_name = format_lot_type_display(lot_type)
+                tooltip_parts.append(f"• {lot_type_name}: {lots_available}/{total_lots} lots")
+
         # Join all parts with line breaks
-        tooltip_text = "\n".join(tooltip_parts)
+        tooltip_text = "\n".join(tooltip_parts) if tooltip_parts else "No data available"
 
         # Create marker HTML with carpark ID as label
         marker_html = (
