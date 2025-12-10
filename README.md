@@ -7,9 +7,14 @@
 All data are retrieved via API calls to data.gov.sg accessible [here](https://beta.data.gov.sg/). Key data sources involved are as follows:
 1. **Weather Metrics**: Temperature, rainfall, relative humidity, and wind speed (V2 APIs)
 2. **Environmental Alerts**: Lightning observations and flood alerts
-3. **Exposure Indexes**: UV Index, WBGT (Wet-Bulb Globe Temperature), and PSI (Pollutant Standards Index)
-4. **Transportation**: Bus stop locations (LTA DataMall), carpark availability (HDB)
-5. **Traffic**: Traffic camera feeds
+3. **Exposure Indexes**: UV Index, WBGT (Wet-Bulb Globe Temperature), and PSI (Pollutant Standards Index) with multiple pollutants (PM2.5, PM10, SO₂, CO, O₃, NO₂)
+4. **Transportation**: 
+   - Bus stop locations (OneMap API)
+   - Carpark availability (HDB Carpark Availability API)
+   - Taxi availability (Data.gov.sg Taxi Availability API)
+   - Traffic cameras (Data.gov.sg Traffic Images API)
+   - ERP gantry locations (LTA Gantry GeoJSON dataset)
+5. **Traffic**: Live traffic camera feeds at key locations
 
 For developers, please refer to the link [here](https://guide.data.gov.sg/developers) on possible deprecation and updates on API and other information.
 
@@ -19,17 +24,64 @@ For developers, please refer to the link [here](https://guide.data.gov.sg/develo
 ## What does this app show
 
 This analytics dashboard provides real-time information on:
-- **Weather Metrics**: Temperature, rainfall, humidity, and wind speed across Singapore with interactive map markers
-- **Environmental Conditions**: Lightning detection and flood alerts
-- **Pollutant & Exposure Indexes**: UV Index, Wet-Bulb Globe Temperature (WBGT), and 24-hour Pollutant Standards Index (PSI) for all regions
-- **Transportation**: Nearby bus stops and carpark availability with real-time updates
-- **Traffic Cameras**: Live traffic camera feeds at key locations
+
+### Main Dashboard
+- **Average PSI Reading**: 24-hour average Pollutant Standards Index across all regions
+- **24-Hour Weather Forecast**: Temperature, humidity, wind, and rain forecast
+- **Interactive Map**: Search locations and view nearby facilities
+- **Nearby Facilities**: Top 5 nearest MRT stations, bus stops, and HDB carparks with availability
+- **Traffic Cameras**: Live CCTV feeds from land checkpoints
+- **Environmental Indicators**: Lightning detection and flood alert status
+
+### Pollutant & Exposure Indexes Page
+- **UV Index**: Hourly trend visualization with line graph
+- **WBGT (Wet-Bulb Globe Temperature)**: Heat stress measurements across Singapore with color-coded risk levels
+- **Regional PSI Data**: Comprehensive pollutant readings including:
+  - 24H Mean PSI, PM2.5, PM10, Sulphur Dioxide
+  - 8H Mean Carbon Monoxide and Ozone
+  - 1H Max Nitrogen Dioxide
+- **Interactive Map**: Regional pollutant data displayed as text boxes on map with full pollutant legend
+
+### Transport Info Page
+- **Taxi Availability**: Real-time taxi locations (4,500+ taxis) displayed as yellow markers on map
+- **Traffic Cameras**: CCTV camera locations with live feed popups showing traffic conditions
+- **ERP Gantries**: Electronic Road Pricing gantry locations displayed as red polylines on map
+- **Toggle Controls**: Show/hide each transport layer independently
+
+## Application Structure
+
+The dashboard consists of 5 main pages accessible via tabs:
+
+1. **🏠 Main Dashboard**: Overview with average PSI, weather forecast, nearby facilities, and interactive map
+2. **🌦️ 2-Hour Weather Forecast**: Detailed 2-hour weather predictions with map markers
+3. **📡 Realtime Weather Metrics**: Live temperature, rainfall, humidity, and wind speed readings across Singapore
+4. **📊 Pollutant & Exposure Indexes**: UV Index trends, WBGT heat stress, and comprehensive PSI pollutant data
+5. **🚌 Transport Info**: Taxi availability, traffic cameras, and ERP gantry locations
+
+## Key Features
+
+### Performance Optimizations
+- **Async API Fetching**: Uses ThreadPoolExecutor for parallel API calls, reducing load times
+- **Data Caching**: PSI data cached for 60 seconds to minimize redundant API requests
+- **Efficient Map Rendering**: Automatic map resize handling when switching between tabs
+
+### Interactive Maps
+- **Multi-layer Support**: Toggle visibility of different data layers (weather markers, transport facilities, taxis, cameras, ERP gantries)
+- **Location Search**: Search for any address in Singapore with autocomplete
+- **Real-time Updates**: Auto-refresh every 30-60 seconds for live data
+- **Custom Markers**: Color-coded markers and polylines for different data types
+
+### Data Visualization
+- **UV Index Trends**: Line graph showing hourly UV index throughout the day
+- **Regional PSI Display**: Text boxes on map showing pollutant readings for each region
+- **Color-coded Risk Levels**: Visual indicators for air quality, heat stress, and environmental alerts
+- **Live Camera Feeds**: Embedded traffic camera images in map popups
 
 ## Screenshots of app
 
 ### Main Dashboard Page
 ![Main Page](assets/img/main_page.jpg)
-*The main dashboard showing real-time weather metrics with interactive map markers, indicators for lightning and flood alerts, and nearby transportation information.*
+*The main dashboard showing real-time weather metrics with interactive map markers, indicators for lightning and flood alerts, average PSI reading, and nearby transportation information.*
 
 ### Pollutant & Exposure Indexes Page
 ![Pollutant & Exposure Indexes](assets/img/pollutant_exp_index.jpg)
@@ -38,19 +90,33 @@ This analytics dashboard provides real-time information on:
 ## Built with following:
 * [Dash](https://dash.plot.ly/) - Main server and interactive components 
 * [Plotly Python](https://plot.ly/python/) - Used to create the interactive plots
+* [Dash Leaflet](https://github.com/thedirtyfew/dash-leaflet) - Interactive map components with Leaflet.js
 * [Dash DAQ](https://dash.plot.ly/dash-daq) - Styled technical components for industrial applications
+* **ThreadPoolExecutor** - Async API fetching for improved performance and parallel data retrieval
 
 ### Supported by following APIs/tokens (you will need to register an account to get access tokens for use):
 
 Please refer to the provided link for more information
-* [LTA DataMall API Access](https://datamall.lta.gov.sg/content/datamall/en.html) - Various API supplying transportation related data
-* [OneMap API](https://www.onemap.gov.sg/apidocs/) - API used for generating train/mrt stations and its exits data
-* [Mapbox](https://docs.mapbox.com/api/overview/) - API used for embedding Mapbox in web app.
+* [Data.gov.sg API](https://beta.data.gov.sg/) - Primary data source for:
+  - Weather data (V2 APIs): Temperature, rainfall, humidity, wind speed
+  - Environmental alerts: Lightning observations, flood alerts
+  - Exposure indexes: UV Index, WBGT, PSI with pollutants
+  - Transport data: Taxi availability, traffic camera images
+* [LTA DataMall API Access](https://datamall.lta.gov.sg/content/datamall/en.html) - Transportation related data
+* [OneMap API](https://www.onemap.gov.sg/apidocs/) - Geospatial services:
+  - Location search and geocoding
+  - Nearby transport facilities (bus stops, MRT stations)
+  - Map tiles for visualization
+* [HDB Carpark Availability API](https://data.gov.sg/datasets?query=carpark) - Real-time carpark lot availability
+* [LTA Gantry GeoJSON Dataset](https://data.gov.sg/datasets/d_753090823cc9920ac41efaa6530c5893/view) - ERP gantry locations
 
 ## Requirements
-We suggest you to create an Anaconda environment using the requirements.yml file provided, and install all of the required dependencies listed within.  In your Terminal/Command Prompt:
 
-```
+### Python Dependencies
+
+We suggest you to create an Anaconda environment using the requirements.yml file provided, and install all of the required dependencies listed within. In your Terminal/Command Prompt:
+
+```bash
 git clone https://github.com/plotly/Dash-sample-analytics-dashboard-concept.git
 cd Dash-sample-analytics-dashboard-concept
 conda create -f requirements.txt
@@ -58,12 +124,47 @@ conda create -f requirements.txt
 
 If you prefer to install all of the required packages in your own Anaconda environment, simply activate your own Anaconda environment and execute the following command with your activated environment:
 
-```
+```bash
 pip install -r requirements.txt
 ```
 
-and all of the required `pip` packages, will be installed, and the app will be able to run.
+### Key Dependencies
 
+- **dash**: Web framework for building interactive dashboards
+- **dash-leaflet**: Interactive map components
+- **plotly**: Data visualization and graphing
+- **requests**: HTTP library for API calls
+- **python-dotenv**: Environment variable management
+- **pyproj**: Coordinate system transformations (SVY21 to WGS84)
+- **pandas**: Data manipulation for carpark locations
+- **numpy**: Numerical operations for UV Index graphing
+
+All required packages will be installed, and the app will be able to run.
+
+
+## Environment Setup
+
+Create a `.env` file in the root directory with the following API keys:
+
+```env
+# Data.gov.sg API key (required for weather, PSI, taxi, and traffic camera data)
+DATA_GOV_API=your_data_gov_api_key_here
+
+# OneMap API key (required for location search and nearby facilities)
+ONEMAP_API_KEY=your_onemap_api_key_here
+```
+
+### Getting API Keys
+
+1. **Data.gov.sg API Key**: 
+   - Sign up at [Data.gov.sg](https://beta.data.gov.sg/)
+   - Navigate to your account settings to generate an API key
+   - Required for: Weather data, PSI, UV Index, WBGT, taxi availability, traffic cameras
+
+2. **OneMap API Key**:
+   - Register at [OneMap](https://www.onemap.gov.sg/)
+   - Generate an API key from your account dashboard
+   - Required for: Location search, nearby bus stops, MRT stations
 
 ## Using this application
 
@@ -72,6 +173,12 @@ Run this app locally by:
 python app.py
 ```
 Open http://0.0.0.0:8050/ in your browser, you will see an interactive dashboard.
+
+The application will automatically:
+- Initialize OneMap API authentication on startup
+- Fetch and cache data from various APIs
+- Update displays every 30-60 seconds
+- Handle map resizing when switching tabs
 
 ## Other miscellaneous information
 
