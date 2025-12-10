@@ -13,7 +13,7 @@ All data are retrieved via API calls to data.gov.sg accessible [here](https://be
    - Carpark availability (HDB Carpark Availability API)
    - Taxi availability (Data.gov.sg Taxi Availability API)
    - Traffic cameras (Data.gov.sg Traffic Images API)
-   - ERP gantry locations (LTA Gantry GeoJSON dataset)
+   - ERP gantry locations (LTA Gantry GeoJSON dataset via Data.gov.sg initiate-download API)
 5. **Traffic**: Live traffic camera feeds at key locations
 
 For developers, please refer to the link [here](https://guide.data.gov.sg/developers) on possible deprecation and updates on API and other information.
@@ -26,12 +26,21 @@ For developers, please refer to the link [here](https://guide.data.gov.sg/develo
 This analytics dashboard provides real-time information on:
 
 ### Main Dashboard
-- **Average PSI Reading**: 24-hour average Pollutant Standards Index across all regions
-- **24-Hour Weather Forecast**: Temperature, humidity, wind, and rain forecast
-- **Interactive Map**: Search locations and view nearby facilities
+- **Average PSI Reading**: 24-hour average Pollutant Standards Index across all regions (calculated from regional averages)
+- **24-Hour Weather Forecast**: Temperature, humidity, wind, and rain forecast (reduced padding for optimized layout)
+- **Interactive Map**: Search locations and view nearby facilities (search bar positioned above map)
 - **Nearby Facilities**: Top 5 nearest MRT stations, bus stops, and HDB carparks with availability
 - **Traffic Cameras**: Live CCTV feeds from land checkpoints
-- **Environmental Indicators**: Lightning detection and flood alert status
+- **Environmental Indicators**: Lightning detection and flood alert status with color-coded alerts
+
+### Realtime Weather Metrics Page
+- **Live Weather Readings**: Temperature, rainfall, humidity, and wind speed from stations across Singapore
+- **Interactive Map**: Toggle visibility of different weather marker types
+- **Status Indicators**: Lightning and flood alert indicators with color-coded status
+- **2-Hour Weather Forecast**: Toggle button to show/hide 2-hour area forecasts with weather map
+  - Area forecasts displayed in grid format
+  - Weather icons plotted on map showing forecast conditions
+  - Updates automatically when section is visible
 
 ### Pollutant & Exposure Indexes Page
 - **UV Index**: Hourly trend visualization with line graph
@@ -40,7 +49,12 @@ This analytics dashboard provides real-time information on:
   - 24H Mean PSI, PM2.5, PM10, Sulphur Dioxide
   - 8H Mean Carbon Monoxide and Ozone
   - 1H Max Nitrogen Dioxide
-- **Interactive Map**: Regional pollutant data displayed as text boxes on map with full pollutant legend
+- **Interactive Map**: Regional pollutant data displayed as text boxes on map with:
+  - Average PSI value and category in region title
+  - Color-coded pollutant values (PM values on left, others on right)
+  - Full pollutant legend with color categories and thresholds
+  - PSI color legend showing all risk levels
+- **Layout**: Optimized 2:6:2 ratio (indices panel : map : legend)
 
 ### Transport Info Page
 - **Taxi Availability**: Real-time taxi locations (4,500+ taxis) displayed as yellow markers on map
@@ -50,20 +64,23 @@ This analytics dashboard provides real-time information on:
 
 ## Application Structure
 
-The dashboard consists of 5 main pages accessible via tabs:
+The dashboard consists of 4 main pages accessible via tabs:
 
 1. **🏠 Main Dashboard**: Overview with average PSI, weather forecast, nearby facilities, and interactive map
-2. **🌦️ 2-Hour Weather Forecast**: Detailed 2-hour weather predictions with map markers
-3. **📡 Realtime Weather Metrics**: Live temperature, rainfall, humidity, and wind speed readings across Singapore
-4. **📊 Pollutant & Exposure Indexes**: UV Index trends, WBGT heat stress, and comprehensive PSI pollutant data
-5. **🚌 Transport Info**: Taxi availability, traffic cameras, and ERP gantry locations
+2. **📡 Realtime Weather Metrics**: Live temperature, rainfall, humidity, and wind speed readings across Singapore
+   - **2-Hour Weather Forecast**: Toggle button to show/hide detailed 2-hour weather predictions with map markers
+3. **📊 Pollutant & Exposure Indexes**: UV Index trends, WBGT heat stress, and comprehensive PSI pollutant data
+4. **🚌 Transport Info**: Taxi availability, traffic cameras, and ERP gantry locations
 
 ## Key Features
 
 ### Performance Optimizations
 - **Async API Fetching**: Uses ThreadPoolExecutor for parallel API calls, reducing load times
-- **Data Caching**: PSI data cached for 60 seconds to minimize redundant API requests
-- **Efficient Map Rendering**: Automatic map resize handling when switching between tabs
+- **Data Caching**: 
+  - PSI data cached for 60 seconds to minimize redundant API requests
+  - ERP gantry data cached for 24 hours (static dataset)
+- **Efficient Map Rendering**: Automatic map resize handling when switching between tabs and toggling sections
+- **Conditional Data Fetching**: 2H weather forecast only fetches data when section is visible
 
 ### Interactive Maps
 - **Multi-layer Support**: Toggle visibility of different data layers (weather markers, transport facilities, taxis, cameras, ERP gantries)
@@ -74,7 +91,15 @@ The dashboard consists of 5 main pages accessible via tabs:
 ### Data Visualization
 - **UV Index Trends**: Line graph showing hourly UV index throughout the day
 - **Regional PSI Display**: Text boxes on map showing pollutant readings for each region
+  - Region title includes average PSI value and category
+  - Pollutant values color-coded based on WHO/EPA air quality standards
+  - Two-column layout: PM values (left) and other pollutants (right)
 - **Color-coded Risk Levels**: Visual indicators for air quality, heat stress, and environmental alerts
+  - PSI categories: Good (green), Moderate (yellow), Unhealthy (orange), Very Unhealthy (red), Hazardous (purple)
+  - Pollutant thresholds: Color-coded values for PM2.5, PM10, SO₂, CO, O₃, NO₂
+- **Comprehensive Legends**: 
+  - PSI color categories legend with source attribution
+  - Pollutant color categories table with thresholds and source attribution
 - **Live Camera Feeds**: Embedded traffic camera images in map popups
 
 ## Screenshots of app
@@ -109,6 +134,8 @@ Please refer to the provided link for more information
   - Map tiles for visualization
 * [HDB Carpark Availability API](https://data.gov.sg/datasets?query=carpark) - Real-time carpark lot availability
 * [LTA Gantry GeoJSON Dataset](https://data.gov.sg/datasets/d_753090823cc9920ac41efaa6530c5893/view) - ERP gantry locations
+  - Accessed via Data.gov.sg initiate-download API endpoint
+  - Dataset ID: `d_753090823cc9920ac41efaa6530c5893`
 
 ## Requirements
 
@@ -138,6 +165,7 @@ pip install -r requirements.txt
 - **pyproj**: Coordinate system transformations (SVY21 to WGS84)
 - **pandas**: Data manipulation for carpark locations
 - **numpy**: Numerical operations for UV Index graphing
+- **concurrent.futures**: ThreadPoolExecutor for async API fetching
 
 All required packages will be installed, and the app will be able to run.
 
@@ -178,7 +206,9 @@ The application will automatically:
 - Initialize OneMap API authentication on startup
 - Fetch and cache data from various APIs
 - Update displays every 30-60 seconds
-- Handle map resizing when switching tabs
+- Handle map resizing when switching tabs and toggling sections
+- Apply color coding to pollutant values based on air quality standards
+- Display comprehensive legends for PSI and pollutant categories with source attribution
 
 ## Other miscellaneous information
 
