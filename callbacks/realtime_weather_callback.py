@@ -5,45 +5,39 @@ References:
 - Rainfall: https://api-open.data.gov.sg/v2/real-time/api/rainfall
 - Relative Humidity: https://api-open.data.gov.sg/v2/real-time/api/relative-humidity
 - Wind Speed: https://api-open.data.gov.sg/v2/real-time/api/wind-speed
+
+Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
-import os
 import time
-import requests
 from dash import Input, Output, State, html, callback_context
-from dotenv import load_dotenv
 import dash_leaflet as dl
 from conf.windspeed_icon import get_windspeed_icon, get_windspeed_description
+from utils.async_fetcher import fetch_url, fetch_async, get_default_headers
 
-load_dotenv(override=True)
+# API URLs
+API_BASE = "https://api-open.data.gov.sg/v2/real-time/api"
+FLOOD_ALERTS_URL = f"{API_BASE}/weather/flood-alerts"
+LIGHTNING_URL = f"{API_BASE}/weather?api=lightning"
+SUPPORTED_ENDPOINTS = ['air-temperature', 'rainfall', 'relative-humidity', 'wind-speed']
 
 
 def fetch_flood_alerts():
     """
-    Fetch flood alerts from data.gov.sg v2 API.
+    Fetch flood alerts from data.gov.sg v2 API (threaded).
     Reference: https://api-open.data.gov.sg/v2/real-time/api/weather/flood-alerts
 
     Returns:
         Dictionary containing flood alert data or None if error
     """
-    api_key = os.getenv('DATA_GOV_API')
-    if not api_key:
-        print("DATA_GOV_API environment variable not set")
-        return None
+    return fetch_url(FLOOD_ALERTS_URL, get_default_headers())
 
-    url = "https://api-open.data.gov.sg/v2/real-time/api/weather/flood-alerts"
-    headers = {
-        "X-API-Key": api_key,
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
 
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            return res.json()
-        print(f"Flood alerts API failed: status={res.status_code}")
-    except (requests.exceptions.RequestException, ValueError) as error:
-        print(f"Error calling flood alerts API: {error}")
-    return None
+def fetch_flood_alerts_async():
+    """
+    Fetch flood alerts asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    return fetch_async(FLOOD_ALERTS_URL, get_default_headers())
 
 
 def fetch_realtime_data(endpoint):
@@ -56,31 +50,25 @@ def fetch_realtime_data(endpoint):
     Returns:
         Dictionary containing weather data or None if error
     """
-    api_key = os.getenv('DATA_GOV_API')
-    if not api_key:
-        print("DATA_GOV_API environment variable not set")
-        return None
-
-    # Only support v2 API endpoints
-    supported = ['air-temperature', 'rainfall', 'relative-humidity', 'wind-speed']
-    if endpoint not in supported:
+    if endpoint not in SUPPORTED_ENDPOINTS:
         print(f"Unsupported endpoint: {endpoint}")
         return None
 
-    url = f"https://api-open.data.gov.sg/v2/real-time/api/{endpoint}"
-    headers = {
-        "X-API-Key": api_key,
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
+    url = f"{API_BASE}/{endpoint}"
+    return fetch_url(url, get_default_headers())
 
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            return res.json()
-        print(f"Realtime {endpoint} API failed: status={res.status_code}")
-    except (requests.exceptions.RequestException, ValueError) as error:
-        print(f"Error calling {endpoint} API: {error}")
-    return None
+
+def fetch_realtime_data_async(endpoint):
+    """
+    Fetch realtime weather data asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    if endpoint not in SUPPORTED_ENDPOINTS:
+        print(f"Unsupported endpoint: {endpoint}")
+        return None
+
+    url = f"{API_BASE}/{endpoint}"
+    return fetch_async(url, get_default_headers())
 
 
 def fetch_lightning_data():
@@ -90,25 +78,15 @@ def fetch_lightning_data():
     Returns:
         Dictionary containing lightning data or None if error
     """
-    api_key = os.getenv('DATA_GOV_API')
-    if not api_key:
-        print("DATA_GOV_API environment variable not set")
-        return None
+    return fetch_url(LIGHTNING_URL, get_default_headers())
 
-    url = "https://api-open.data.gov.sg/v2/real-time/api/weather?api=lightning"
-    headers = {
-        "X-API-Key": api_key,
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
 
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            return res.json()
-        print(f"Lightning API failed: status={res.status_code}")
-    except (requests.exceptions.RequestException, ValueError) as error:
-        print(f"Error calling lightning API: {error}")
-    return None
+def fetch_lightning_data_async():
+    """
+    Fetch lightning data asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    return fetch_async(LIGHTNING_URL, get_default_headers())
 
 
 def build_station_lookup(data):

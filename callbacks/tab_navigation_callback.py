@@ -77,34 +77,44 @@ def register_tab_navigation_callback(app):
         return (main_style, weather_2h_style, realtime_style,
                 indices_style, search_bar_style)
 
-    # Clientside callback to fix map rendering after tab switch and force center
+    # Clientside callback to fix map rendering after tab switch
+    # This triggers invalidateSize() on Leaflet maps when tabs change
     app.clientside_callback(
         """
         function(tab_value) {
-            var mapTabs = ['weather-2h', 'realtime-weather', 'weather-indices'];
-            if (mapTabs.includes(tab_value)) {
-                // Delay to ensure DOM is fully updated
-                setTimeout(function() {
-                    // Find all Leaflet map containers and invalidate size
-                    var maps = [
-                        'weather-2h-map',
-                        'realtime-weather-map',
-                        'weather-indices-map'
-                    ];
-                    maps.forEach(function(id) {
-                        var mapEl = document.getElementById(id);
-                        if (mapEl) {
-                            // Trigger resize event for simple fix
-                            window.dispatchEvent(new Event('resize'));
-                        }
-                    });
-                }, 200);
-                
-                // Second check for reliability
-                setTimeout(function() {
-                    window.dispatchEvent(new Event('resize'));
-                }, 500);
+            // Map ID for each tab
+            var tabMapIds = {
+                'main': 'sg-map',
+                'weather-2h': 'weather-2h-map',
+                'realtime-weather': 'realtime-weather-map',
+                'weather-indices': 'weather-indices-map'
+            };
+            
+            var targetMapId = tabMapIds[tab_value];
+            if (!targetMapId) {
+                return window.dash_clientside.no_update;
             }
+            
+            // Function to invalidate map size
+            function invalidateMapSize() {
+                var mapContainer = document.getElementById(targetMapId);
+                if (mapContainer) {
+                    // Try to find the Leaflet map instance
+                    // Leaflet stores the map instance on the container element
+                    if (mapContainer._leaflet_map) {
+                        mapContainer._leaflet_map.invalidateSize();
+                    } else {
+                        // Fallback: trigger window resize event which Leaflet listens to
+                        window.dispatchEvent(new Event('resize'));
+                    }
+                }
+            }
+            
+            // Delay to ensure DOM is fully updated after display:none -> display:flex/block
+            setTimeout(invalidateMapSize, 100);
+            setTimeout(invalidateMapSize, 300);
+            setTimeout(invalidateMapSize, 500);
+            
             return window.dash_clientside.no_update;
         }
         """,
