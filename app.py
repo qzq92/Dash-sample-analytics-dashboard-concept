@@ -244,44 +244,86 @@ app.layout = html.Div(
                                                 ),
                                             ]
                                         ),
-                                        # 24-hour Weather forecast section (right side)
+                                        # Right column: PSI and 24-hour forecast stacked
                                         html.Div(
-                                            id="weather-forecast-24h-section",
+                                            id="right-info-column",
                                             style={
                                                 "flex": "1",
-                                                "backgroundColor": "#4a5a6a",
-                                                "borderRadius": "5px",
-                                                "padding": "10px",
                                                 "display": "flex",
                                                 "flexDirection": "column",
-                                                "overflow": "hidden",
+                                                "gap": "10px",
                                                 "minHeight": "0",
                                             },
                                             children=[
-                                                html.H4(
-                                                    "Next 24-Hour Forecast",
-                                                    style={
-                                                        "textAlign": "center",
-                                                        "margin": "5px 0",
-                                                        "color": "#fff",
-                                                        "fontWeight": "700",
-                                                        "flexShrink": "0",
-                                                    }
-                                                ),
+                                                # 24H PSI section (top)
                                                 html.Div(
-                                                    id="weather-24h-content",
+                                                    id="psi-24h-section",
+                                                    style={
+                                                        "backgroundColor": "#2c3e50",
+                                                        "borderRadius": "5px",
+                                                        "padding": "8px 10px",
+                                                        "flexShrink": "0",
+                                                    },
                                                     children=[
-                                                        html.P("Loading...", style={"textAlign": "center", "padding": "20px", "color": "#999"})
-                                                    ],
+                                                        html.H5(
+                                                            "24-Hour PSI Readings",
+                                                            style={
+                                                                "textAlign": "center",
+                                                                "margin": "0 0 8px 0",
+                                                                "color": "#fff",
+                                                                "fontWeight": "700",
+                                                                "fontSize": "14px",
+                                                            }
+                                                        ),
+                                                        html.Div(
+                                                            id="psi-24h-content",
+                                                            children=[
+                                                                html.P("Loading...", style={"textAlign": "center", "color": "#999", "fontSize": "12px"})
+                                                            ],
+                                                        ),
+                                                    ]
+                                                ),
+                                                # 24-hour Weather forecast section (bottom)
+                                                html.Div(
+                                                    id="weather-forecast-24h-section",
                                                     style={
                                                         "flex": "1",
+                                                        "backgroundColor": "#4a5a6a",
+                                                        "borderRadius": "5px",
+                                                        "padding": "10px",
                                                         "display": "flex",
-                                                        "alignItems": "center",
-                                                        "justifyContent": "center",
+                                                        "flexDirection": "column",
                                                         "overflow": "hidden",
                                                         "minHeight": "0",
-                                                        "minWidth": "0",
-                                                    }
+                                                    },
+                                                    children=[
+                                                        html.H5(
+                                                            "Next 24-Hour Forecast",
+                                                            style={
+                                                                "textAlign": "center",
+                                                                "margin": "0 0 8px 0",
+                                                                "color": "#fff",
+                                                                "fontWeight": "700",
+                                                                "flexShrink": "0",
+                                                                "fontSize": "14px",
+                                                            }
+                                                        ),
+                                                        html.Div(
+                                                            id="weather-24h-content",
+                                                            children=[
+                                                                html.P("Loading...", style={"textAlign": "center",  "color": "#999"})
+                                                            ],
+                                                            style={
+                                                                "flex": "1",
+                                                                "display": "flex",
+                                                                "alignItems": "center",
+                                                                "justifyContent": "center",
+                                                                "overflow": "hidden",
+                                                                "minHeight": "0",
+                                                                "minWidth": "0",
+                                                            }
+                                                        ),
+                                                    ]
                                                 ),
                                             ]
                                         ),
