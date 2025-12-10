@@ -1,19 +1,26 @@
 """
 Callbacks for fetching and displaying realtime exposure indexes data.
 Handles UV Index, WBGT, and other exposure indexes.
+
+Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
-import os
 import time
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
-import requests
 import numpy as np
 import plotly.graph_objects as go
 import dash_leaflet as dl
 from dash import html, dcc, Input, Output, State
-from dotenv import load_dotenv
+from utils.async_fetcher import fetch_url, get_default_headers
 
-load_dotenv(override=True)
+# Thread pool for async exposure index fetching
+_exposure_executor = ThreadPoolExecutor(max_workers=5)
+
+# API URLs
+PSI_URL = "https://api-open.data.gov.sg/v2/real-time/api/psi"
+UV_URL = "https://api-open.data.gov.sg/v2/real-time/api/uv"
+WBGT_URL = "https://api-open.data.gov.sg/v2/real-time/api/weather?api=wbgt"
 
 
 # PSI (Pollutant Standards Index) categories
@@ -72,54 +79,41 @@ def get_wbgt_category(value):
 
 def fetch_psi_data():
     """Fetch PSI data from Data.gov.sg API."""
-    api_key = os.getenv('DATA_GOV_API')
-    if not api_key:
-        print("DATA_GOV_API environment variable not set")
-        return None
+    return fetch_url(PSI_URL, get_default_headers())
 
-    url = "https://api-open.data.gov.sg/v2/real-time/api/psi"
-    headers = {"X-Api-Key": api_key}
 
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            return res.json()
-        print(f"PSI API failed: status={res.status_code}")
-    except (requests.exceptions.RequestException, ValueError) as error:
-        print(f"Error calling PSI API: {error}")
-    return None
+def fetch_psi_data_async():
+    """
+    Fetch PSI data asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    return _exposure_executor.submit(fetch_psi_data)
 
 
 def fetch_uv_data():
     """Fetch UV index data from Data.gov.sg API."""
-    url = "https://api-open.data.gov.sg/v2/real-time/api/uv"
-    api_key = os.getenv('DATA_GOV_API')
-    headers = {
-        "X-Api-Key": api_key
-    } if api_key else {}
+    return fetch_url(UV_URL, get_default_headers())
 
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException:
-        return None
+
+def fetch_uv_data_async():
+    """
+    Fetch UV data asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    return _exposure_executor.submit(fetch_uv_data)
 
 
 def fetch_wbgt_data():
     """Fetch WBGT data from Data.gov.sg API."""
-    url = "https://api-open.data.gov.sg/v2/real-time/api/weather?api=wbgt"
-    api_key = os.getenv('DATA_GOV_API')
-    headers = {
-        "X-Api-Key": api_key
-    } if api_key else {}
+    return fetch_url(WBGT_URL, get_default_headers())
 
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException:
-        return None
+
+def fetch_wbgt_data_async():
+    """
+    Fetch WBGT data asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    return _exposure_executor.submit(fetch_wbgt_data)
 
 
 def _parse_timestamp(timestamp_str):
