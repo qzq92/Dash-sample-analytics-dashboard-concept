@@ -206,7 +206,7 @@ def format_weather_2h(data):
 
 def _create_weather_card(title, emoji, color, value):
     """
-    Helper to create a weather info card with large value display.
+    Helper to create a weather info card with compact value display.
     Values are self-contained and proportional to container size.
 
     Args:
@@ -220,10 +220,10 @@ def _create_weather_card(title, emoji, color, value):
             html.Div(
                 f"{emoji} {title}",
                 style={
-                    "fontSize": "clamp(10px, 1.2vw, 14px)",
+                    "fontSize": "clamp(9px, 1vw, 11px)",
                     "fontWeight": "700",
                     "color": color,
-                    "marginBottom": "clamp(6px, 1vh, 12px)",
+                    "marginBottom": "clamp(4px, 0.8vh, 8px)",
                     "textAlign": "center",
                     "overflow": "hidden",
                     "textOverflow": "ellipsis",
@@ -233,22 +233,22 @@ def _create_weather_card(title, emoji, color, value):
             html.Div(
                 value,
                 style={
-                    "fontSize": "clamp(12px, 2vw, 24px)",
+                    "fontSize": "clamp(10px, 1.5vw, 16px)",
                     "fontWeight": "700",
                     "color": color,
                     "textAlign": "center",
                     "wordBreak": "break-word",
                     "overflowWrap": "break-word",
                     "overflow": "hidden",
-                    "lineHeight": "1.3",
+                    "lineHeight": "1.2",
                 }
             )
         ],
         style={
             "flex": "1",
-            "padding": "clamp(8px, 1.5vw, 15px)",
+            "padding": "clamp(6px, 1vw, 10px)",
             "backgroundColor": "#3a4a5a",
-            "borderRadius": "8px",
+            "borderRadius": "6px",
             "border": "1px solid #555",
             "minWidth": "0",
             "overflow": "hidden",

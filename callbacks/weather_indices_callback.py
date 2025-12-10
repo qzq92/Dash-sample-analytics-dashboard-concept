@@ -4,6 +4,7 @@ Handles UV Index, WBGT, and other exposure indexes.
 
 Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
+import math
 import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -21,6 +22,11 @@ _exposure_executor = ThreadPoolExecutor(max_workers=5)
 PSI_URL = "https://api-open.data.gov.sg/v2/real-time/api/psi"
 UV_URL = "https://api-open.data.gov.sg/v2/real-time/api/uv"
 WBGT_URL = "https://api-open.data.gov.sg/v2/real-time/api/weather?api=wbgt"
+
+# Cache for PSI data to avoid redundant API calls
+# Structure: {'data': <api_response>, 'timestamp': <time.time()>}
+_psi_cache = {'data': None, 'timestamp': 0}
+PSI_CACHE_TTL = 60  # Cache time-to-live in seconds
 
 
 # PSI (Pollutant Standards Index) categories
@@ -98,8 +104,28 @@ def _get_pollutant_unit(pollutant_key):
 
 
 def fetch_psi_data():
-    """Fetch PSI data from Data.gov.sg API."""
-    return fetch_url(PSI_URL, get_default_headers())
+    """
+    Fetch PSI data from Data.gov.sg API with caching.
+    Returns cached data if within TTL, otherwise fetches fresh data.
+    """
+    global _psi_cache
+
+    current_time = time.time()
+
+    # Check if cache is valid
+    if (_psi_cache['data'] is not None and
+            current_time - _psi_cache['timestamp'] < PSI_CACHE_TTL):
+        return _psi_cache['data']
+
+    # Fetch fresh data
+    data = fetch_url(PSI_URL, get_default_headers())
+
+    # Update cache
+    if data is not None:
+        _psi_cache['data'] = data
+        _psi_cache['timestamp'] = current_time
+
+    return data
 
 
 def fetch_psi_data_async():
@@ -367,10 +393,10 @@ def create_psi_markers(data):
         ("psi_twenty_four_hourly", "24H Avg PSI"),
         ("pm25_twenty_four_hourly", "24H Avg PM2.5"),
         ("pm10_twenty_four_hourly", "24H Avg PM10"),
-        ("so2_twenty_four_hourly", "24H Avg SO₂"),
-        ("co_eight_hour_max", "8H Avg CO"),
-        ("o3_eight_hour_max", "8H Avg O₃"),
-        ("no2_one_hour_max", "1H Max NO₂")
+        ("so2_twenty_four_hourly", "Max 24H Avg SO₂"),
+        ("co_eight_hour_max", "Max 8H Avg CO"),
+        ("o3_eight_hour_max", "Max 8H Avg O₃"),
+        ("no2_one_hour_max", "Max 1H NO₂")
     ]
 
     markers = [
@@ -814,8 +840,24 @@ def register_weather_indices_callbacks(app):
         return format_main_page_psi(data)
 
 
+def _calc_regional_average(psi_data):
+    """Calculate average PSI across all regions (rounded up)."""
+    regions = ["north", "south", "east", "west", "central"]
+    values = []
+    for region in regions:
+        val = psi_data.get(region)
+        if val is not None:
+            try:
+                values.append(float(val))
+            except (ValueError, TypeError):
+                pass
+    if values:
+        return math.ceil(sum(values) / len(values))
+    return None
+
+
 def format_main_page_psi(data):
-    """Format 24H PSI data for compact display on main page."""
+    """Format 24H average PSI data for compact display on main page."""
     if not data or data.get("code") != 0:
         return html.P(
             "Error loading PSI data",
@@ -830,62 +872,49 @@ def format_main_page_psi(data):
         )
 
     readings = items[0].get("readings", {})
-    psi_data = readings.get("psi_twenty_four_hourly", {})
 
-    regions = ["north", "south", "east", "west", "central"]
+    # Get 24H PSI data and calculate average across regions
+    psi_24h_data = readings.get("psi_twenty_four_hourly", {})
+    psi_24h = _calc_regional_average(psi_24h_data)
 
-    # Create compact row of PSI values
-    psi_items = []
-    for region in regions:
-        value = psi_data.get(region)
-        if value is not None:
-            color, category = get_psi_category(value)
-            psi_items.append(
-                html.Div(
-                    [
-                        html.Div(
-                            region.capitalize(),
-                            style={
-                                "fontSize": "10px",
-                                "color": "#aaa",
-                                "textAlign": "center",
-                                "marginBottom": "2px",
-                            }
-                        ),
-                        html.Div(
-                            str(value),
-                            style={
-                                "fontSize": "16px",
-                                "fontWeight": "bold",
-                                "color": color,
-                                "textAlign": "center",
-                            }
-                        ),
-                        html.Div(
-                            category,
-                            style={
-                                "fontSize": "9px",
-                                "color": color,
-                                "textAlign": "center",
-                            }
-                        ),
-                    ],
-                    style={
-                        "flex": "1",
-                        "padding": "4px",
-                        "backgroundColor": "#1a2a3a",
-                        "borderRadius": "4px",
-                        "minWidth": "50px",
-                    }
-                )
-            )
+    if psi_24h is None:
+        return html.P(
+            "PSI data not available",
+            style={"color": "#999", "textAlign": "center", "fontSize": "11px"}
+        )
+
+    color, category = get_psi_category(psi_24h)
 
     return html.Div(
-        psi_items,
+        [
+            html.Div(
+                str(psi_24h),
+                style={
+                    "fontSize": "36px",
+                    "fontWeight": "bold",
+                    "color": color,
+                    "textAlign": "center",
+                    "lineHeight": "1",
+                }
+            ),
+            html.Div(
+                category,
+                style={
+                    "fontSize": "14px",
+                    "color": color,
+                    "textAlign": "center",
+                    "marginTop": "6px",
+                    "fontWeight": "600",
+                }
+            ),
+        ],
         style={
+            "padding": "10px",
+            "backgroundColor": "#1a2a3a",
+            "borderRadius": "6px",
             "display": "flex",
-            "gap": "6px",
-            "justifyContent": "space-between",
+            "flexDirection": "column",
+            "alignItems": "center",
         }
     )
 
