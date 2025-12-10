@@ -190,7 +190,7 @@ def weather_indices_page():
                             ),
                         ]
                     ),
-                    # Right side: Map
+                    # Right side: Map with legend
                     html.Div(
                         id="weather-indices-map-panel",
                         style={
@@ -199,35 +199,106 @@ def weather_indices_page():
                             "backgroundColor": "#1a2a3a",
                             "borderRadius": "8px",
                             "overflow": "hidden",
+                            "display": "flex",
+                            "flexDirection": "column",
                         },
                         children=[
-                            dl.Map(
-                                id="weather-indices-map",
-                                center=sg_center,
-                                zoom=fixed_zoom,
-                                maxBounds=sg_bounds,
-                                maxBoundsViscosity=1.0,
+                            # Pollutant Legend Banner
+                            html.Div(
+                                id="pollutant-legend",
                                 style={
-                                    "width": "100%",
-                                    "height": "100%",
-                                    "minHeight": "400px",
-                                    "backgroundColor": "#1a2a3a",
+                                    "backgroundColor": "#2a3a4a",
+                                    "padding": "8px 12px",
+                                    "borderBottom": "1px solid #3a4a5a",
+                                    "flexShrink": "0",
                                 },
                                 children=[
-                                    dl.TileLayer(
-                                        url=onemap_tiles_url,
-                                        attribution="&copy; OneMap Singapore"
+                                    html.Div(
+                                        "Pollutant Abbreviations",
+                                        style={
+                                            "fontSize": "11px",
+                                            "fontWeight": "700",
+                                            "color": "#60a5fa",
+                                            "marginBottom": "6px",
+                                        }
                                     ),
-                                    dl.LayerGroup(
-                                        id="weather-indices-markers"
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "flexWrap": "wrap",
+                                            "gap": "8px 16px",
+                                            "fontSize": "10px",
+                                            "color": "#ccc",
+                                        },
+                                        children=[
+                                            html.Span([
+                                                html.Strong("PSI", style={"color": "#fff"}),
+                                                " = Pollutant Standards Index"
+                                            ]),
+                                            html.Span([
+                                                html.Strong("PM2.5", style={"color": "#fff"}),
+                                                " = Particulate Matter ≤2.5µm"
+                                            ]),
+                                            html.Span([
+                                                html.Strong("PM10", style={"color": "#fff"}),
+                                                " = Particulate Matter ≤10µm"
+                                            ]),
+                                            html.Span([
+                                                html.Strong("SO₂", style={"color": "#fff"}),
+                                                " = Sulphur Dioxide"
+                                            ]),
+                                            html.Span([
+                                                html.Strong("CO", style={"color": "#fff"}),
+                                                " = Carbon Monoxide"
+                                            ]),
+                                            html.Span([
+                                                html.Strong("O₃", style={"color": "#fff"}),
+                                                " = Ozone"
+                                            ]),
+                                            html.Span([
+                                                html.Strong("NO₂", style={"color": "#fff"}),
+                                                " = Nitrogen Dioxide"
+                                            ]),
+                                        ]
                                     ),
-                                    dl.LayerGroup(
-                                        id="psi-markers"
+                                ]
+                            ),
+                            # Map
+                            html.Div(
+                                style={
+                                    "flex": "1",
+                                    "minHeight": "0",
+                                },
+                                children=[
+                                    dl.Map(
+                                        id="weather-indices-map",
+                                        center=sg_center,
+                                        zoom=fixed_zoom,
+                                        maxBounds=sg_bounds,
+                                        maxBoundsViscosity=1.0,
+                                        style={
+                                            "width": "100%",
+                                            "height": "100%",
+                                            "minHeight": "400px",
+                                            "backgroundColor": "#1a2a3a",
+                                        },
+                                        children=[
+                                            dl.TileLayer(
+                                                url=onemap_tiles_url,
+                                                attribution="&copy; OneMap Singapore"
+                                            ),
+                                            dl.LayerGroup(
+                                                id="weather-indices-markers"
+                                            ),
+                                            dl.LayerGroup(
+                                                id="psi-markers"
+                                            ),
+                                        ],
+                                        zoomControl=True,
+                                        dragging=True,
+                                        scrollWheelZoom=True,
                                     ),
-                                ],
-                                zoomControl=True,
-                                dragging=True,
-                                scrollWheelZoom=True,
+                                ]
                             ),
                         ]
                     ),
