@@ -12,6 +12,7 @@ from components.map_component import map_component, search_bar
 from components.weather_page import weather_forecast_page
 from components.realtime_weather_page import realtime_weather_page
 from components.weather_indices_page import weather_indices_page
+from components.transport_page import transport_page
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
 from callbacks.weather_callback import register_weather_callbacks
@@ -21,6 +22,7 @@ from callbacks.mrt_callback import register_mrt_callbacks
 from callbacks.busstop_callbacks import register_busstop_callbacks
 from callbacks.carpark_callback import register_carpark_callbacks
 from callbacks.tab_navigation_callback import register_tab_navigation_callback
+from callbacks.transport_callback import register_transport_callbacks
 from auth.onemap_api import initialize_onemap_token
 
 # Initialize OneMap API token on application startup
@@ -48,6 +50,7 @@ register_weather_indices_callbacks(app)
 register_mrt_callbacks(app)
 register_busstop_callbacks(app)
 register_carpark_callbacks(app)
+register_transport_callbacks(app)
 register_tab_navigation_callback(app)
 
 # Dashboard app layout ------------------------------------------------------#
@@ -59,19 +62,12 @@ app.layout = html.Div(
             id="header",
             children=[
                 build_dashboard_banner(),
-                # Search bar underneath banner
-                html.Div(
-                    id="search-bar-section",
-                    style={
-                        "padding": "15px 40px",
-                        "backgroundColor": "#2c3e50",
-                        "borderBottom": "1px solid #444",
-                    },
-                    children=[
-                        search_bar()
-                    ]
-                )
             ],
+        ),
+        # Hidden search bar section div (for tab navigation callback compatibility)
+        html.Div(
+            id="search-bar-section",
+            style={"display": "none"},
         ),
 
         # App Container ------------------------------------------#
@@ -84,6 +80,8 @@ app.layout = html.Div(
                 realtime_weather_page(),
                 # Weather indices page (hidden by default)
                 weather_indices_page(),
+                # Transport page (hidden by default)
+                transport_page(),
                 # Main content area with map and right panel side by side
                 html.Div(
                     id="main-content-area",
@@ -92,11 +90,11 @@ app.layout = html.Div(
                         "width": "100%",
                         "gap": "20px",
                         "padding": "10px 20px",
-                        "height": "calc(100vh - 180px)",  # Adjust based on header + search bar height
+                        "height": "calc(100vh - 100px)",  # Adjusted for header only (search bar moved to map)
                         "alignItems": "stretch",  # Ensure both containers have same height
                     },
                     children=[
-                        # Left container - Map
+                        # Left container - Search bar and Map
                         html.Div(
                             id="left-container",
                             style={
@@ -104,9 +102,29 @@ app.layout = html.Div(
                                 "display": "flex",
                                 "flexDirection": "column",
                                 "height": "100%",
+                                "gap": "10px",
                             },
                             children=[
-                                map_component()  # Map will be updated via callback when search bar value changes
+                                # Search bar above map
+                                html.Div(
+                                    id="map-search-bar",
+                                    style={
+                                        "flexShrink": "0",
+                                    },
+                                    children=[
+                                        search_bar()
+                                    ]
+                                ),
+                                # Map container
+                                html.Div(
+                                    style={
+                                        "flex": "1",
+                                        "minHeight": "0",
+                                    },
+                                    children=[
+                                        map_component()
+                                    ]
+                                ),
                             ]
                         ),
                         # Right container - CCTV and Weather side by side at top, Nearest facilities at bottom
@@ -255,7 +273,7 @@ app.layout = html.Div(
                                                 "minHeight": "0",
                                             },
                                             children=[
-                                                # 24H PSI section (top)
+                                                # Average PSI section (top)
                                                 html.Div(
                                                     id="psi-24h-section",
                                                     style={
@@ -266,7 +284,7 @@ app.layout = html.Div(
                                                     },
                                                     children=[
                                                         html.H5(
-                                                            "24-Hour PSI Readings",
+                                                            "Average PSI Reading",
                                                             style={
                                                                 "textAlign": "center",
                                                                 "margin": "0 0 8px 0",
