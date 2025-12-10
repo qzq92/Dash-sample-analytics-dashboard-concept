@@ -1,19 +1,28 @@
 """
 Callback functions for handling HDB Carpark Availability API integration.
 Reference: https://data.gov.sg/datasets?query=carpark&resultId=d_ca933a644e55d34fe21f28b8052fac63
+
+Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
-import requests
 import pandas as pd
 import numpy as np
 import os
+from concurrent.futures import ThreadPoolExecutor
 from dash.dependencies import Input, Output
 from dash import html
 import dash_leaflet as dl
 from typing import List, Optional, Dict, Tuple
 from pyproj import Transformer
+from utils.async_fetcher import fetch_url
 
 # Cache for carpark location data
 _carpark_locations_cache: Optional[pd.DataFrame] = None
+
+# Thread pool for async carpark operations
+_carpark_executor = ThreadPoolExecutor(max_workers=5)
+
+# API URL
+CARPARK_AVAILABILITY_URL = "https://api.data.gov.sg/v1/transport/carpark-availability"
 
 
 def load_carpark_locations() -> pd.DataFrame:
@@ -61,16 +70,16 @@ def fetch_carpark_availability() -> Optional[dict]:
     Returns:
         Dictionary containing carpark data or None if request fails
     """
-    api_url = "https://api.data.gov.sg/v1/transport/carpark-availability"
     headers = {"Authorisation": os.getenv("ONEMAP_API_KEY")}
-    try:
-        response = requests.get(api_url, headers=headers, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        return data
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching carpark availability: {e}")
-        return None
+    return fetch_url(CARPARK_AVAILABILITY_URL, headers)
+
+
+def fetch_carpark_availability_async():
+    """
+    Fetch carpark availability asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    return _carpark_executor.submit(fetch_carpark_availability)
 
 
 def convert_wgs84_to_svy21(latitude: float, longitude: float) -> Tuple[float, float]:
