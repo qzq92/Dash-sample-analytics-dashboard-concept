@@ -1,14 +1,62 @@
 """
 Callback functions for handling nearest bus stop display using OneMap Nearby Transport API.
 Reference: https://www.onemap.gov.sg/apidocs/nearbytransport
+
+Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
-import requests
+import os
+from concurrent.futures import ThreadPoolExecutor
 from dash.dependencies import Input, Output
 from dash import html
 import dash_leaflet as dl
 from callbacks.map_callback import _haversine_distance_m
-#from auth.onemap_api import get_onemap_token
-import os
+from utils.async_fetcher import fetch_url
+
+# Thread pool for async bus stop fetching
+_bus_executor = ThreadPoolExecutor(max_workers=5)
+
+
+def _get_onemap_headers():
+    """Get headers for OneMap API requests."""
+    api_token = os.getenv("ONEMAP_API_KEY")
+    headers = {}
+    if api_token:
+        headers["Authorization"] = f"{api_token}"
+    return headers
+
+
+def _process_bus_stop_data(data, lat, lon, radius_m):
+    """Process raw bus stop data and calculate distances."""
+    if not data:
+        return []
+    
+    processed_results = []
+    for bus_stop in data:
+        try:
+            stop_lat = float(bus_stop.get('lat') or 0)
+            stop_lon = float(bus_stop.get('lon') or 0)
+            
+            if stop_lat == 0 or stop_lon == 0:
+                continue
+            
+            distance_m = _haversine_distance_m(lat, lon, stop_lat, stop_lon)
+            
+            if distance_m <= radius_m:
+                processed_results.append({
+                    'name': bus_stop.get('name') or 'Unknown Bus Stop',
+                    'code': bus_stop.get('id') or '',
+                    'distance_m': distance_m,
+                    'latitude': stop_lat,
+                    'longitude': stop_lon,
+                    'raw_data': bus_stop
+                })
+        except (ValueError, TypeError, KeyError) as e:
+            print(f"Error processing bus stop data: {e}")
+            continue
+    
+    processed_results.sort(key=lambda x: x['distance_m'])
+    return processed_results
+
 
 def fetch_nearby_bus_stops(lat: float, lon: float, radius_m: int = 500) -> list:
     """
@@ -25,90 +73,36 @@ def fetch_nearby_bus_stops(lat: float, lon: float, radius_m: int = 500) -> list:
     Returns:
         List of bus stop dictionaries with distance information
     """
-    try:
-        # OneMap Nearby Transport API endpoint for bus stops
-        url = f"https://www.onemap.gov.sg/api/public/nearbysvc/getNearestBusStops?latitude={lat}&longitude={lon}&radius_in_meters={radius_m}"
+    url = (
+        f"https://www.onemap.gov.sg/api/public/nearbysvc/getNearestBusStops"
+        f"?latitude={lat}&longitude={lon}&radius_in_meters={radius_m}"
+    )
+    print(url)
+    
+    data = fetch_url(url, _get_onemap_headers())
+    
+    if data is None:
+        print(f"No bus stops found within {radius_m}m or API error")
+        return []
+    
+    print(f"Found {len(data)} bus stops within {radius_m}m")
+    return _process_bus_stop_data(data, lat, lon, radius_m)
 
-        print(url)
 
-        # Get API token from auth module - uses cached token if valid, no re-authentication needed
-        # Token is already cached from app startup, this just retrieves it
-        api_token = os.getenv("ONEMAP_API_KEY")
-        
-        headers = {}
-        if api_token:
-            # OneMap API expects Authorization header with Bearer token format
-            headers["Authorization"] = f"{api_token}"
-        
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            data = response.json()
-            
-            if not data:
-                print(f"No bus stops found within {radius_m}m")
-                return []
-            
-            print(f"Found {len(data)} bus stops within {radius_m}m")
-            # Process and add distance information
-            processed_results = []
-            for bus_stop in data:
-                try:
-                    # Try different possible field names from API response
-                    stop_lat = float(
-                        bus_stop.get('lat') or 0
-                    )
-                    stop_lon = float(
-                        bus_stop.get('lon') or 0
-                    )
-                    
-                    # Skip if data is invalid
-                    if stop_lat == 0 or stop_lon == 0:
-                        continue
-                    
-                    # Calculate distance using haversine formula
-                    distance_m = _haversine_distance_m(lat, lon, stop_lat, stop_lon)
-                    
-                    # Only include bus stops within the specified radius
-                    if distance_m <= radius_m:
-                        # Get bus stop name/description from various possible fields
-                        name = (
-                            bus_stop.get('name') or
-                            'Unknown Bus Stop'
-                        )
-                        
-                        # Get bus stop code if available
-                        bus_stop_id = (
-                            bus_stop.get('id') or
-                            ''
-                        )
-                        
-                        processed_results.append({
-                            'name': name,
-                            'code': bus_stop_id,
-                            'distance_m': distance_m,
-                            'latitude': stop_lat,
-                            'longitude': stop_lon,
-                            'raw_data': bus_stop
-                        })
-                except (ValueError, TypeError, KeyError) as e:
-                    print(f"Error processing bus stop data: {e}")
-                    continue
-            
-            # Sort by distance (closest first)
-            processed_results.sort(key=lambda x: x['distance_m'])
-            
-            return processed_results
-        
-        print(f"OneMap Nearby Transport API failed for bus stops: status={response.status_code}, body={response.text[:200]}")
-        return []
-            
-    except requests.exceptions.RequestException as e:
-        print(f"Error calling OneMap Nearby Transport API: {e}")
-        return []
-    except Exception as e:
-        print(f"Unexpected error in fetch_nearby_bus_stops: {e}")
-        return []
+def fetch_nearby_bus_stops_async(lat: float, lon: float, radius_m: int = 500):
+    """
+    Fetch nearest bus stops asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    
+    Args:
+        lat: Latitude in degrees
+        lon: Longitude in degrees
+        radius_m: Search radius in meters (default: 500)
+    
+    Returns:
+        Future that will contain list of bus stop dictionaries
+    """
+    return _bus_executor.submit(fetch_nearby_bus_stops, lat, lon, radius_m)
 
 
 def _get_label_letter(index):
