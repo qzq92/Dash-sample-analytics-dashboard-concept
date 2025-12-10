@@ -190,6 +190,69 @@ def transport_page():
                                     ),
                                 ]
                             ),
+                            # ERP Gantry card
+                            html.Div(
+                                id="erp-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "15px",
+                                },
+                                children=[
+                                    # Header with toggle button
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "justifyContent": "space-between",
+                                            "alignItems": "center",
+                                            "borderBottom": "1px solid #5a6a7a",
+                                            "paddingBottom": "10px",
+                                            "marginBottom": "15px",
+                                        },
+                                        children=[
+                                            html.H5(
+                                                "🚧 ERP Gantries",
+                                                style={
+                                                    "margin": "0",
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                }
+                                            ),
+                                            html.Button(
+                                                "Show on Map",
+                                                id="erp-toggle-btn",
+                                                n_clicks=0,
+                                                style={
+                                                    "backgroundColor": "#FF6B6B",
+                                                    "border": "none",
+                                                    "borderRadius": "4px",
+                                                    "color": "#fff",
+                                                    "cursor": "pointer",
+                                                    "padding": "6px 12px",
+                                                    "fontSize": "12px",
+                                                    "fontWeight": "600",
+                                                },
+                                            ),
+                                        ]
+                                    ),
+                                    # ERP count display
+                                    html.Div(
+                                        id="erp-count-display",
+                                        children=[
+                                            html.P(
+                                                "Click 'Show on Map' to load gantry locations",
+                                                style={
+                                                    "color": "#999",
+                                                    "textAlign": "center",
+                                                    "padding": "20px",
+                                                    "fontStyle": "italic",
+                                                    "fontSize": "12px",
+                                                }
+                                            )
+                                        ]
+                                    ),
+                                ]
+                            ),
                             # Empty container for future use
                             html.Div(
                                 id="transport-extra-container",
@@ -245,6 +308,7 @@ def transport_page():
                                     ),
                                     dl.LayerGroup(id="taxi-markers"),
                                     dl.LayerGroup(id="cctv-markers"),
+                                    dl.LayerGroup(id="erp-markers"),
                                 ],
                                 zoomControl=True,
                                 dragging=True,
@@ -257,6 +321,7 @@ def transport_page():
             # Store for toggle states
             dcc.Store(id="taxi-toggle-state", data=False),
             dcc.Store(id="cctv-toggle-state", data=False),
+            dcc.Store(id="erp-toggle-state", data=False),
             # Interval for auto-refresh
             dcc.Interval(
                 id='transport-interval',
