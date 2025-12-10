@@ -127,6 +127,69 @@ def transport_page():
                                     ),
                                 ]
                             ),
+                            # CCTV Traffic Cameras card
+                            html.Div(
+                                id="cctv-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "15px",
+                                },
+                                children=[
+                                    # Header with toggle button
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "justifyContent": "space-between",
+                                            "alignItems": "center",
+                                            "borderBottom": "1px solid #5a6a7a",
+                                            "paddingBottom": "10px",
+                                            "marginBottom": "15px",
+                                        },
+                                        children=[
+                                            html.H5(
+                                                "📹 Traffic Cameras",
+                                                style={
+                                                    "margin": "0",
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                }
+                                            ),
+                                            html.Button(
+                                                "Show on Map",
+                                                id="cctv-toggle-btn",
+                                                n_clicks=0,
+                                                style={
+                                                    "backgroundColor": "#4CAF50",
+                                                    "border": "none",
+                                                    "borderRadius": "4px",
+                                                    "color": "#fff",
+                                                    "cursor": "pointer",
+                                                    "padding": "6px 12px",
+                                                    "fontSize": "12px",
+                                                    "fontWeight": "600",
+                                                },
+                                            ),
+                                        ]
+                                    ),
+                                    # CCTV count display
+                                    html.Div(
+                                        id="cctv-count-display",
+                                        children=[
+                                            html.P(
+                                                "Click 'Show on Map' to load camera locations",
+                                                style={
+                                                    "color": "#999",
+                                                    "textAlign": "center",
+                                                    "padding": "20px",
+                                                    "fontStyle": "italic",
+                                                    "fontSize": "12px",
+                                                }
+                                            )
+                                        ]
+                                    ),
+                                ]
+                            ),
                             # Empty container for future use
                             html.Div(
                                 id="transport-extra-container",
@@ -135,15 +198,15 @@ def transport_page():
                                     "backgroundColor": "#2c3e50",
                                     "borderRadius": "8px",
                                     "padding": "15px",
-                                    "minHeight": "200px",
+                                    "minHeight": "100px",
                                 },
                                 children=[
                                     html.P(
-                                        "Additional transport information will be displayed here",
+                                        "Additional transport information",
                                         style={
                                             "color": "#666",
                                             "textAlign": "center",
-                                            "padding": "40px 20px",
+                                            "padding": "20px",
                                             "fontStyle": "italic",
                                             "fontSize": "12px",
                                         }
@@ -181,6 +244,7 @@ def transport_page():
                                         attribution="&copy; OneMap Singapore"
                                     ),
                                     dl.LayerGroup(id="taxi-markers"),
+                                    dl.LayerGroup(id="cctv-markers"),
                                 ],
                                 zoomControl=True,
                                 dragging=True,
@@ -190,8 +254,9 @@ def transport_page():
                     ),
                 ]
             ),
-            # Store for taxi toggle state
+            # Store for toggle states
             dcc.Store(id="taxi-toggle-state", data=False),
+            dcc.Store(id="cctv-toggle-state", data=False),
             # Interval for auto-refresh
             dcc.Interval(
                 id='transport-interval',
