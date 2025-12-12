@@ -42,9 +42,9 @@ def transport_page():
                 id="transport-content",
                 style={
                     "display": "flex",
-                    "gap": "20px",
-                    "height": "calc(100% - 50px)",
-                    "maxWidth": "1800px",
+                    "gap": "1.25rem",
+                    "height": "calc(100% - 3.125rem)",
+                    "maxWidth": "112.5rem",
                     "margin": "0 auto",
                 },
                 children=[
@@ -53,11 +53,11 @@ def transport_page():
                         id="transport-info-panel",
                         style={
                             "flex": "1",
-                            "minWidth": "300px",
-                            "maxWidth": "400px",
+                            "minWidth": "18.75rem",
+                            "maxWidth": "25rem",
                             "display": "flex",
                             "flexDirection": "column",
-                            "gap": "15px",
+                            "gap": "0.9375rem",
                         },
                         children=[
                             # Taxi Availability card
@@ -65,8 +65,11 @@ def transport_page():
                                 id="taxi-availability-card",
                                 style={
                                     "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "8px",
-                                    "padding": "15px",
+                                    "borderRadius": "0.5rem",
+                                    "padding": "0.9375rem",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "overflow": "hidden",
                                 },
                                 children=[
                                     # Header with toggle button
@@ -75,9 +78,9 @@ def transport_page():
                                             "display": "flex",
                                             "justifyContent": "space-between",
                                             "alignItems": "center",
-                                            "borderBottom": "1px solid #5a6a7a",
-                                            "paddingBottom": "10px",
-                                            "marginBottom": "15px",
+                                            "borderBottom": "0.0625rem solid #5a6a7a",
+                                            "paddingBottom": "0.625rem",
+                                            "marginBottom": "0.9375rem",
                                         },
                                         children=[
                                             html.H5(
@@ -95,11 +98,11 @@ def transport_page():
                                                 style={
                                                     "backgroundColor": "#FFD700",
                                                     "border": "none",
-                                                    "borderRadius": "4px",
+                                                    "borderRadius": "0.25rem",
                                                     "color": "#000",
                                                     "cursor": "pointer",
-                                                    "padding": "6px 12px",
-                                                    "fontSize": "12px",
+                                                    "padding": "0.375rem 0.75rem",
+                                                    "fontSize": "0.75rem",
                                                     "fontWeight": "600",
                                                 },
                                             ),
@@ -108,15 +111,20 @@ def transport_page():
                                     # Taxi count display
                                     html.Div(
                                         id="taxi-count-display",
+                                        style={
+                                            "width": "100%",
+                                            "boxSizing": "border-box",
+                                            "overflow": "hidden",
+                                        },
                                         children=[
                                             html.P(
                                                 "Click 'Show on Map' to load taxi locations",
                                                 style={
                                                     "color": "#999",
                                                     "textAlign": "center",
-                                                    "padding": "20px",
+                                                    "padding": "1.25rem",
                                                     "fontStyle": "italic",
-                                                    "fontSize": "12px",
+                                                    "fontSize": "0.75rem",
                                                 }
                                             )
                                         ]
@@ -128,8 +136,11 @@ def transport_page():
                                 id="cctv-card",
                                 style={
                                     "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "8px",
-                                    "padding": "15px",
+                                    "borderRadius": "0.5rem",
+                                    "padding": "0.9375rem",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "overflow": "hidden",
                                 },
                                 children=[
                                     # Header with toggle button
@@ -138,9 +149,9 @@ def transport_page():
                                             "display": "flex",
                                             "justifyContent": "space-between",
                                             "alignItems": "center",
-                                            "borderBottom": "1px solid #5a6a7a",
-                                            "paddingBottom": "10px",
-                                            "marginBottom": "15px",
+                                            "borderBottom": "0.0625rem solid #5a6a7a",
+                                            "paddingBottom": "0.625rem",
+                                            "marginBottom": "0.9375rem",
                                         },
                                         children=[
                                             html.H5(
@@ -171,15 +182,20 @@ def transport_page():
                                     # CCTV count display
                                     html.Div(
                                         id="cctv-count-display",
+                                        style={
+                                            "width": "100%",
+                                            "boxSizing": "border-box",
+                                            "overflow": "hidden",
+                                        },
                                         children=[
                                             html.P(
                                                 "Click 'Show on Map' to load camera locations",
                                                 style={
                                                     "color": "#999",
                                                     "textAlign": "center",
-                                                    "padding": "20px",
+                                                    "padding": "1.25rem",
                                                     "fontStyle": "italic",
-                                                    "fontSize": "12px",
+                                                    "fontSize": "0.75rem",
                                                 }
                                             )
                                         ]
@@ -191,8 +207,11 @@ def transport_page():
                                 id="erp-card",
                                 style={
                                     "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "8px",
-                                    "padding": "15px",
+                                    "borderRadius": "0.5rem",
+                                    "padding": "0.9375rem",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "overflow": "hidden",
                                 },
                                 children=[
                                     # Header with toggle button
@@ -201,9 +220,9 @@ def transport_page():
                                             "display": "flex",
                                             "justifyContent": "space-between",
                                             "alignItems": "center",
-                                            "borderBottom": "1px solid #5a6a7a",
-                                            "paddingBottom": "10px",
-                                            "marginBottom": "15px",
+                                            "borderBottom": "0.0625rem solid #5a6a7a",
+                                            "paddingBottom": "0.625rem",
+                                            "marginBottom": "0.9375rem",
                                         },
                                         children=[
                                             html.H5(
@@ -234,15 +253,20 @@ def transport_page():
                                     # ERP count display
                                     html.Div(
                                         id="erp-count-display",
+                                        style={
+                                            "width": "100%",
+                                            "boxSizing": "border-box",
+                                            "overflow": "hidden",
+                                        },
                                         children=[
                                             html.P(
                                                 "Click 'Show on Map' to load gantry locations",
                                                 style={
                                                     "color": "#999",
                                                     "textAlign": "center",
-                                                    "padding": "20px",
+                                                    "padding": "1.25rem",
                                                     "fontStyle": "italic",
-                                                    "fontSize": "12px",
+                                                    "fontSize": "0.75rem",
                                                 }
                                             )
                                         ]
@@ -254,9 +278,12 @@ def transport_page():
                                 style={
                                     "flex": "1",
                                     "backgroundColor": "#2c3e50",
-                                    "borderRadius": "8px",
-                                    "padding": "15px",
-                                    "minHeight": "100px",
+                                    "borderRadius": "0.5rem",
+                                    "padding": "0.9375rem",
+                                    "minHeight": "6.25rem",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "overflow": "hidden",
                                 },
                                 children=[
                                     html.Div(
@@ -264,9 +291,9 @@ def transport_page():
                                             "display": "flex",
                                             "justifyContent": "space-between",
                                             "alignItems": "center",
-                                            "borderBottom": "1px solid #5a6a7a",
-                                            "paddingBottom": "10px",
-                                            "marginBottom": "15px",
+                                            "borderBottom": "0.0625rem solid #5a6a7a",
+                                            "paddingBottom": "0.625rem",
+                                            "marginBottom": "0.9375rem",
                                         },
                                         children=[
                                             html.H5(
@@ -297,15 +324,20 @@ def transport_page():
                                     # PUB CCTV count display
                                     html.Div(
                                         id="pub-cctv-count-display",
+                                        style={
+                                            "width": "100%",
+                                            "boxSizing": "border-box",
+                                            "overflow": "hidden",
+                                        },
                                         children=[
                                             html.P(
                                                 "Click 'Show on Map' to load CCTV locations",
                                                 style={
                                                     "color": "#999",
                                                     "textAlign": "center",
-                                                    "padding": "20px",
+                                                    "padding": "1.25rem",
                                                     "fontStyle": "italic",
-                                                    "fontSize": "12px",
+                                                    "fontSize": "0.75rem",
                                                 }
                                             )
                                         ]
@@ -319,9 +351,9 @@ def transport_page():
                         id="transport-map-panel",
                         style={
                             "flex": "2",
-                            "minWidth": "500px",
+                            "minWidth": "31.25rem",
                             "backgroundColor": "#1a2a3a",
-                            "borderRadius": "8px",
+                            "borderRadius": "0.5rem",
                             "overflow": "hidden",
                         },
                         children=[
@@ -336,7 +368,7 @@ def transport_page():
                                 style={
                                     "width": "100%",
                                     "height": "100%",
-                                    "minHeight": "400px",
+                                    "minHeight": "25rem",
                                     "backgroundColor": "#1a2a3a",
                                 },
                                 children=[
@@ -371,4 +403,3 @@ def transport_page():
             ),
         ]
     )
-
