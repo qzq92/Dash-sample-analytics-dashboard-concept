@@ -3,6 +3,13 @@ Component for the 2-hour weather forecast page.
 """
 from dash import html
 import dash_leaflet as dl
+from utils.map_utils import (
+    get_onemap_attribution,
+    SG_MAP_CENTER,
+    SG_MAP_DEFAULT_ZOOM,
+    SG_MAP_BOUNDS,
+    ONEMAP_TILES_URL
+)
 
 
 def weather_forecast_page():
@@ -13,13 +20,12 @@ def weather_forecast_page():
     Returns:
         HTML Div containing the weather forecast section with map
     """
-    # Singapore center coordinates (Adjusted to frame Singapore nicely)
-    sg_center = [1.36, 103.82]
-    onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
-    fixed_zoom = 12
-
-    # Map bounds to restrict view to Singapore area (approximate)
-    sg_bounds = [[1.1304753, 103.6020882], [1.492007, 104.145897]]
+    # Use standardized map configuration
+    sg_center = SG_MAP_CENTER
+    onemap_tiles_url = ONEMAP_TILES_URL
+    fixed_zoom = SG_MAP_DEFAULT_ZOOM
+    sg_bounds = SG_MAP_BOUNDS
+    onemap_attribution = get_onemap_attribution()
 
     return html.Div(
         id="weather-forecast-page",
@@ -112,9 +118,10 @@ def weather_forecast_page():
                                         id="weather-2h-map",
                                         center=sg_center,
                                         zoom=fixed_zoom,
-                                        minZoom=11,
-                                        maxZoom=14,
+                                        minZoom=fixed_zoom,
+                                        maxZoom=fixed_zoom,
                                         maxBounds=sg_bounds,
+                                        maxBoundsViscosity=1.0,
                                         style={
                                             "width": "100%",
                                             "height": "calc(100vh - 280px)",
@@ -131,7 +138,7 @@ def weather_forecast_page():
                                         children=[
                                             dl.TileLayer(
                                                 url=onemap_tiles_url,
-                                                attribution='<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/>&nbsp;<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>',
+                                                attribution=onemap_attribution,
                                                 maxNativeZoom=19,
                                             ),
                                             dl.LayerGroup(id="weather-markers-layer"),

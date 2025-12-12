@@ -12,7 +12,7 @@ def search_bar():
     return dcc.Dropdown(
         id="input_search",
         placeholder="Search address or location in Singapore",
-        style={"width": "100%", "marginBottom": "8px"},
+        style={"width": "100%", "marginBottom": "0.5rem"},
         searchable=True,
         clearable=True,
         optionHeight=40,
@@ -24,7 +24,7 @@ def nearest_mrt_panel():
     return html.Div(
         id="nearest-mrt-panel",
         children=[],
-        style={"marginTop": "8px"}
+        style={"marginTop": "0.5rem"}
     )
 
 
@@ -41,27 +41,40 @@ def carpark_availability_panel():
                     html.Div(
                         "Carparks within 500m of map center will be displayed here",
                         style={
-                            "padding": "10px",
+                            "padding": "0.625rem",
                             "color": "#999",
-                            "fontSize": "14px",
+                            "fontSize": "0.875rem",
                             "fontStyle": "italic"
                         }
                     )
                 ],
-                style={"marginTop": "8px"}
+                style={"marginTop": "0.5rem"}
             )
         ]
     )
 
 
-def map_component(lat=1.35, lon=103.81):
+def map_component(lat=None, lon=None):
     """
     Default display and layout of the map component. No API is needed as this is static rendering of map for quick loading
     Coordinates are provided in EPSG:4326 (WGS84 lat/lon) format, which Leaflet converts automatically.
     
     The initial center coordinates are used only for initial rendering.
     """
-    onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
+    from utils.map_utils import (
+        SG_MAP_CENTER,
+        SG_MAP_DEFAULT_ZOOM,
+        SG_MAP_MIN_ZOOM,
+        SG_MAP_MAX_ZOOM,
+        SG_MAP_BOUNDS,
+        ONEMAP_TILES_URL
+    )
+    
+    # Use standardized center if not provided
+    if lat is None or lon is None:
+        lat, lon = SG_MAP_CENTER
+    
+    onemap_tiles_url = ONEMAP_TILES_URL
     onemap_attribution = get_onemap_attribution()
     return html.Div([
         # Store component to hold map coordinates that can be updated by callbacks
@@ -72,11 +85,11 @@ def map_component(lat=1.35, lon=103.81):
         dl.Map(
             id="sg-map",
             center=[lat, lon],  # Initial center, will be updated by callback
-            zoom=12,
-            minZoom=11,
-            maxZoom=20,
+            zoom=SG_MAP_DEFAULT_ZOOM,
+            minZoom=SG_MAP_MIN_ZOOM,
+            maxZoom=SG_MAP_MAX_ZOOM,
             # Map bounds to restrict view to Singapore area
-            maxBounds=[[1.1304753, 103.6020882], [1.492007, 104.145897]],
+            maxBounds=SG_MAP_BOUNDS,
             style={"width": "100%", "height": "100%", "margin": "0"},
             children=[
                 dl.TileLayer(
@@ -86,6 +99,7 @@ def map_component(lat=1.35, lon=103.81):
                 ),
                 dl.ScaleControl(imperial=False, position="bottomleft"),
                 dl.LayerGroup(id="main-psi-markers"),
+                dl.LayerGroup(id="weather-2h-markers"),
             ],
         )
     ], style={"width": "100%", "height": "100%", "display": "flex", "flexDirection": "column"})
@@ -102,14 +116,14 @@ def map_coordinates_display():
                 "Lat: --, Lon: --",
                 id="coordinates-text",
                 style={
-                    "padding": "8px 12px",
+                    "padding": "0.5rem 0.75rem",
                     "backgroundColor": "#2c3e50",
-                    "borderRadius": "4px",
-                    "fontSize": "13px",
+                    "borderRadius": "0.25rem",
+                    "fontSize": "0.8125rem",
                     "color": "#fff",
                     "fontFamily": "monospace",
                     "textAlign": "center",
-                    "border": "1px solid #444"
+                    "border": "0.0625rem solid #444"
                 }
             )
         ],

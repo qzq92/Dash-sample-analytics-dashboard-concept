@@ -1,28 +1,32 @@
 """
-Component for the Pollutant & Exposure Indexes page.
+Component for the Health Related Hazard Clusters & Indexes page.
 Displays various exposure indexes across Singapore.
 """
 from dash import html, dcc
 import dash_leaflet as dl
-from utils.map_utils import get_onemap_attribution
+from utils.map_utils import (
+    get_onemap_attribution,
+    SG_MAP_CENTER,
+    SG_MAP_DEFAULT_ZOOM,
+    SG_MAP_BOUNDS,
+    ONEMAP_TILES_URL
+)
 
 
 def weather_indices_page():
     """
-    Create the Pollutant & Exposure Indexes page layout.
+    Create the Health Related Hazard Clusters & Indexes page layout.
     Features: UV Index, WBGT, and other exposure indexes.
 
     Returns:
-        HTML Div containing the Pollutant & Exposure Indexes section
+        HTML Div containing the Health Related Hazard Clusters & Indexes section
     """
-    # Singapore center coordinates
-    sg_center = [1.36, 103.82]
-    onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
-    fixed_zoom = 12
+    # Use standardized map configuration
+    sg_center = SG_MAP_CENTER
+    onemap_tiles_url = ONEMAP_TILES_URL
+    fixed_zoom = SG_MAP_DEFAULT_ZOOM
     onemap_attribution = get_onemap_attribution()
-
-    # Map bounds to restrict view to Singapore area
-    sg_bounds = [[1.1304753, 103.6020882], [1.492007, 104.145897]]
+    sg_bounds = SG_MAP_BOUNDS
 
     return html.Div(
         id="weather-indices-page",
@@ -35,6 +39,10 @@ def weather_indices_page():
         children=[
             # Store for active marker type on map
             dcc.Store(id="exposure-marker-type", data={'type': None, 'ts': 0}),
+            # Store for Zika clusters toggle state
+            dcc.Store(id="zika-clusters-toggle-state", data=False),
+            # Store for Dengue clusters toggle state
+            dcc.Store(id="dengue-clusters-toggle-state", data=False),
             # Main content container: map on left, indices on right
             html.Div(
                 id="weather-indices-content",
@@ -111,32 +119,30 @@ def weather_indices_page():
                                     ),
                                 ]
                             ),
-                            # WBGT (Wet Bulb Globe Temperature) card
+                            # Zika Clusters card
                             html.Div(
-                                id="wbgt-index-card",
+                                id="zika-clusters-card",
                                 style={
                                     "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "8px",
-                                    "padding": "10px",
+                                    "borderRadius": "0.5rem",
+                                    "padding": "0.625rem",
                                     "display": "flex",
                                     "flexDirection": "column",
-                                    "flex": "1",
-                                    "minHeight": "300px",
+                                    "gap": "0.5rem",
                                 },
                                 children=[
-                                    # Header with toggle button
                                     html.Div(
                                         style={
                                             "display": "flex",
                                             "justifyContent": "space-between",
                                             "alignItems": "center",
-                                            "borderBottom": "1px solid #5a6a7a",
-                                            "paddingBottom": "6px",
-                                            "marginBottom": "8px",
+                                            "borderBottom": "0.0625rem solid #5a6a7a",
+                                            "paddingBottom": "0.375rem",
+                                            "marginBottom": "0.5rem",
                                         },
                                         children=[
                                             html.H5(
-                                                "🌡️ Wet-Bulb Globe Temperature (WBGT) (Heat Stress) across detected areas",
+                                                "🦟 Zika Clusters",
                                                 style={
                                                     "margin": "0",
                                                     "color": "#fff",
@@ -145,23 +151,23 @@ def weather_indices_page():
                                             ),
                                             html.Button(
                                                 "📍",
-                                                id="wbgt-map-toggle",
+                                                id="toggle-zika-clusters",
                                                 n_clicks=0,
                                                 style={
                                                     "backgroundColor": "transparent",
-                                                    "border": "1px solid #6a7a8a",
-                                                    "borderRadius": "4px",
+                                                    "border": "0.0625rem solid #6a7a8a",
+                                                    "borderRadius": "0.25rem",
                                                     "color": "#ccc",
                                                     "cursor": "pointer",
-                                                    "padding": "4px 8px",
-                                                    "fontSize": "14px",
+                                                    "padding": "0.25rem 0.5rem",
+                                                    "fontSize": "0.875rem",
                                                 },
-                                                title="Show WBGT stations on map"
+                                                title="Show Zika clusters on map"
                                             ),
                                         ]
                                     ),
                                     html.Div(
-                                        id="wbgt-index-content",
+                                        id="zika-clusters-content",
                                         style={
                                             "flex": "1",
                                             "overflowY": "auto",
@@ -169,15 +175,77 @@ def weather_indices_page():
                                             "minHeight": "0",
                                         },
                                         children=[
-                                            html.P(
-                                                "Loading WBGT data...",
+                                            html.P("Loading Zika cluster data...", style={
+                                                "color": "#ccc",
+                                                "textAlign": "center",
+                                                "padding": "0.75rem",
+                                            })
+                                        ],
+                                    ),
+                                ]
+                            ),
+                            # Dengue Clusters card
+                            html.Div(
+                                id="dengue-clusters-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "0.5rem",
+                                    "padding": "0.625rem",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "0.5rem",
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "justifyContent": "space-between",
+                                            "alignItems": "center",
+                                            "borderBottom": "0.0625rem solid #5a6a7a",
+                                            "paddingBottom": "0.375rem",
+                                            "marginBottom": "0.5rem",
+                                        },
+                                        children=[
+                                            html.H5(
+                                                "🦟 Dengue Clusters",
                                                 style={
-                                                    "color": "#ccc",
-                                                    "textAlign": "center",
-                                                    "padding": "12px",
+                                                    "margin": "0",
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
                                                 }
-                                            )
+                                            ),
+                                            html.Button(
+                                                "📍",
+                                                id="toggle-dengue-clusters",
+                                                n_clicks=0,
+                                                style={
+                                                    "backgroundColor": "transparent",
+                                                    "border": "0.0625rem solid #6a7a8a",
+                                                    "borderRadius": "0.25rem",
+                                                    "color": "#ccc",
+                                                    "cursor": "pointer",
+                                                    "padding": "0.25rem 0.5rem",
+                                                    "fontSize": "0.875rem",
+                                                },
+                                                title="Show Dengue clusters on map"
+                                            ),
                                         ]
+                                    ),
+                                    html.Div(
+                                        id="dengue-clusters-content",
+                                        style={
+                                            "flex": "1",
+                                            "overflowY": "auto",
+                                            "overflowX": "hidden",
+                                            "minHeight": "0",
+                                        },
+                                        children=[
+                                            html.P("Loading Dengue cluster data...", style={
+                                                "color": "#ccc",
+                                                "textAlign": "center",
+                                                "padding": "0.75rem",
+                                            })
+                                        ],
                                     ),
                                 ]
                             ),
@@ -229,6 +297,12 @@ def weather_indices_page():
                                             dl.LayerGroup(
                                                 id="psi-markers"
                                             ),
+                                            dl.LayerGroup(
+                                                id="zika-clusters"
+                                            ),
+                                            dl.LayerGroup(
+                                                id="dengue-clusters"
+                                            ),
                                         ],
                                         zoomControl=False,
                                         dragging=False,
@@ -249,28 +323,33 @@ def weather_indices_page():
                             "flex": "2",
                             "minWidth": "250px",
                             "backgroundColor": "#2a3a4a",
-                            "borderRadius": "8px",
-                            "padding": "8px",
+                            "borderRadius": "0.5rem",
+                            "padding": "0.5rem",
                             "overflowY": "auto",
                             "maxHeight": "100%",
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "height": "100%",
                         },
                         children=[
                             html.Div(
                                 "Pollutant Abbreviations",
                                 style={
-                                    "fontSize": "11px",
+                                    "fontSize": "0.6875rem",
                                     "fontWeight": "700",
                                     "color": "#60a5fa",
-                                    "marginBottom": "4px",
+                                    "marginBottom": "0.25rem",
+                                    "flexShrink": "0",
                                 }
                             ),
                             html.Div(
                                 style={
                                     "display": "flex",
                                     "flexWrap": "wrap",
-                                    "gap": "4px 8px",
-                                    "fontSize": "10px",
+                                    "gap": "0.25rem 0.5rem",
+                                    "fontSize": "0.625rem",
                                     "color": "#ccc",
+                                    "flexShrink": "0",
                                 },
                                 children=[
                                     html.Span([
@@ -306,9 +385,13 @@ def weather_indices_page():
                             # PSI Color Legend
                             html.Div(
                                         style={
-                                            "marginTop": "6px",
-                                            "paddingTop": "6px",
-                                            "borderTop": "1px solid #3a4a5a",
+                                            "marginTop": "0.375rem",
+                                            "paddingTop": "0.375rem",
+                                            "borderTop": "0.0625rem solid #3a4a5a",
+                                            "flex": "1",
+                                            "display": "flex",
+                                            "flexDirection": "column",
+                                            "minHeight": "0",
                                         },
                                 children=[
                                     html.Div(
@@ -404,9 +487,13 @@ def weather_indices_page():
                             # Pollutant Color Categories Legend
                             html.Div(
                                         style={
-                                            "marginTop": "6px",
-                                            "paddingTop": "6px",
-                                            "borderTop": "1px solid #3a4a5a",
+                                            "marginTop": "0.375rem",
+                                            "paddingTop": "0.375rem",
+                                            "borderTop": "0.0625rem solid #3a4a5a",
+                                            "flex": "1",
+                                            "display": "flex",
+                                            "flexDirection": "column",
+                                            "minHeight": "0",
                                         },
                                 children=[
                                     html.Div(

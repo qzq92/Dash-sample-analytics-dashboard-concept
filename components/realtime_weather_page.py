@@ -4,7 +4,13 @@ Displays live weather station data across Singapore.
 """
 from dash import html, dcc
 import dash_leaflet as dl
-from utils.map_utils import get_onemap_attribution
+from utils.map_utils import (
+    get_onemap_attribution,
+    SG_MAP_CENTER,
+    SG_MAP_DEFAULT_ZOOM,
+    SG_MAP_BOUNDS,
+    ONEMAP_TILES_URL
+)
 
 
 def realtime_weather_page():
@@ -15,14 +21,12 @@ def realtime_weather_page():
     Returns:
         HTML Div containing the realtime weather metrics section
     """
-    # Singapore center coordinates (Adjusted to frame Singapore nicely)
-    sg_center = [1.36, 103.82]
-    onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
-    fixed_zoom = 11  # Zoomed out 1 level from previous (was 12)
+    # Use standardized map configuration
+    sg_center = SG_MAP_CENTER
+    onemap_tiles_url = ONEMAP_TILES_URL
+    fixed_zoom = SG_MAP_DEFAULT_ZOOM
     onemap_attribution = get_onemap_attribution()
-
-    # Map bounds to restrict view to Singapore area
-    sg_bounds = [[1.1304753, 103.6020882], [1.492007, 104.145897]]
+    sg_bounds = SG_MAP_BOUNDS
 
     return html.Div(
         id="realtime-weather-page",
@@ -423,6 +427,67 @@ def realtime_weather_page():
                                     ),
                                 ]
                             ),
+                            # WBGT readings card
+                            html.Div(
+                                id="wbgt-readings-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "8px",
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "flexDirection": "row",
+                                            "alignItems": "center",
+                                            "justifyContent": "space-between",
+                                        },
+                                        children=[
+                                            html.Span(
+                                                "🌡️ WBGT (Heat Stress)",
+                                                style={
+                                                    "color": "#FF9800",
+                                                    "fontWeight": "600",
+                                                    "fontSize": "13px"
+                                                }
+                                            ),
+                                            html.Div(
+                                                id="wbgt-readings-content",
+                                                children=[
+                                                    html.Span("Loading...", style={
+                                                        "color": "#999",
+                                                        "fontSize": "12px"
+                                                    })
+                                                ],
+                                            ),
+                                        ]
+                                    ),
+                                    html.Div(
+                                        id="wbgt-sensor-values",
+                                        style={
+                                            "display": "none",
+                                            "backgroundColor": "#3a4a5a",
+                                            "borderRadius": "5px",
+                                            "padding": "10px",
+                                            "maxHeight": "200px",
+                                            "overflowY": "auto",
+                                        },
+                                        children=[
+                                            html.Div(id="wbgt-sensor-content", children=[
+                                                html.P("Loading...", style={
+                                                    "color": "#999",
+                                                    "fontSize": "12px",
+                                                    "textAlign": "center"
+                                                })
+                                            ])
+                                        ]
+                                    ),
+                                ]
+                            ),
                         ]
                     ),
                     # Right side: Map with station markers (7/10 width total)
@@ -554,22 +619,22 @@ def realtime_weather_page():
                                                             "fontWeight": "600",
                                                         }
                                                     ),
+                                                    html.Button(
+                                                        "🌡️ WBGT",
+                                                        id="toggle-wbgt-readings",
+                                                        n_clicks=0,
+                                                        style={
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                            "border": "2px solid #FF9800",
+                                                            "backgroundColor": "transparent",
+                                                            "color": "#FF9800",
+                                                            "cursor": "pointer",
+                                                            "fontSize": "12px",
+                                                            "fontWeight": "600",
+                                                        }
+                                                    ),
                                                 ]
-                                            ),
-                                            html.Button(
-                                                "🌦️ Show 2H Forecast",
-                                                id="toggle-2h-forecast",
-                                                n_clicks=0,
-                                                style={
-                                                    "padding": "6px 12px",
-                                                    "borderRadius": "6px",
-                                                    "border": "2px solid #60a5fa",
-                                                    "backgroundColor": "transparent",
-                                                    "color": "#60a5fa",
-                                                    "cursor": "pointer",
-                                                    "fontSize": "12px",
-                                                    "fontWeight": "600",
-                                                }
                                             ),
                                         ]
                                     ),
@@ -596,9 +661,10 @@ def realtime_weather_page():
                                                         id="realtime-weather-map",
                                                         center=sg_center,
                                                         zoom=fixed_zoom,
-                                                        minZoom=fixed_zoom - 1,
-                                                        maxZoom=fixed_zoom + 3,
+                                                        minZoom=fixed_zoom,
+                                                        maxZoom=fixed_zoom,
                                                         maxBounds=sg_bounds,
+                                                        maxBoundsViscosity=1.0,
                                                         style={
                                                             "width": "100%",
                                                             "height": "100%",
@@ -616,7 +682,6 @@ def realtime_weather_page():
                                                             dl.LayerGroup(id="realtime-weather-markers"),
                                                             dl.LayerGroup(id="lightning-markers"),
                                                             dl.LayerGroup(id="flood-markers"),
-                                                            dl.LayerGroup(id="weather-2h-markers"),
                                                             dl.LayerGroup(id="sensor-markers"),
                                                         ],
                                                     )
@@ -651,8 +716,6 @@ def realtime_weather_page():
                     ),
                 ]
             ),
-            # Store for 2H forecast toggle state
-            dcc.Store(id="2h-forecast-toggle-state", data=False),
             # Interval for auto-refresh
             dcc.Interval(
                 id='realtime-weather-interval',

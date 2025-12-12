@@ -4,7 +4,13 @@ Displays nearby transportation options and parking facilities.
 """
 from dash import html, dcc
 import dash_leaflet as dl
-from utils.map_utils import get_onemap_attribution
+from utils.map_utils import (
+    get_onemap_attribution,
+    SG_MAP_CENTER,
+    SG_MAP_DEFAULT_ZOOM,
+    SG_MAP_BOUNDS,
+    ONEMAP_TILES_URL
+)
 
 
 def nearby_transport_page():
@@ -15,14 +21,12 @@ def nearby_transport_page():
     Returns:
         HTML Div containing the Nearby Transportation and Parking Info section
     """
-    # Singapore center coordinates
-    sg_center = [1.36, 103.82]
-    onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
-    fixed_zoom = 12
+    # Use standardized map configuration
+    sg_center = SG_MAP_CENTER
+    onemap_tiles_url = ONEMAP_TILES_URL
+    fixed_zoom = SG_MAP_DEFAULT_ZOOM
     onemap_attribution = get_onemap_attribution()
-
-    # Map bounds to restrict view to Singapore area
-    sg_bounds = [[1.1304753, 103.6020882], [1.492007, 104.145897]]
+    sg_bounds = SG_MAP_BOUNDS
 
     return html.Div(
         id="nearby-transport-page",
@@ -362,6 +366,8 @@ def nearby_transport_page():
                                         id="nearby-transport-map",
                                         center=sg_center,
                                         zoom=fixed_zoom,
+                                        minZoom=fixed_zoom,
+                                        maxZoom=fixed_zoom,
                                         maxBounds=sg_bounds,
                                         maxBoundsViscosity=1.0,
                                         style={
