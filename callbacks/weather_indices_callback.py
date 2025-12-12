@@ -5,6 +5,7 @@ Handles UV Index, WBGT, and other exposure indexes.
 Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
 import math
+import re
 import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -12,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import plotly.graph_objects as go
 import dash_leaflet as dl
+import requests
 from dash import html, dcc, Input, Output, State
 from utils.async_fetcher import fetch_url, get_default_headers
 from callbacks.transport_callback import fetch_taxi_availability
@@ -23,6 +25,10 @@ _exposure_executor = ThreadPoolExecutor(max_workers=5)
 PSI_URL = "https://api-open.data.gov.sg/v2/real-time/api/psi"
 UV_URL = "https://api-open.data.gov.sg/v2/real-time/api/uv"
 WBGT_URL = "https://api-open.data.gov.sg/v2/real-time/api/weather?api=wbgt"
+ZIKA_DATASET_ID = "d_a3c783f11d79ff7feb8856f762ccf2c5"
+ZIKA_POLL_DOWNLOAD_URL = f"https://api-open.data.gov.sg/v1/public/api/datasets/{ZIKA_DATASET_ID}/poll-download"
+DENGUE_DATASET_ID = "d_dbfabf16158d1b0e1c420627c0819168"
+DENGUE_POLL_DOWNLOAD_URL = f"https://api-open.data.gov.sg/v1/public/api/datasets/{DENGUE_DATASET_ID}/poll-download"
 
 # Cache for PSI data to avoid redundant API calls
 # Structure: {'data': <api_response>, 'timestamp': <time.time()>}
@@ -240,6 +246,104 @@ def fetch_uv_data_async():
 def fetch_wbgt_data():
     """Fetch WBGT data from Data.gov.sg API."""
     return fetch_url(WBGT_URL, get_default_headers())
+
+
+def fetch_zika_cluster_data():
+    """
+    Fetch Zika cluster data from Data.gov.sg poll-download API.
+    
+    This function:
+    1. Calls poll-download endpoint to get a URL
+    2. Uses that URL to fetch the actual FeatureCollection data
+    3. Returns the FeatureCollection data
+    
+    Returns:
+        FeatureCollection data (dict) or None if error
+    """
+    try:
+        # Step 1: Call poll-download to get the URL
+        response = requests.get(ZIKA_POLL_DOWNLOAD_URL, timeout=30)
+        response.raise_for_status()
+        poll_response = response.json()
+        
+        # Step 2: Extract URL from response
+        # The response structure may be: {"url": "..."} or {"data": {"url": "..."}}
+        download_url = None
+        if isinstance(poll_response, dict):
+            if 'url' in poll_response:
+                download_url = poll_response['url']
+            elif 'data' in poll_response and isinstance(poll_response['data'], dict):
+                download_url = poll_response['data'].get('url')
+        
+        if not download_url:
+            print(f"No URL found in poll-download response: {poll_response}")
+            return None
+        
+        # Step 3: Fetch the actual data from the URL
+        data_response = requests.get(download_url, timeout=30)
+        data_response.raise_for_status()
+        return data_response.json()
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching Zika cluster data: {e}")
+        return None
+
+
+def fetch_dengue_cluster_data():
+    """
+    Fetch Dengue cluster data from Data.gov.sg poll-download API.
+    
+    This function:
+    1. Calls poll-download endpoint to get a URL
+    2. Uses that URL to fetch the actual FeatureCollection data
+    3. Returns the FeatureCollection data
+    
+    Returns:
+        FeatureCollection data (dict) or None if error
+    """
+    try:
+        # Step 1: Call poll-download to get the URL
+        response = requests.get(DENGUE_POLL_DOWNLOAD_URL, timeout=30)
+        response.raise_for_status()
+        poll_response = response.json()
+        
+        # Step 2: Extract URL from response
+        # The response structure may be: {"url": "..."} or {"data": {"url": "..."}}
+        download_url = None
+        if isinstance(poll_response, dict):
+            if 'url' in poll_response:
+                download_url = poll_response['url']
+            elif 'data' in poll_response and isinstance(poll_response['data'], dict):
+                download_url = poll_response['data'].get('url')
+        
+        if not download_url:
+            print(f"No URL found in poll-download response: {poll_response}")
+            return None
+        
+        # Step 3: Fetch the actual data from the URL
+        data_response = requests.get(download_url, timeout=30)
+        data_response.raise_for_status()
+        return data_response.json()
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching Dengue cluster data: {e}")
+        return None
+
+
+def fetch_zika_cluster_data_async():
+    """
+    Fetch Zika cluster data asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    return _exposure_executor.submit(fetch_zika_cluster_data)
+
+
+def fetch_dengue_cluster_data_async():
+    """
+    Fetch Dengue cluster data asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    return _exposure_executor.submit(fetch_dengue_cluster_data)
 
 
 def fetch_wbgt_data_async():
@@ -970,6 +1074,513 @@ def create_wbgt_markers(data):
     return [m for m in markers if m is not None]
 
 
+def _parse_zika_description(description_html):
+    """
+    Parse Zika cluster Description HTML to extract attributes.
+    
+    Args:
+        description_html: HTML string containing table with attributes
+    
+    Returns:
+        Dictionary with extracted attributes (CASE_SIZE, CLUSTER_ID, LOCALITY, etc.)
+    """
+    if not description_html:
+        return {}
+    
+    result = {}
+    
+    # Extract CASE_SIZE
+    case_size_match = re.search(r'<th>CASE_SIZE</th>\s*<td>(\d+)</td>', description_html)
+    if case_size_match:
+        result['CASE_SIZE'] = int(case_size_match.group(1))
+    
+    # Extract CLUSTER_ID
+    cluster_id_match = re.search(r'<th>CLUSTER_ID</th>\s*<td>([^<]+)</td>', description_html)
+    if cluster_id_match:
+        result['CLUSTER_ID'] = cluster_id_match.group(1).strip()
+    
+    # Extract LOCALITY
+    locality_match = re.search(r'<th>LOCALITY</th>\s*<td>([^<]+)</td>', description_html)
+    if locality_match:
+        result['LOCALITY'] = locality_match.group(1).strip()
+    
+    # Extract NAME
+    name_match = re.search(r'<th>NAME</th>\s*<td>([^<]+)</td>', description_html)
+    if name_match:
+        name = name_match.group(1).strip()
+        if name:  # Only add if not empty
+            result['NAME'] = name
+    
+    return result
+
+
+def _process_single_zika_feature(feature):
+    """
+    Process a single Zika feature to create a polygon.
+    This function is designed to be called in parallel.
+    
+    Args:
+        feature: Single feature from FeatureCollection
+    
+    Returns:
+        dl.Polygon object or None if invalid
+    """
+    try:
+        # Handle FeatureCollection format (GeoJSON)
+        if feature.get('type') == 'Feature':
+            geometry = feature.get('geometry', {})
+            properties = feature.get('properties', {})
+        else:
+            # Fallback to old format
+            geometry = feature.get('geometry', {})
+            properties = feature
+        
+        # Extract polygon coordinates from geometry
+        polygon_coords = None
+        if geometry and 'coordinates' in geometry:
+            polygon_coords = geometry['coordinates']
+        elif 'coordinates' in feature:
+            polygon_coords = feature['coordinates']
+        elif 'polygon' in feature:
+            polygon_coords = feature['polygon']
+        
+        if not polygon_coords:
+            return None
+        
+        # Flatten nested arrays if needed
+        if isinstance(polygon_coords[0][0], list):
+            if isinstance(polygon_coords[0][0][0], list):
+                coords = polygon_coords[0][0]
+            else:
+                coords = polygon_coords[0]
+        else:
+            coords = polygon_coords
+        
+        # Convert to [lat, lon] format for Leaflet using list comprehension
+        # Handle 3D coordinates [lon, lat, 0] or 2D [lon, lat]
+        leaflet_coords = []
+        for coord in coords:
+            if len(coord) >= 2:
+                lon, lat = coord[0], coord[1]
+                # Check if it's actually lat, lon by checking if lat is reasonable for Singapore
+                if lat > 90 or lat < -90:
+                    lat, lon = coord[0], coord[1]
+                leaflet_coords.append([lat, lon])
+        
+        if len(leaflet_coords) < 3:
+            return None  # Need at least 3 points for a polygon
+        
+        # Parse Description HTML to extract cluster information
+        description_html = properties.get('Description', '')
+        parsed_attrs = _parse_zika_description(description_html)
+        
+        # Get cluster information from parsed attributes or properties
+        cluster_name = (
+            parsed_attrs.get('LOCALITY') or
+            parsed_attrs.get('NAME') or
+            properties.get('LOCALITY') or
+            properties.get('Name') or
+            properties.get('cluster') or
+            properties.get('name') or
+            properties.get('location') or
+            'Zika Cluster'
+        )
+        
+        cases = (
+            parsed_attrs.get('CASE_SIZE') or
+            properties.get('CASE_SIZE') or
+            properties.get('cases') or
+            properties.get('case_count') or
+            properties.get('num_cases') or
+            ''
+        )
+        
+        cluster_id = (
+            parsed_attrs.get('CLUSTER_ID') or
+            properties.get('CLUSTER_ID') or
+            ''
+        )
+        
+        # Create tooltip text
+        tooltip_text = f"{cluster_name}"
+        if cluster_id:
+            tooltip_text += f" (ID: {cluster_id})"
+        if cases:
+            tooltip_text += f" - {cases} case{'s' if cases != 1 else ''}"
+        
+        # Create polygon with red color for Zika clusters
+        return dl.Polygon(
+            positions=leaflet_coords,
+            color="#ff4444",
+            fillColor="#ff6666",
+            fillOpacity=0.3,
+            weight=2,
+            children=[
+                dl.Tooltip(tooltip_text)
+            ]
+        )
+    except (ValueError, TypeError, IndexError) as e:
+        print(f"Error processing Zika feature: {e}")
+        return None
+
+
+def create_zika_cluster_polygons(data):
+    """
+    Create polygon markers for Zika clusters from poll-download API data.
+    Uses parallel processing for better performance.
+    """
+    if not data:
+        return []
+    
+    # Handle FeatureCollection format (GeoJSON)
+    features = []
+    if isinstance(data, dict):
+        if 'features' in data:
+            # FeatureCollection format
+            features = data['features']
+        elif 'data' in data and 'records' in data['data']:
+            features = data['data']['records']
+        elif 'records' in data:
+            features = data['records']
+        elif 'result' in data and 'records' in data['result']:
+            features = data['result']['records']
+    
+    if not features:
+        return []
+    
+    # Process features in parallel using ThreadPoolExecutor
+    # For small datasets, sequential might be faster, but for large ones, parallel helps
+    if len(features) > 10:
+        # Use parallel processing for larger datasets
+        futures = [_exposure_executor.submit(_process_single_zika_feature, feature) for feature in features]
+        polygons = [future.result() for future in futures]
+        # Filter out None values
+        return [p for p in polygons if p is not None]
+    
+    # Sequential processing for small datasets (less overhead)
+    polygons = []
+    for feature in features:
+        polygon = _process_single_zika_feature(feature)
+        if polygon:
+            polygons.append(polygon)
+    return polygons
+
+
+def format_zika_clusters_display(data):
+    """Format Zika cluster data for display."""
+    if not data:
+        return html.P(
+            "Error retrieving Zika cluster data",
+            style={"color": "#ff6b6b", "textAlign": "center"}
+        )
+    
+    # Handle FeatureCollection format (GeoJSON) or old format
+    features = []
+    if isinstance(data, dict):
+        #print(f"Zika data: {data}")
+        if 'features' in data:
+            # FeatureCollection format
+            features = data['features']
+        elif 'data' in data and 'records' in data['data']:
+            features = data['data']['records']
+        elif 'records' in data:
+            features = data['records']
+        elif 'result' in data and 'records' in data['result']:
+            features = data['result']['records']
+    
+    if not features:
+        return html.P(
+            "No Zika cluster data available",
+            style={"color": "#ccc", "textAlign": "center"}
+        )
+    
+    # Create list of clusters
+    cluster_items = []
+    for feature in features:
+        # Handle FeatureCollection format
+        if feature.get('type') == 'Feature':
+            properties = feature.get('properties', {})
+        else:
+            properties = feature
+        
+        # Parse Description HTML to extract cluster information
+        description_html = properties.get('Description', '')
+        parsed_attrs = _parse_zika_description(description_html)
+        
+        # Get cluster information from parsed attributes or properties
+        cluster_name = (
+            parsed_attrs.get('LOCALITY') or
+            parsed_attrs.get('NAME') or
+            properties.get('LOCALITY') or
+            properties.get('Name') or
+            properties.get('cluster') or
+            properties.get('name') or
+            properties.get('location') or
+            'Unknown'
+        )
+        
+        cases = (
+            parsed_attrs.get('CASE_SIZE') or
+            properties.get('CASE_SIZE') or
+            properties.get('cases') or
+            properties.get('case_count') or
+            properties.get('num_cases') or
+            'N/A'
+        )
+        
+        cluster_items.append(
+            html.Div(
+                style={
+                    "display": "flex",
+                    "justifyContent": "space-between",
+                    "alignItems": "center",
+                    "padding": "0.25rem 0.5rem",
+                    "backgroundColor": "#3a4a5a",
+                    "borderRadius": "0.25rem",
+                    "marginBottom": "0.25rem",
+                },
+                children=[
+                    html.Span(
+                        cluster_name,
+                        style={
+                            "fontSize": "0.6875rem",
+                            "color": "#ccc",
+                            "flex": "1",
+                        }
+                    ),
+                    html.Span(
+                        f"{cases} case{'s' if cases != 1 else ''}" if cases != 'N/A' else "N/A",
+                        style={
+                            "fontSize": "0.6875rem",
+                            "color": "#ff6666",
+                            "fontWeight": "600",
+                        }
+                    ),
+                ]
+            )
+        )
+    
+    return html.Div(
+        children=cluster_items,
+        style={
+            "display": "flex",
+            "flexDirection": "column",
+            "flex": "1",
+            "overflowY": "auto",
+            "overflowX": "hidden",
+            "minHeight": "0",
+        }
+    )
+
+
+def _process_single_dengue_feature(feature):
+    """
+    Process a single Dengue feature to create a polygon.
+    This function is designed to be called in parallel.
+    
+    Args:
+        feature: Single feature from FeatureCollection
+    
+    Returns:
+        dl.Polygon object or None if invalid
+    """
+    try:
+        # Handle FeatureCollection format (GeoJSON)
+        if feature.get('type') == 'Feature':
+            geometry = feature.get('geometry', {})
+            properties = feature.get('properties', {})
+        else:
+            # Fallback to old format
+            geometry = feature.get('geometry', {})
+            properties = feature
+        
+        # Extract polygon coordinates from geometry
+        polygon_coords = None
+        if geometry and 'coordinates' in geometry:
+            polygon_coords = geometry['coordinates']
+        elif 'coordinates' in feature:
+            polygon_coords = feature['coordinates']
+        elif 'polygon' in feature:
+            polygon_coords = feature['polygon']
+        
+        if not polygon_coords:
+            return None
+        
+        # Flatten nested arrays if needed
+        if isinstance(polygon_coords[0][0], list):
+            if isinstance(polygon_coords[0][0][0], list):
+                coords = polygon_coords[0][0]
+            else:
+                coords = polygon_coords[0]
+        else:
+            coords = polygon_coords
+        
+        # Convert to [lat, lon] format for Leaflet using list comprehension
+        leaflet_coords = []
+        for coord in coords:
+            if len(coord) >= 2:
+                # GeoJSON uses [lon, lat] format
+                lon, lat = coord[0], coord[1]
+                # Check if it's actually lat, lon by checking if lat is reasonable for Singapore
+                if lat > 90 or lat < -90:
+                    lat, lon = coord[0], coord[1]
+                leaflet_coords.append([lat, lon])
+        
+        if len(leaflet_coords) < 3:
+            return None  # Need at least 3 points for a polygon
+        
+        # Get cluster information from properties
+        cluster_name = properties.get('LOCALITY', properties.get('cluster', properties.get('name', properties.get('location', 'Dengue Cluster'))))
+        cases = properties.get('CASE_SIZE', properties.get('cases', properties.get('case_count', properties.get('num_cases', ''))))
+        
+        # Create tooltip text
+        tooltip_text = f"{cluster_name}"
+        if cases:
+            tooltip_text += f" ({cases} case{'s' if cases != 1 else ''})"
+        
+        # Create polygon with orange color for Dengue clusters
+        return dl.Polygon(
+            positions=leaflet_coords,
+            color="#ff8800",
+            fillColor="#ffaa33",
+            fillOpacity=0.3,
+            weight=2,
+            children=[
+                dl.Tooltip(tooltip_text)
+            ]
+        )
+    except (ValueError, TypeError, IndexError) as e:
+        print(f"Error processing Dengue feature: {e}")
+        return None
+
+
+def create_dengue_cluster_polygons(data):
+    """
+    Create polygon markers for Dengue clusters from poll-download API data.
+    Uses parallel processing for better performance.
+    """
+    if not data:
+        return []
+    
+    # Handle FeatureCollection format (GeoJSON)
+    features = []
+    if isinstance(data, dict):
+        if 'features' in data:
+            # FeatureCollection format
+            features = data['features']
+        elif 'data' in data and 'records' in data['data']:
+            features = data['data']['records']
+        elif 'records' in data:
+            features = data['records']
+        elif 'result' in data and 'records' in data['result']:
+            features = data['result']['records']
+    
+    if not features:
+        return []
+    
+    # Process features in parallel using ThreadPoolExecutor
+    # For small datasets, sequential might be faster, but for large ones, parallel helps
+    if len(features) > 10:
+        # Use parallel processing for larger datasets
+        futures = [_exposure_executor.submit(_process_single_dengue_feature, feature) for feature in features]
+        polygons = [future.result() for future in futures]
+        # Filter out None values
+        return [p for p in polygons if p is not None]
+    
+    # Sequential processing for small datasets (less overhead)
+    polygons = []
+    for feature in features:
+        polygon = _process_single_dengue_feature(feature)
+        if polygon:
+            polygons.append(polygon)
+    return polygons
+
+
+def format_dengue_clusters_display(data):
+    """Format Dengue cluster data for display."""
+    if not data:
+        return html.P(
+            "Error retrieving Dengue cluster data",
+            style={"color": "#ff6b6b", "textAlign": "center"}
+        )
+    
+    # Handle FeatureCollection format (GeoJSON) or old format
+    features = []
+    if isinstance(data, dict):
+        #print(f"Dengue data: {data}")
+        if 'features' in data:
+            # FeatureCollection format
+            features = data['features']
+        elif 'data' in data and 'records' in data['data']:
+            features = data['data']['records']
+        elif 'records' in data:
+            features = data['records']
+        elif 'result' in data and 'records' in data['result']:
+            features = data['result']['records']
+    
+    if not features:
+        return html.P(
+            "No Dengue cluster data available",
+            style={"color": "#ccc", "textAlign": "center"}
+        )
+    
+    # Create list of clusters
+    cluster_items = []
+    for feature in features:
+        # Handle FeatureCollection format
+        if feature.get('type') == 'Feature':
+            properties = feature.get('properties', {})
+        else:
+            properties = feature
+        
+        cluster_name = properties.get('LOCALITY', properties.get('cluster', properties.get('name', properties.get('location', 'Unknown'))))
+        cases = properties.get('CASE_SIZE', properties.get('cases', properties.get('case_count', properties.get('num_cases', 'N/A'))))
+        
+        cluster_items.append(
+            html.Div(
+                style={
+                    "display": "flex",
+                    "justifyContent": "space-between",
+                    "alignItems": "center",
+                    "padding": "0.25rem 0.5rem",
+                    "backgroundColor": "#3a4a5a",
+                    "borderRadius": "0.25rem",
+                    "marginBottom": "0.25rem",
+                },
+                children=[
+                    html.Span(
+                        cluster_name,
+                        style={
+                            "fontSize": "0.6875rem",
+                            "color": "#ccc",
+                            "flex": "1",
+                        }
+                    ),
+                    html.Span(
+                        f"{cases} case{'s' if cases != 1 else ''}" if cases != 'N/A' else "N/A",
+                        style={
+                            "fontSize": "0.6875rem",
+                            "color": "#ff8800",
+                            "fontWeight": "600",
+                        }
+                    ),
+                ]
+            )
+        )
+    
+    return html.Div(
+        children=cluster_items,
+        style={
+            "display": "flex",
+            "flexDirection": "column",
+            "flex": "1",
+            "overflowY": "auto",
+            "overflowX": "hidden",
+            "minHeight": "0",
+        }
+    )
+
+
 def register_weather_indices_callbacks(app):
     """
     Register callbacks for realtime exposure indexes page.
@@ -986,50 +1597,6 @@ def register_weather_indices_callbacks(app):
         data = fetch_uv_data()
         return format_uv_display(data)
 
-    @app.callback(
-        Output('wbgt-index-content', 'children'),
-        Input('weather-indices-interval', 'n_intervals')
-    )
-    def update_wbgt_index(_n_intervals):
-        """Update WBGT display."""
-        data = fetch_wbgt_data()
-        return format_wbgt_display(data)
-
-    @app.callback(
-        [Output('exposure-marker-type', 'data'),
-         Output('wbgt-map-toggle', 'style')],
-        Input('wbgt-map-toggle', 'n_clicks'),
-        State('exposure-marker-type', 'data'),
-        prevent_initial_call=True
-    )
-    def toggle_wbgt_markers(_n_clicks, current_data):
-        """Toggle WBGT markers on map."""
-        current_type = current_data.get('type') if current_data else None
-
-        if current_type == 'wbgt':
-            # Turn off WBGT
-            new_data = {'type': None, 'ts': time.time()}
-            return new_data, _get_toggle_style(False)
-
-        # Turn on WBGT
-        new_data = {'type': 'wbgt', 'ts': time.time()}
-        return new_data, _get_toggle_style(True)
-
-    @app.callback(
-        Output('weather-indices-markers', 'children'),
-        Input('exposure-marker-type', 'data')
-    )
-    def update_exposure_map_markers(marker_data):
-        """Update map markers based on selected type (WBGT only)."""
-        if not marker_data:
-            return []
-
-        marker_type = marker_data.get('type')
-        if marker_type == 'wbgt':
-            data = fetch_wbgt_data()
-            return create_wbgt_markers(data)
-
-        return []
 
     @app.callback(
         Output('psi-markers', 'children'),
@@ -1041,6 +1608,82 @@ def register_weather_indices_callbacks(app):
         return create_psi_markers(data)
 
     @app.callback(
+        Output('zika-clusters-content', 'children'),
+        Input('weather-indices-interval', 'n_intervals')
+    )
+    def update_zika_clusters_display(_n_intervals):
+        """Update Zika clusters display."""
+        future = fetch_zika_cluster_data_async()
+        data = future.result()
+        return format_zika_clusters_display(data)
+
+    @app.callback(
+        [Output('zika-clusters-toggle-state', 'data'),
+         Output('toggle-zika-clusters', 'style')],
+        Input('toggle-zika-clusters', 'n_clicks'),
+        State('zika-clusters-toggle-state', 'data'),
+        prevent_initial_call=True
+    )
+    def toggle_zika_clusters(_n_clicks, current_state):
+        """Toggle Zika cluster polygons on map."""
+        if current_state is None:
+            current_state = False
+        
+        new_state = not current_state
+        return new_state, _get_toggle_style(new_state)
+
+    @app.callback(
+        Output('zika-clusters', 'children'),
+        Input('zika-clusters-toggle-state', 'data')
+    )
+    def update_zika_cluster_polygons(is_visible):
+        """Update Zika cluster polygons on map."""
+        if not is_visible:
+            return []
+        
+        future = fetch_zika_cluster_data_async()
+        data = future.result()
+        return create_zika_cluster_polygons(data)
+
+    @app.callback(
+        Output('dengue-clusters-content', 'children'),
+        Input('weather-indices-interval', 'n_intervals')
+    )
+    def update_dengue_clusters_display(_n_intervals):
+        """Update Dengue clusters display."""
+        future = fetch_dengue_cluster_data_async()
+        data = future.result()
+        return format_dengue_clusters_display(data)
+
+    @app.callback(
+        [Output('dengue-clusters-toggle-state', 'data'),
+         Output('toggle-dengue-clusters', 'style')],
+        Input('toggle-dengue-clusters', 'n_clicks'),
+        State('dengue-clusters-toggle-state', 'data'),
+        prevent_initial_call=True
+    )
+    def toggle_dengue_clusters(_n_clicks, current_state):
+        """Toggle Dengue cluster polygons on map."""
+        if current_state is None:
+            current_state = False
+        
+        new_state = not current_state
+        return new_state, _get_toggle_style(new_state)
+
+    @app.callback(
+        Output('dengue-clusters', 'children'),
+        Input('dengue-clusters-toggle-state', 'data')
+    )
+    def update_dengue_cluster_polygons(is_visible):
+        """Update Dengue cluster polygons on map."""
+        if not is_visible:
+            return []
+        
+        future = fetch_dengue_cluster_data_async()
+        data = future.result()
+        return create_dengue_cluster_polygons(data)
+
+    @app.callback(
         Output('taxi-count-content', 'children'),
         Input('interval-component', 'n_intervals')
     )
@@ -1050,14 +1693,230 @@ def register_weather_indices_callbacks(app):
         return format_main_page_taxi_count(data)
 
     @app.callback(
-        Output('main-psi-markers', 'children'),
+        Output('dengue-count-content', 'children'),
         Input('interval-component', 'n_intervals')
     )
-    def update_main_psi_markers(_n_intervals):
+    def update_main_page_dengue_count(_n_intervals):
+        """Update Dengue cluster count display on main page."""
+        future = fetch_dengue_cluster_data_async()
+        data = future.result(timeout=30)
+        return format_main_page_dengue_count(data)
+
+    @app.callback(
+        Output('zika-count-content', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_main_page_zika_count(_n_intervals):
+        """Update Zika cluster count display on main page."""
+        future = fetch_zika_cluster_data_async()
+        data = future.result(timeout=30)
+        return format_main_page_zika_count(data)
+
+    @app.callback(
+        Output('main-psi-markers', 'children'),
+        [Input('interval-component', 'n_intervals'),
+         Input('psi-locations-toggle-state', 'data')]
+    )
+    def update_main_psi_markers(_n_intervals, is_visible):
         """Update PSI markers on main page map (showing only 24h PSI)."""
+        # Only show markers if toggle is enabled
+        if not is_visible:
+            return []
         data = fetch_psi_data()
         return create_main_psi_markers(data)
 
+    @app.callback(
+        Output('psi-locations-toggle-state', 'data'),
+        Input('toggle-psi-locations', 'n_clicks'),
+        State('psi-locations-toggle-state', 'data')
+    )
+    def update_psi_locations_toggle_state(n_clicks, current_state):
+        """Update PSI locations toggle state in store."""
+        if n_clicks is None or n_clicks == 0:
+            return False
+        return not current_state if current_state else True
+
+    @app.callback(
+        Output('toggle-psi-locations', 'children'),
+        Input('toggle-psi-locations', 'n_clicks'),
+        State('psi-locations-toggle-state', 'data')
+    )
+    def toggle_psi_locations_button(n_clicks, current_state):
+        """
+        Toggle PSI locations button label.
+
+        Args:
+            n_clicks: Number of button clicks
+            current_state: Current toggle state from store
+
+        Returns:
+            Button label
+        """
+        if n_clicks is None or n_clicks == 0:
+            # Default state: hidden
+            return "📍 PSI Locations"
+
+        # Toggle state
+        is_visible = not current_state if current_state else True
+
+        if is_visible:
+            return "📍 Hide PSI Locations"
+        return "📍 PSI Locations"
+
+
+
+def format_main_page_zika_count(data):
+    """
+    Format Zika cluster count for main page display.
+    
+    Args:
+        data: API response with Zika cluster data (FeatureCollection format)
+    
+    Returns:
+        HTML Div with Zika cluster count information
+    """
+    if not data:
+        return html.P(
+            "Error loading Zika data",
+            style={
+                "textAlign": "center",
+                "color": "#ff6b6b",
+                "fontSize": "0.75rem"
+            }
+        )
+    
+    # Handle FeatureCollection format (GeoJSON)
+    features = []
+    if isinstance(data, dict):
+        if 'features' in data:
+            # FeatureCollection format
+            features = data['features']
+        elif 'data' in data and 'records' in data['data']:
+            features = data['data']['records']
+        elif 'records' in data:
+            features = data['records']
+        elif 'result' in data and 'records' in data['result']:
+            features = data['result']['records']
+    
+    if not features:
+        return html.P(
+            "No Zika cluster data available",
+            style={
+                "textAlign": "center",
+                "color": "#999",
+                "fontSize": "0.75rem"
+            }
+        )
+    
+    # Count the number of features
+    cluster_count = len(features)
+    
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span(
+                        "🦠",
+                        style={"fontSize": "1.5rem", "marginRight": "0.5rem"}
+                    ),
+                    html.Span(
+                        f"{cluster_count}",
+                        style={
+                            "fontSize": "1.75rem",
+                            "fontWeight": "bold",
+                            "color": "#ff4444",
+                        }
+                    ),
+                ],
+                style={
+                    "display": "flex",
+                    "alignItems": "center",
+                    "justifyContent": "center",
+                    "marginBottom": "0.25rem",
+                }
+            ),
+        ],
+        style={
+            "padding": "0.25rem 0",
+        }
+    )
+
+
+def format_main_page_dengue_count(data):
+    """
+    Format Dengue cluster count for main page display.
+    
+    Args:
+        data: API response with Dengue cluster data (FeatureCollection format)
+    
+    Returns:
+        HTML Div with Dengue cluster count information
+    """
+    if not data:
+        return html.P(
+            "Error loading Dengue data",
+            style={
+                "textAlign": "center",
+                "color": "#ff6b6b",
+                "fontSize": "0.75rem"
+            }
+        )
+    
+    # Handle FeatureCollection format (GeoJSON)
+    features = []
+    if isinstance(data, dict):
+        if 'features' in data:
+            # FeatureCollection format
+            features = data['features']
+        elif 'data' in data and 'records' in data['data']:
+            features = data['data']['records']
+        elif 'records' in data:
+            features = data['records']
+        elif 'result' in data and 'records' in data['result']:
+            features = data['result']['records']
+    
+    if not features:
+        return html.P(
+            "No Dengue cluster data available",
+            style={
+                "textAlign": "center",
+                "color": "#999",
+                "fontSize": "0.75rem"
+            }
+        )
+    
+    # Count the number of features
+    cluster_count = len(features)
+    
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span(
+                        "🦟",
+                        style={"fontSize": "1.5rem", "marginRight": "0.5rem"}
+                    ),
+                    html.Span(
+                        f"{cluster_count}",
+                        style={
+                            "fontSize": "1.75rem",
+                            "fontWeight": "bold",
+                            "color": "#ff8800",
+                        }
+                    ),
+                ],
+                style={
+                    "display": "flex",
+                    "alignItems": "center",
+                    "justifyContent": "center",
+                    "marginBottom": "0.25rem",
+                }
+            ),
+        ],
+        style={
+            "padding": "0.25rem 0",
+        }
+    )
 
 
 def format_main_page_taxi_count(data):

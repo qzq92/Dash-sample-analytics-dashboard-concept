@@ -1,6 +1,7 @@
 """
-Callback functions for handling HDB Carpark Availability API integration.
-Reference: https://data.gov.sg/datasets?query=carpark&resultId=d_ca933a644e55d34fe21f28b8052fac63
+Callback functions for handling Carpark Availability API integration.
+Uses LTA DataMall CarPark Availability v2 API.
+Reference: https://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2
 
 Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
@@ -21,8 +22,8 @@ _carpark_locations_cache: Optional[pd.DataFrame] = None
 # Thread pool for async carpark operations
 _carpark_executor = ThreadPoolExecutor(max_workers=5)
 
-# API URL
-CARPARK_AVAILABILITY_URL = "https://api.data.gov.sg/v1/transport/carpark-availability"
+# API URL - LTA DataMall CarPark Availability v2
+CARPARK_AVAILABILITY_URL = "https://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2"
 
 
 def clear_carpark_locations_cache():
@@ -75,13 +76,66 @@ def load_carpark_locations() -> pd.DataFrame:
 
 def fetch_carpark_availability() -> Optional[dict]:
     """
-    Fetch carpark availability data from HDB Carpark Availability API.
+    Fetch carpark availability data from LTA DataMall CarPark Availability API v2.
     
     Returns:
-        Dictionary containing carpark data or None if request fails
+        Dictionary containing carpark data in the format expected by the rest of the code,
+        or None if request fails
     """
-    headers = {"Authorisation": os.getenv("ONEMAP_API_KEY")}
-    return fetch_url(CARPARK_AVAILABILITY_URL, headers)
+    api_key = os.getenv("LTA_API_KEY")
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+
+    headers = {
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+
+    # Fetch data from LTA DataMall API
+    response_data = fetch_url(CARPARK_AVAILABILITY_URL, headers)
+
+    if not response_data:
+        return None
+
+    # Transform LTA DataMall API response to match expected format
+    # LTA API returns: {"value": [{"CarParkID": "...", "AvailableLots": ..., "LotType": ..., ...}]}
+    # Expected format: {"items": [{"carpark_data": [{"carpark_number": "...", "carpark_info": [...]}]}]}
+
+    value = response_data.get('value', [])
+    if not value:
+        return None
+
+    # Group by CarParkID and LotType to match the expected structure
+    carpark_dict = {}
+    for item in value:
+        carpark_id = item.get('CarParkID', '').upper()
+        lot_type = item.get('LotType', 'C')  # C=Car, H=Heavy, Y=Motorcycle
+        available_lots = item.get('AvailableLots', 0)
+
+        if carpark_id not in carpark_dict:
+            carpark_dict[carpark_id] = {
+                'carpark_number': carpark_id,
+                'carpark_info': [],
+                'location': item.get('Location', ''),
+                'development': item.get('Development', ''),
+                'agency': item.get('Agency', '')
+            }
+
+        # Add lot type information
+        carpark_dict[carpark_id]['carpark_info'].append({
+            'lot_type': lot_type,
+            'lots_available': available_lots
+        })
+
+    # Transform to expected format
+    transformed_data = {
+        'items': [{
+            'carpark_data': list(carpark_dict.values())
+        }]
+    }
+
+    return transformed_data
 
 
 def fetch_carpark_availability_async():
@@ -298,10 +352,9 @@ def create_carpark_markers(nearby_carparks, availability_lookup=None):
             carpark_info = availability.get('carpark_info', [])
             for lot_info in carpark_info:
                 lot_type = lot_info.get('lot_type', '')
-                total_lots = lot_info.get('total_lots', '0')
                 lots_available = lot_info.get('lots_available', '0')
                 lot_type_name = format_lot_type_display(lot_type)
-                tooltip_parts.append(f"• {lot_type_name}: {lots_available}/{total_lots} lots")
+                tooltip_parts.append(f"• {lot_type_name}: {lots_available} lots available")
 
         # Join all parts with line breaks
         tooltip_text = "\n".join(tooltip_parts) if tooltip_parts else "No data available"
@@ -500,17 +553,14 @@ def register_carpark_callbacks(app):
             for lot_info in carpark_info:
                 lot_type = lot_info.get('lot_type', 'N/A')
                 print(f"Processing lot type: {lot_type} for {carpark_number}")
-                total_lots = lot_info.get('total_lots', '0')
                 lots_available = lot_info.get('lots_available', '0')
                 
-                # Calculate percentage and color
+                # Determine color based on available lots
                 try:
-                    total = int(total_lots)
                     available = int(lots_available)
-                    percentage = (available / total * 100) if total > 0 else 0
-                    status_color = "#4ade80" if percentage > 20 else "#fbbf24" if percentage > 0 else "#ef4444"
+                    # Green if many lots (>20), yellow if some (1-20), red if none
+                    status_color = "#4ade80" if available > 20 else "#fbbf24" if available > 0 else "#ef4444"
                 except (ValueError, TypeError):
-                    percentage = 0
                     status_color = "#999"
                     available = 0
                 
@@ -518,8 +568,6 @@ def register_carpark_callbacks(app):
                     'type': lot_type.upper(),
                     'type_name': format_lot_type_display(lot_type),
                     'available': available,
-                    'total': total,
-                    'percentage': percentage,
                     'color': status_color
                 })
             
@@ -540,7 +588,7 @@ def register_carpark_callbacks(app):
                                 }
                             ),
                             html.Span(
-                                f"{avail_info['available']}/{avail_info['total']}",
+                                f"{avail_info['available']}",
                                 style={
                                     "fontSize": "9px",
                                     "color": avail_info['color'],
@@ -772,17 +820,14 @@ def register_carpark_callbacks(app):
             # Build availability data for side panel
             for lot_info in carpark_info:
                 lot_type = lot_info.get('lot_type', 'N/A')
-                total_lots = lot_info.get('total_lots', '0')
                 lots_available = lot_info.get('lots_available', '0')
 
-                # Calculate percentage and color
+                # Determine color based on available lots
                 try:
-                    total = int(total_lots)
                     available = int(lots_available)
-                    percentage = (available / total * 100) if total > 0 else 0
-                    status_color = "#4ade80" if percentage > 20 else "#fbbf24" if percentage > 0 else "#ef4444"
+                    # Green if many lots (>20), yellow if some (1-20), red if none
+                    status_color = "#4ade80" if available > 20 else "#fbbf24" if available > 0 else "#ef4444"
                 except (ValueError, TypeError):
-                    percentage = 0
                     status_color = "#999"
                     available = 0
 
@@ -790,8 +835,6 @@ def register_carpark_callbacks(app):
                     'type': lot_type.upper(),
                     'type_name': format_lot_type_display(lot_type),
                     'available': available,
-                    'total': total,
-                    'percentage': percentage,
                     'color': status_color
                 })
 
@@ -812,7 +855,7 @@ def register_carpark_callbacks(app):
                                 }
                             ),
                             html.Span(
-                                f"{avail_info['available']}/{avail_info['total']}",
+                                f"{avail_info['available']}",
                                 style={
                                     "fontSize": "9px",
                                     "color": avail_info['color'],

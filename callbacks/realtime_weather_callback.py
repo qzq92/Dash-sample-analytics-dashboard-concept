@@ -15,6 +15,7 @@ from dash import Input, Output, State, html, callback_context
 import dash_leaflet as dl
 from conf.windspeed_icon import get_windspeed_icon, get_windspeed_description, WINDSPEED_THRESHOLDS
 from utils.async_fetcher import fetch_url, fetch_async, get_default_headers
+from callbacks.weather_indices_callback import fetch_wbgt_data, format_wbgt_display, create_wbgt_markers
 
 # API URLs
 API_BASE = "https://api-open.data.gov.sg/v2/real-time/api"
@@ -991,15 +992,29 @@ def create_flood_markers(data):
 
 def format_lightning_readings(data):
     """
-    Format lightning readings to show count of detected locations.
+    Format lightning readings to show count of detected locations in a sub-div.
     Returns HTML content for the lightning readings display.
     """
     if not data or 'data' not in data:
-        return html.Span("Error loading data", style={"color": "#ff6b6b", "fontSize": "12px"})
+        return html.Div(
+            html.Span("Error loading data", style={"color": "#ff6b6b", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
 
     records = data['data'].get('records', [])
     if not records:
-        return html.Span("0 locations", style={"color": "#999", "fontSize": "12px"})
+        return html.Div(
+            html.Span("0 locations", style={"color": "#999", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
 
     # Count lightning locations detected within last 5 minutes and within Singapore bounds
     lightning_count = 0
@@ -1015,23 +1030,144 @@ def format_lightning_readings(data):
             if lat and lon and _is_within_singapore_bounds(lat, lon) and _is_within_last_5_minutes(datetime_str):
                 lightning_count += 1
 
-    return html.Span(
-        f"{lightning_count} location{'s' if lightning_count != 1 else ''} detected",
-        style={"color": "#FFD700", "fontSize": "12px", "fontWeight": "600"}
+    return html.Div(
+        html.Span(
+            f"{lightning_count} location{'s' if lightning_count != 1 else ''} detected",
+            style={"color": "#FFD700", "fontSize": "14px", "fontWeight": "600"}
+        ),
+        style={
+            "padding": "6px 8px",
+            "backgroundColor": "#3a4a5a",
+            "borderRadius": "4px",
+            "borderLeft": "3px solid #FFD700",
+        }
+    )
+
+
+def format_wbgt_average(data):
+    """
+    Format WBGT data to show average value across all stations.
+    Returns HTML content for the WBGT average display in a sub-div.
+    """
+    from callbacks.weather_indices_callback import fetch_wbgt_data
+    
+    if not data:
+        return html.Div(
+            html.Span("Error loading data", style={"color": "#ff6b6b", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
+
+    # Handle case where code might be missing or different
+    if data.get("code") not in [0, 1]:
+        return html.Div(
+            html.Span("Error loading data", style={"color": "#ff6b6b", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
+
+    records = data.get("data", {}).get("records", [])
+    if not records:
+        return html.Div(
+            html.Span("No data available", style={"color": "#888", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
+
+    record = records[0]
+    item = record.get("item", {})
+    readings = item.get("readings", [])
+
+    if not readings:
+        return html.Div(
+            html.Span("No readings available", style={"color": "#888", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
+
+    # Calculate average WBGT value
+    wbgt_values = []
+    for reading in readings:
+        wbgt_val = reading.get("wbgt")
+        if wbgt_val is not None:
+            try:
+                wbgt_values.append(float(wbgt_val))
+            except (ValueError, TypeError):
+                pass
+
+    if not wbgt_values:
+        return html.Div(
+            html.Span("No valid readings", style={"color": "#888", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
+
+    avg_wbgt = sum(wbgt_values) / len(wbgt_values)
+    formatted_avg = f"{avg_wbgt:.1f}°C"
+
+    return html.Div(
+        [
+            html.Span(formatted_avg, style={
+                "fontSize": "14px",
+                "fontWeight": "600",
+                "color": "#FF9800",
+            }),
+            html.Span(" (averaged across sensors)", style={
+                "fontSize": "11px",
+                "color": "#999",
+                "fontWeight": "400",
+                "marginLeft": "4px",
+            }),
+        ],
+        style={
+            "padding": "6px 8px",
+            "backgroundColor": "#3a4a5a",
+            "borderRadius": "4px",
+            "borderLeft": "3px solid #FF9800",
+        }
     )
 
 
 def format_flood_readings(data):
     """
-    Format flood readings to show count of active alerts.
+    Format flood readings to show count of active alerts in a sub-div.
     Returns HTML content for the flood readings display.
     """
     if not data or 'data' not in data:
-        return html.Span("Error loading data", style={"color": "#ff6b6b", "fontSize": "12px"})
+        return html.Div(
+            html.Span("Error loading data", style={"color": "#ff6b6b", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
 
     records = data['data'].get('records', [])
     if not records:
-        return html.Span("No alerts", style={"color": "#999", "fontSize": "12px"})
+        return html.Div(
+            html.Span("No alerts", style={"color": "#999", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
 
     # Extract first record
     first_record = records[0]
@@ -1039,12 +1175,27 @@ def format_flood_readings(data):
     readings = item.get('readings', [])
 
     if not readings:
-        return html.Span("No alerts", style={"color": "#999", "fontSize": "12px"})
+        return html.Div(
+            html.Span("No alerts", style={"color": "#999", "fontSize": "12px"}),
+            style={
+                "padding": "6px 8px",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "4px",
+            }
+        )
 
     alert_count = len(readings)
-    return html.Span(
-        f"{alert_count} alert{'s' if alert_count != 1 else ''} active",
-        style={"color": "#ff6b6b", "fontSize": "12px", "fontWeight": "600"}
+    return html.Div(
+        html.Span(
+            f"{alert_count} alert{'s' if alert_count != 1 else ''} active",
+            style={"color": "#ff6b6b", "fontSize": "14px", "fontWeight": "600"}
+        ),
+        style={
+            "padding": "6px 8px",
+            "backgroundColor": "#3a4a5a",
+            "borderRadius": "4px",
+            "borderLeft": "3px solid #ff6b6b",
+        }
     )
 
 
@@ -1430,12 +1581,16 @@ def format_traffic_incidents_indicator(data):
             )
         )
 
-    # Arrange in grid: 5 columns with equal-sized tiles
+    # Arrange in grid: dynamic columns based on number of incident types
+    # If less than 5 types, use that number so elements fill the parent div
+    num_incidents = len(incident_items)
+    num_columns = min(num_incidents, 5)  # Use number of incidents or 5, whichever is smaller
+    
     return html.Div(
         grid_tiles,
         style={
             "display": "grid",
-            "gridTemplateColumns": "repeat(5, 1fr)",
+            "gridTemplateColumns": f"repeat({num_columns}, 1fr)",
             "gap": "8px",
             "gridAutoRows": "minmax(70px, auto)",
         }
@@ -1580,6 +1735,7 @@ def register_realtime_weather_callbacks(app):
                     "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
         return {"display": "none"}
 
+
     @app.callback(
         Output('flood-sensor-values', 'style'),
         Input('toggle-flood-readings', 'n_clicks'),
@@ -1599,10 +1755,11 @@ def register_realtime_weather_callbacks(app):
          Input('toggle-humidity-readings', 'n_clicks'),
          Input('toggle-wind-readings', 'n_clicks'),
          Input('toggle-lightning-readings', 'n_clicks'),
-         Input('toggle-flood-readings', 'n_clicks')],
+         Input('toggle-flood-readings', 'n_clicks'),
+         Input('toggle-wbgt-readings', 'n_clicks')],
         prevent_initial_call=True
     )
-    def update_sensor_markers(_temp_clicks, _rain_clicks, _humid_clicks, _wind_clicks, _lightning_clicks, _flood_clicks):
+    def update_sensor_markers(_temp_clicks, _rain_clicks, _humid_clicks, _wind_clicks, _lightning_clicks, _flood_clicks, _wbgt_clicks):
         """Update sensor markers based on which toggle is active."""
         ctx = callback_context
         if not ctx.triggered:
@@ -1633,9 +1790,53 @@ def register_realtime_weather_callbacks(app):
                 data = fetch_flood_alerts()
                 if data:
                     return create_flood_markers(data)
+            if button_id == 'toggle-wbgt-readings':
+                data = fetch_wbgt_data()
+                if data:
+                    return create_wbgt_markers(data)
 
         # If toggled off, clear markers
         return []
+
+    # Callback to update WBGT average value
+    @app.callback(
+        Output('wbgt-readings-content', 'children'),
+        Input('realtime-weather-interval', 'n_intervals')
+    )
+    def update_wbgt_readings(_n_intervals):
+        """Update WBGT average value display."""
+        data = fetch_wbgt_data()
+        return format_wbgt_average(data)
+
+    # Callback to update WBGT sensor values (detailed list)
+    @app.callback(
+        Output('wbgt-sensor-content', 'children'),
+        [Input('wbgt-sensor-values', 'style'),
+         Input('realtime-weather-interval', 'n_intervals')]
+    )
+    def update_wbgt_sensor_content(style, _n_intervals):
+        """Update WBGT sensor values when section is visible."""
+        if style and style.get('display') == 'none':
+            return html.P("Loading...", style={
+                "color": "#999",
+                "fontSize": "12px",
+                "textAlign": "center"
+            })
+        data = fetch_wbgt_data()
+        return format_wbgt_display(data)
+
+    # Toggle callback for WBGT sensor values
+    @app.callback(
+        Output('wbgt-sensor-values', 'style'),
+        Input('toggle-wbgt-readings', 'n_clicks'),
+        prevent_initial_call=True
+    )
+    def toggle_wbgt_sensor_values(n_clicks):
+        """Toggle WBGT sensor values section visibility."""
+        if n_clicks and n_clicks % 2 == 1:
+            return {"display": "block", "backgroundColor": "#3a4a5a",
+                    "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
+        return {"display": "none"}
 
     # Callbacks to populate sensor values when sections are visible
     @app.callback(

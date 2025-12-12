@@ -415,14 +415,14 @@ def register_weather_callbacks(app):
         """
         if n_clicks is None or n_clicks == 0:
             # Default state: hidden
-            return "🌦️ Show 2H Forecast"
+            return "🌦️ Show 2H Weather Forecast"
 
         # Toggle state
         is_visible = not current_state if current_state else True
 
         if is_visible:
-            return "🌦️ Hide 2H Forecast"
-        return "🌦️ Show 2H Forecast"
+            return "🌦️ Hide 2H Weather Forecast"
+        return "🌦️ Show 2H Weather Forecast"
 
     @app.callback(
         Output('2h-forecast-toggle-state', 'data'),
@@ -437,7 +437,7 @@ def register_weather_callbacks(app):
 
     @app.callback(
         Output('weather-2h-markers', 'children'),
-        Input('realtime-weather-interval', 'n_intervals'),
+        Input('interval-component', 'n_intervals'),
         State('2h-forecast-toggle-state', 'data')
     )
     def update_weather_forecast_2h(_n_intervals, is_visible):

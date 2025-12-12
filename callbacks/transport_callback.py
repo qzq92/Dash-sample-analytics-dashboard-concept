@@ -91,7 +91,7 @@ def format_taxi_count_display(data):
                     style={
                         "color": "#ff6b6b",
                         "textAlign": "center",
-                        "fontSize": "12px",
+                        "fontSize": "0.75rem",
                     }
                 )
             ]
@@ -106,7 +106,7 @@ def format_taxi_count_display(data):
                     style={
                         "color": "#999",
                         "textAlign": "center",
-                        "fontSize": "12px",
+                        "fontSize": "0.75rem",
                     }
                 )
             ]
@@ -137,14 +137,15 @@ def format_taxi_count_display(data):
                 [
                     html.Span(
                         "🚕",
-                        style={"fontSize": "32px", "marginRight": "10px"}
+                        style={"fontSize": "2rem", "marginRight": "0.625rem", "lineHeight": "1"}
                     ),
                     html.Span(
                         f"{taxi_count:,}",
                         style={
-                            "fontSize": "48px",
+                            "fontSize": "2.5rem",
                             "fontWeight": "bold",
                             "color": "#FFD700",
+                            "lineHeight": "1",
                         }
                     ),
                 ],
@@ -152,7 +153,8 @@ def format_taxi_count_display(data):
                     "display": "flex",
                     "alignItems": "center",
                     "justifyContent": "center",
-                    "marginBottom": "10px",
+                    "marginBottom": "0.625rem",
+                    "flexWrap": "wrap",
                 }
             ),
             html.P(
@@ -160,9 +162,9 @@ def format_taxi_count_display(data):
                 style={
                     "color": "#fff",
                     "textAlign": "center",
-                    "fontSize": "14px",
+                    "fontSize": "0.875rem",
                     "fontWeight": "600",
-                    "margin": "0 0 10px 0",
+                    "margin": "0 0 0.625rem 0",
                 }
             ),
             html.P(
@@ -170,16 +172,19 @@ def format_taxi_count_display(data):
                 style={
                     "color": "#888",
                     "textAlign": "center",
-                    "fontSize": "11px",
+                    "fontSize": "0.6875rem",
                     "fontStyle": "italic",
                     "margin": "0",
                 }
             ),
         ],
         style={
-            "padding": "15px",
+            "padding": "0.9375rem",
             "backgroundColor": "#2c3e50",
-            "borderRadius": "8px",
+            "borderRadius": "0.5rem",
+            "width": "100%",
+            "boxSizing": "border-box",
+            "overflow": "hidden",
         }
     )
 
@@ -309,7 +314,7 @@ def format_cctv_count_display(camera_data):
                     style={
                         "color": "#ff6b6b",
                         "textAlign": "center",
-                        "fontSize": "12px",
+                        "fontSize": "0.75rem",
                     }
                 )
             ]
@@ -337,14 +342,15 @@ def format_cctv_count_display(camera_data):
                 [
                     html.Span(
                         "📹",
-                        style={"fontSize": "32px", "marginRight": "10px"}
+                        style={"fontSize": "2rem", "marginRight": "0.625rem", "lineHeight": "1"}
                     ),
                     html.Span(
                         f"{camera_count}",
                         style={
-                            "fontSize": "48px",
+                            "fontSize": "2.5rem",
                             "fontWeight": "bold",
                             "color": "#4CAF50",
+                            "lineHeight": "1",
                         }
                     ),
                 ],
@@ -352,7 +358,8 @@ def format_cctv_count_display(camera_data):
                     "display": "flex",
                     "alignItems": "center",
                     "justifyContent": "center",
-                    "marginBottom": "10px",
+                    "marginBottom": "0.625rem",
+                    "flexWrap": "wrap",
                 }
             ),
             html.P(
@@ -360,9 +367,9 @@ def format_cctv_count_display(camera_data):
                 style={
                     "color": "#fff",
                     "textAlign": "center",
-                    "fontSize": "14px",
+                    "fontSize": "0.875rem",
                     "fontWeight": "600",
-                    "margin": "0 0 10px 0",
+                    "margin": "0 0 0.625rem 0",
                 }
             ),
             html.P(
@@ -370,7 +377,7 @@ def format_cctv_count_display(camera_data):
                 style={
                     "color": "#888",
                     "textAlign": "center",
-                    "fontSize": "11px",
+                    "fontSize": "0.6875rem",
                     "fontStyle": "italic",
                     "margin": "0",
                 }
@@ -380,15 +387,18 @@ def format_cctv_count_display(camera_data):
                 style={
                     "color": "#4CAF50",
                     "textAlign": "center",
-                    "fontSize": "10px",
-                    "margin": "10px 0 0 0",
+                    "fontSize": "0.625rem",
+                    "margin": "0.625rem 0 0 0",
                 }
             ),
         ],
         style={
-            "padding": "15px",
+            "padding": "0.9375rem",
             "backgroundColor": "#2c3e50",
-            "borderRadius": "8px",
+            "borderRadius": "0.5rem",
+            "width": "100%",
+            "boxSizing": "border-box",
+            "overflow": "hidden",
         }
     )
 
@@ -671,8 +681,8 @@ def format_pub_cctv_count_display(cctv_data):
                     style={
                         "color": "#ff6b6b",
                         "textAlign": "center",
-                        "padding": "20px",
-                        "fontSize": "12px",
+                        "padding": "1.25rem",
+                        "fontSize": "0.75rem",
                     }
                 )
             ]
@@ -686,8 +696,8 @@ def format_pub_cctv_count_display(cctv_data):
                 style={
                     "color": "#fff",
                     "textAlign": "center",
-                    "padding": "10px",
-                    "fontSize": "14px",
+                    "padding": "0.625rem",
+                    "fontSize": "0.875rem",
                     "fontWeight": "600",
                     "margin": "0",
                 }
@@ -714,7 +724,7 @@ def format_erp_count_display(gantry_data):
                     style={
                         "color": "#ff6b6b",
                         "textAlign": "center",
-                        "fontSize": "12px",
+                        "fontSize": "0.75rem",
                     }
                 )
             ]
@@ -728,14 +738,15 @@ def format_erp_count_display(gantry_data):
                 [
                     html.Span(
                         "🚧",
-                        style={"fontSize": "32px", "marginRight": "10px"}
+                        style={"fontSize": "2rem", "marginRight": "0.625rem", "lineHeight": "1"}
                     ),
                     html.Span(
                         f"{gantry_count}",
                         style={
-                            "fontSize": "48px",
+                            "fontSize": "2.5rem",
                             "fontWeight": "bold",
                             "color": "#FF6B6B",
+                            "lineHeight": "1",
                         }
                     ),
                 ],
@@ -743,7 +754,8 @@ def format_erp_count_display(gantry_data):
                     "display": "flex",
                     "alignItems": "center",
                     "justifyContent": "center",
-                    "marginBottom": "10px",
+                    "marginBottom": "0.625rem",
+                    "flexWrap": "wrap",
                 }
             ),
             html.P(
@@ -751,9 +763,9 @@ def format_erp_count_display(gantry_data):
                 style={
                     "color": "#fff",
                     "textAlign": "center",
-                    "fontSize": "14px",
+                    "fontSize": "0.875rem",
                     "fontWeight": "600",
-                    "margin": "0 0 10px 0",
+                    "margin": "0 0 0.625rem 0",
                 }
             ),
             html.P(
@@ -761,16 +773,19 @@ def format_erp_count_display(gantry_data):
                 style={
                     "color": "#888",
                     "textAlign": "center",
-                    "fontSize": "11px",
+                    "fontSize": "0.6875rem",
                     "fontStyle": "italic",
                     "margin": "0",
                 }
             ),
         ],
         style={
-            "padding": "15px",
+            "padding": "0.9375rem",
             "backgroundColor": "#2c3e50",
-            "borderRadius": "8px",
+            "borderRadius": "0.5rem",
+            "width": "100%",
+            "boxSizing": "border-box",
+            "overflow": "hidden",
         }
     )
 
