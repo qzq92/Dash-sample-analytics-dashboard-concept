@@ -301,9 +301,131 @@ def realtime_weather_page():
                                     ),
                                 ]
                             ),
+                            # Lightning readings card
+                            html.Div(
+                                id="lightning-readings-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "8px",
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "flexDirection": "row",
+                                            "alignItems": "center",
+                                            "justifyContent": "space-between",
+                                        },
+                                        children=[
+                                            html.Span(
+                                                "⚡ Lightning (last 5 minutes)",
+                                                style={
+                                                    "color": "#FFD700",
+                                                    "fontWeight": "600",
+                                                    "fontSize": "13px"
+                                                }
+                                            ),
+                                            html.Div(
+                                                id="lightning-readings-content",
+                                                children=[
+                                                    html.Span("Loading...", style={
+                                                        "color": "#999",
+                                                        "fontSize": "12px"
+                                                    })
+                                                ],
+                                            ),
+                                        ]
+                                    ),
+                                    html.Div(
+                                        id="lightning-sensor-values",
+                                        style={
+                                            "display": "none",
+                                            "backgroundColor": "#3a4a5a",
+                                            "borderRadius": "5px",
+                                            "padding": "10px",
+                                            "maxHeight": "200px",
+                                            "overflowY": "auto",
+                                        },
+                                        children=[
+                                            html.Div(id="lightning-sensor-content", children=[
+                                                html.P("Loading...", style={
+                                                    "color": "#999",
+                                                    "fontSize": "12px",
+                                                    "textAlign": "center"
+                                                })
+                                            ])
+                                        ]
+                                    ),
+                                ]
+                            ),
+                            # Flood readings card
+                            html.Div(
+                                id="flood-readings-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "8px",
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "flexDirection": "row",
+                                            "alignItems": "center",
+                                            "justifyContent": "space-between",
+                                        },
+                                        children=[
+                                            html.Span(
+                                                "🌊 Flood",
+                                                style={
+                                                    "color": "#ff6b6b",
+                                                    "fontWeight": "600",
+                                                    "fontSize": "13px"
+                                                }
+                                            ),
+                                            html.Div(
+                                                id="flood-readings-content",
+                                                children=[
+                                                    html.Span("Loading...", style={
+                                                        "color": "#999",
+                                                        "fontSize": "12px"
+                                                    })
+                                                ],
+                                            ),
+                                        ]
+                                    ),
+                                    html.Div(
+                                        id="flood-sensor-values",
+                                        style={
+                                            "display": "none",
+                                            "backgroundColor": "#3a4a5a",
+                                            "borderRadius": "5px",
+                                            "padding": "10px",
+                                            "maxHeight": "200px",
+                                            "overflowY": "auto",
+                                        },
+                                        children=[
+                                            html.Div(id="flood-sensor-content", children=[
+                                                html.P("Loading...", style={
+                                                    "color": "#999",
+                                                    "fontSize": "12px",
+                                                    "textAlign": "center"
+                                                })
+                                            ])
+                                        ]
+                                    ),
+                                ]
+                            ),
                         ]
                     ),
-                    # Right side: Map with station markers and indicators (7/10 width total)
+                    # Right side: Map with station markers (7/10 width total)
                     html.Div(
                         style={
                             "flex": "7",
@@ -312,11 +434,11 @@ def realtime_weather_page():
                             "minWidth": "600px",
                         },
                         children=[
-                            # Map panel (2/3 of right side)
+                            # Map panel
                             html.Div(
                                 id="realtime-map-panel",
                                 style={
-                                    "flex": "2",
+                                    "flex": "1",
                                     "backgroundColor": "#4a5a6a",
                                     "borderRadius": "5px",
                                     "padding": "10px",
@@ -402,6 +524,36 @@ def realtime_weather_page():
                                                             "fontWeight": "600",
                                                         }
                                                     ),
+                                                    html.Button(
+                                                        "⚡ Lightning (last 5 minutes)",
+                                                        id="toggle-lightning-readings",
+                                                        n_clicks=0,
+                                                        style={
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                            "border": "2px solid #FFD700",
+                                                            "backgroundColor": "transparent",
+                                                            "color": "#FFD700",
+                                                            "cursor": "pointer",
+                                                            "fontSize": "12px",
+                                                            "fontWeight": "600",
+                                                        }
+                                                    ),
+                                                    html.Button(
+                                                        "🌊 Flood",
+                                                        id="toggle-flood-readings",
+                                                        n_clicks=0,
+                                                        style={
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                            "border": "2px solid #ff6b6b",
+                                                            "backgroundColor": "transparent",
+                                                            "color": "#ff6b6b",
+                                                            "cursor": "pointer",
+                                                            "fontSize": "12px",
+                                                            "fontWeight": "600",
+                                                        }
+                                                    ),
                                                 ]
                                             ),
                                             html.Button(
@@ -425,154 +577,72 @@ def realtime_weather_page():
                                     html.Div(
                                         style={
                                             "flex": "1",
+                                            "display": "flex",
+                                            "flexDirection": "column",
                                             "borderRadius": "5px",
                                             "overflow": "hidden",
                                             "minHeight": "400px",
                                         },
                                         children=[
-                                            dl.Map(
-                                                id="realtime-weather-map",
-                                                center=sg_center,
-                                                zoom=fixed_zoom,
-                                                minZoom=fixed_zoom - 1,
-                                                maxZoom=fixed_zoom + 3,
-                                                maxBounds=sg_bounds,
+                                            html.Div(
                                                 style={
-                                                    "width": "100%",
-                                                    "height": "100%",
+                                                    "flex": "1",
+                                                    "borderRadius": "5px",
+                                                    "overflow": "hidden",
                                                     "minHeight": "400px",
                                                 },
-                                                dragging=True,
-                                                scrollWheelZoom=True,
-                                                zoomControl=True,
                                                 children=[
-                                                    dl.TileLayer(
-                                                        url=onemap_tiles_url,
-                                                        attribution=onemap_attribution,
-                                                        maxNativeZoom=19,
-                                                    ),
-                                                    dl.LayerGroup(id="realtime-weather-markers"),
-                                                    dl.LayerGroup(id="lightning-markers"),
-                                                    dl.LayerGroup(id="flood-markers"),
-                                                    dl.LayerGroup(id="weather-2h-markers"),
-                                                    dl.LayerGroup(id="sensor-markers"),
-                                                ],
-                                            )
-                                        ]
-                                    ),
-                                ]
-                            ),
-                            # Indicators panel (Lightning and Flood in single column) (1/3 of right side)
-                            html.Div(
-                                style={
-                                    "flex": "1",
-                                    "display": "flex",
-                                    "flexDirection": "column",
-                                    "gap": "10px",
-                                    "height": "100%",
-                                },
-                                children=[
-                                    # Alerts title
-                                    html.H5(
-                                        "Alerts",
-                                        style={
-                                            "color": "#fff",
-                                            "margin": "0 0 10px 0",
-                                            "fontWeight": "600",
-                                            "fontSize": "14px"
-                                        }
-                                    ),
-                                    # Lightning indicator card (mimics metrics design)
-                                    html.Div(
-                                        id="lightning-indicator-container",
-                                        style={
-                                            "flex": "1",
-                                            "backgroundColor": "#4a5a6a",
-                                            "borderRadius": "8px",
-                                            "padding": "10px",
-                                            "display": "flex",
-                                            "flexDirection": "column",
-                                            "overflow": "hidden",
-                                        },
-                                        children=[
-                                            html.H5(
-                                                "⚡ Lightning",
-                                                style={
-                                                    "color": "#FFD700",
-                                                    "margin": "0 0 5px 0",
-                                                    "fontWeight": "600",
-                                                    "fontSize": "13px"
-                                                }
+                                                    dl.Map(
+                                                        id="realtime-weather-map",
+                                                        center=sg_center,
+                                                        zoom=fixed_zoom,
+                                                        minZoom=fixed_zoom - 1,
+                                                        maxZoom=fixed_zoom + 3,
+                                                        maxBounds=sg_bounds,
+                                                        style={
+                                                            "width": "100%",
+                                                            "height": "100%",
+                                                            "minHeight": "400px",
+                                                        },
+                                                        dragging=True,
+                                                        scrollWheelZoom=True,
+                                                        zoomControl=True,
+                                                        children=[
+                                                            dl.TileLayer(
+                                                                url=onemap_tiles_url,
+                                                                attribution=onemap_attribution,
+                                                                maxNativeZoom=19,
+                                                            ),
+                                                            dl.LayerGroup(id="realtime-weather-markers"),
+                                                            dl.LayerGroup(id="lightning-markers"),
+                                                            dl.LayerGroup(id="flood-markers"),
+                                                            dl.LayerGroup(id="weather-2h-markers"),
+                                                            dl.LayerGroup(id="sensor-markers"),
+                                                        ],
+                                                    )
+                                                ]
                                             ),
+                                            # Disclaimer for lightning markers
                                             html.Div(
-                                                id="lightning-indicator",
                                                 style={
-                                                    "flex": "1",
-                                                    "overflowY": "auto",
-                                                    "overflowX": "hidden",
-                                                    "minHeight": "0",
+                                                    "padding": "8px 12px",
+                                                    "backgroundColor": "#2c3e50",
+                                                    "borderTop": "1px solid #5a6a7a",
+                                                    "borderRadius": "0 0 5px 5px",
                                                 },
                                                 children=[
-                                                    html.P("Loading...", style={
-                                                        "color": "#999",
-                                                        "fontSize": "12px"
-                                                    })
+                                                    html.P(
+                                                        "Location detected is based on last 5 minutes information",
+                                                        style={
+                                                            "color": "#999",
+                                                            "fontSize": "11px",
+                                                            "margin": "0",
+                                                            "fontStyle": "italic",
+                                                            "textAlign": "center",
+                                                        }
+                                                    )
                                                 ]
-                                            )
-                                        ]
-                                    ),
-                                    # Flood indicator card (mimics metrics design)
-                                    html.Div(
-                                        id="flood-indicator-container",
-                                        style={
-                                            "flex": "1",
-                                            "backgroundColor": "#4a5a6a",
-                                            "borderRadius": "8px",
-                                            "padding": "10px",
-                                            "display": "flex",
-                                            "flexDirection": "column",
-                                            "overflow": "hidden",
-                                        },
-                                        children=[
-                                            html.H5(
-                                                "🌊 Flood Alert",
-                                                style={
-                                                    "color": "#ff6b6b",
-                                                    "margin": "0 0 5px 0",
-                                                    "fontWeight": "600",
-                                                    "fontSize": "13px"
-                                                }
                                             ),
-                                            html.Div(
-                                                id="flood-indicator",
-                                                style={
-                                                    "flex": "1",
-                                                    "overflowY": "auto",
-                                                    "overflowX": "hidden",
-                                                    "minHeight": "0",
-                                                },
-                                                children=[
-                                                    html.P("No flooding notice at the moment", style={
-                                                        "color": "#999",
-                                                        "fontSize": "12px"
-                                                    })
-                                                ]
-                                            )
-                                        ]
-                                    ),
-                                    # Wind speed legend (underneath alerts)
-                                    html.Div(
-                                        id="wind-speed-legend",
-                                        style={
-                                            "marginTop": "10px",
-                                        },
-                                        children=[
-                                            html.P("Loading...", style={
-                                                "color": "#999",
-                                                "fontSize": "11px",
-                                                "textAlign": "center",
-                                                "margin": "0"
-                                            })
                                         ]
                                     ),
                                 ]

@@ -33,7 +33,6 @@ def build_dashboard_banner():
         id="banner",
         className="banner",
         children=[
-            html.H2("Situation Dashboard"),
             # Navigation tabs with glossy styling
             html.Div(
                 dcc.Tabs(
@@ -48,7 +47,7 @@ def build_dashboard_banner():
                             selected_style=TAB_SELECTED_STYLE,
                         ),
                         dcc.Tab(
-                            label="📡 Realtime Weather Metrics",
+                            label="📍 View sensor location for weather related metrics",
                             value="realtime-weather",
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
@@ -60,8 +59,14 @@ def build_dashboard_banner():
                             selected_style=TAB_SELECTED_STYLE,
                         ),
                         dcc.Tab(
-                            label="🚌 Transport Info",
+                            label="🚌 Transport and infra sensor location and information",
                             value="transport",
+                            style=TAB_STYLE,
+                            selected_style=TAB_SELECTED_STYLE,
+                        ),
+                        dcc.Tab(
+                            label="📍 Nearby Transportation & Parking",
+                            value="nearby-transport",
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
                         ),
@@ -78,14 +83,6 @@ def build_dashboard_banner():
                     "alignItems": "center",
                     "padding": "10px 0",
                 }
-            ),
-            html.A(
-                html.Img(
-                    id="plotly-logo",
-                    src=r"../assets/dash-logo.png",
-                    style={"height": "40px"},
-                ),
-                href="https://plotly.com/dash/",
             ),
         ],
         style={

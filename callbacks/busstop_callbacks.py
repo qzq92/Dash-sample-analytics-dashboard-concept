@@ -323,3 +323,147 @@ def register_busstop_callbacks(app):
         # Return all bus stop items and markers
         return bus_stop_items, markers
 
+    # Callback for nearby transport page
+    @app.callback(
+        [Output('nearby-transport-bus-stop-content', 'children'),
+         Output('nearby-bus-stop-markers', 'children')],
+        Input('nearby-transport-search', 'value')
+    )
+    def update_nearby_transport_bus_stop_content(search_value):
+        """
+        Update the nearest bus stop content for nearby transport page based on selected location.
+        
+        Args:
+            search_value: Selected value from search dropdown (format: 'lat,lon,address')
+        
+        Returns:
+            HTML Div containing nearest bus stops within 500m
+        """
+        if not search_value:
+            return html.P(
+                "Select a location to view nearest bus stops",
+                style={
+                    "textAlign": "center",
+                    "color": "#999",
+                    "fontSize": "12px",
+                    "fontStyle": "italic",
+                    "padding": "15px"
+                }
+            ), []
+
+        try:
+            # Parse the search value to get coordinates
+            parts = search_value.split(',', 2)
+            lat = float(parts[0])
+            lon = float(parts[1])
+        except (ValueError, IndexError, TypeError):
+            return html.P(
+                "Invalid location coordinates",
+                style={
+                    "textAlign": "center",
+                    "color": "#ff6b6b",
+                    "fontSize": "12px",
+                    "padding": "15px"
+                }
+            ), []
+
+        # Fetch nearby bus stops within 500m
+        bus_stops = fetch_nearby_bus_stops(lat, lon, radius_m=500)
+
+        # Limit to top 5 nearest
+        bus_stops = bus_stops[:5]
+
+        if not bus_stops:
+            return html.P(
+                "No bus stops found within 500m",
+                style={
+                    "textAlign": "center",
+                    "color": "#999",
+                    "fontSize": "12px",
+                    "fontStyle": "italic",
+                    "padding": "15px"
+                }
+            ), []
+
+        # Create markers for map
+        markers = create_bus_stop_markers(bus_stops)
+
+        # Build display items for each bus stop with labels
+        bus_stop_items = []
+        for idx, bus_stop in enumerate(bus_stops):
+            name = bus_stop['name']
+            code = bus_stop['code']
+            distance_m = bus_stop['distance_m']
+
+            # Get label letter
+            label = _get_label_letter(idx)
+
+            # Format distance display
+            if distance_m < 1000:
+                distance_str = f"{int(distance_m)}m"
+            else:
+                distance_str = f"{distance_m/1000:.2f}km"
+
+            bus_stop_items.append(
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.Span(
+                                    label,
+                                    style={
+                                        "display": "inline-block",
+                                        "width": "24px",
+                                        "height": "24px",
+                                        "lineHeight": "24px",
+                                        "textAlign": "center",
+                                        "backgroundColor": "#FF5722",
+                                        "color": "#fff",
+                                        "borderRadius": "50%",
+                                        "fontSize": "12px",
+                                        "fontWeight": "bold",
+                                        "marginRight": "8px"
+                                    }
+                                ),
+                                html.Div(
+                                    [
+                                        html.Div(
+                                            name,
+                                            style={
+                                                "fontWeight": "600",
+                                                "fontSize": "14px",
+                                                "color": "#fff",
+                                                "marginBottom": "4px"
+                                            }
+                                        ),
+                                        html.Div(
+                                            f"Code: {code} | Distance: {distance_str}",
+                                            style={
+                                                "fontSize": "12px",
+                                                "color": "#4CAF50",
+                                                "fontWeight": "500"
+                                            }
+                                        )
+                                    ],
+                                    style={"flex": "1"}
+                                )
+                            ],
+                            style={
+                                "display": "flex",
+                                "alignItems": "center"
+                            }
+                        )
+                    ],
+                    style={
+                        "padding": "10px 12px",
+                        "borderBottom": "1px solid #444",
+                        "marginBottom": "6px",
+                        "backgroundColor": "#1a1a1a",
+                        "borderRadius": "4px"
+                    }
+                )
+            )
+
+        # Return all bus stop items and markers
+        return bus_stop_items, markers
+

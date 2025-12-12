@@ -199,3 +199,129 @@ def register_search_callbacks(app):
             import traceback
             traceback.print_exc()
             return no_update, no_update, no_update
+
+    # Callback for nearby transport page search bar
+    @app.callback(
+        Output('nearby-transport-search', 'options'),
+        Input('nearby-transport-search', 'search_value'),
+        Input('nearby-transport-search', 'value')
+    )
+    def update_nearby_transport_search_options(search_value, selected_value):
+        """
+        Update dropdown with top 5 search results from OneMap API as user types.
+        For nearby transport page.
+
+        Args:
+            search_value: Text entered in the search input
+            selected_value: Currently selected value
+
+        Returns:
+            List of top 5 dropdown options with address labels and lat/lon values
+        """
+        # If user has selected a value, keep it in options
+        if selected_value and not search_value:
+            try:
+                parts = selected_value.split(',', 2)
+                address = parts[2] if len(parts) > 2 else "Selected Location"
+                return [{'label': address, 'value': selected_value}]
+            except (ValueError, IndexError):
+                return []
+
+        if not search_value or len(str(search_value).strip()) < 3:
+            return []
+
+        results = search_location_via_onemap_info(search_value)
+        options = []
+
+        # Limit to top 5 most relevant results
+        for result in results[:5]:
+            # Extract relevant fields from OneMap API response
+            address = result.get('ADDRESS', 'Unknown Address')
+            building = result.get('BUILDING', '')
+            postal = result.get('POSTAL', '')
+            lat = result.get('LATITUDE')
+            lon = result.get('LONGITUDE')
+
+            if lat and lon:
+                # Create a descriptive label
+                label_parts = []
+                if building:
+                    label_parts.append(building)
+                if address:
+                    label_parts.append(address)
+                if postal:
+                    label_parts.append(f"(S{postal})")
+
+                label = ', '.join(label_parts) if label_parts else address
+
+                # Store coordinates in EPSG:4326 format (Leaflet expects this)
+                options.append({
+                    'label': label,
+                    'value': f'{lat},{lon},{address}'  # Store lat,lon,address in EPSG:4326
+                })
+
+        print(f"Generated {len(options)} dropdown options for nearby transport (top 5)")
+        return options
+
+    @app.callback(
+        [Output('nearby-transport-map', 'viewport'),
+         Output('nearby-transport-location-store', 'data'),
+         Output('nearby-transport-search-marker', 'children')],
+        Input('nearby-transport-search', 'value')
+    )
+    def update_nearby_transport_map_from_search(dropdown_value):
+        """
+        Update nearby transport map when user selects a location from the dropdown.
+        Centers the map on the selected location and adds a marker.
+        Also updates the location store.
+
+        Args:
+            dropdown_value: Selected value from dropdown (format: 'lat,lon,address')
+
+        Returns:
+            Tuple of (viewport dict, location store data, marker)
+        """
+        print(f"Nearby transport callback triggered with dropdown_value: {dropdown_value}")
+
+        if not dropdown_value:
+            print("No dropdown value, returning no_update")
+            return no_update, no_update, []
+
+        try:
+            # Parse the dropdown value
+            parts = dropdown_value.split(',', 2)  # Split into max 3 parts
+            lat_str, lon_str = parts[0], parts[1]
+            address = parts[2] if len(parts) > 2 else "Selected Location"
+
+            lat, lon = float(lat_str), float(lon_str)
+
+            print(f"Parsed coordinates - lat: {lat}, lon: {lon}, address: {address}")
+
+            # Create marker with popup showing the address (Leaflet expects EPSG:4326)
+            marker = dl.Marker(
+                position=[lat, lon],
+                children=[
+                    dl.Tooltip(address),
+                    dl.Popup(address)
+                ]
+            )
+
+            # Create viewport dict to force map re-centering
+            # This is more reliable than updating center and zoom separately
+            viewport = {
+                'center': [lat, lon],
+                'zoom': 18,
+                'transition': 'flyTo'  # Smooth animation to new location
+            }
+
+            # Update location store
+            location_data = {"lat": lat, "lon": lon, "address": address}
+
+            print(f"Nearby transport map viewport updated to: center=[{lat}, {lon}], zoom=18")
+            return viewport, location_data, [marker]
+
+        except (ValueError, IndexError) as error:
+            print(f"Error parsing dropdown value '{dropdown_value}': {error}")
+            import traceback
+            traceback.print_exc()
+            return no_update, no_update, []

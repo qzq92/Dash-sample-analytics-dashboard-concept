@@ -8,7 +8,9 @@ References:
 
 Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
+import os
 import time
+from datetime import datetime, timedelta
 from dash import Input, Output, State, html, callback_context
 import dash_leaflet as dl
 from conf.windspeed_icon import get_windspeed_icon, get_windspeed_description, WINDSPEED_THRESHOLDS
@@ -87,6 +89,29 @@ def fetch_lightning_data_async():
     Call .result() to get the data when needed.
     """
     return fetch_async(LIGHTNING_URL, get_default_headers())
+
+
+def fetch_traffic_incidents():
+    """
+    Fetch traffic incidents from LTA DataMall API.
+    
+    Returns:
+        Dictionary containing traffic incidents data or None if error
+    """
+    traffic_incidents_url = "https://datamall2.mytransport.sg/ltaodataservice/TrafficIncidents"
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    return fetch_url(traffic_incidents_url, headers)
 
 
 def build_station_lookup(data):
@@ -258,6 +283,12 @@ def format_readings_grid(data, unit, color):
                 "fontSize": "14px",
                 "fontWeight": "600",
                 "color": color,
+            }),
+            html.Span(" (averaged across sensors)", style={
+                "fontSize": "11px",
+                "color": "#999",
+                "fontWeight": "400",
+                "marginLeft": "4px",
             }),
         ],
         style={
@@ -477,6 +508,12 @@ def format_wind_readings(speed_data):
                 "fontWeight": "600",
                 "color": "#4CAF50",
             }),
+            html.Span(" (averaged across sensors)", style={
+                "fontSize": "11px",
+                "color": "#999",
+                "fontWeight": "400",
+                "marginLeft": "4px",
+            }),
         ],
         style={
             "padding": "6px 8px",
@@ -524,12 +561,16 @@ def _create_textbox_marker(position, name, value, color, marker_id):
     """Create a textbox marker showing name and value."""
     lat, lon = position
     # Textbox marker with name and value
+    # Use word-wrap and remove nowrap to allow text to flow to next line
     marker_html = (
         f'<div style="background:{color};color:#fff;padding:4px 8px;'
         f'border-radius:4px;border:2px solid #fff;'
         f'box-shadow:0 2px 8px rgba(0,0,0,0.3);'
-        f'font-size:11px;font-weight:600;white-space:nowrap;'
-        f'text-align:center;">{name}<br/>{value}</div>'
+        f'font-size:11px;font-weight:600;'
+        f'text-align:center;'
+        f'word-wrap:break-word;overflow-wrap:break-word;'
+        f'max-width:120px;min-width:60px;'
+        f'line-height:1.3;">{name}<br/>{value}</div>'
     )
     return dl.DivMarker(
         id=marker_id,
@@ -537,8 +578,8 @@ def _create_textbox_marker(position, name, value, color, marker_id):
         iconOptions={
             'className': 'sensor-textbox',
             'html': marker_html,
-            'iconSize': [80, 40],
-            'iconAnchor': [40, 20],
+            'iconSize': [120, 60],  # Increased size to accommodate wrapped text
+            'iconAnchor': [60, 30],
         }
     )
 
@@ -749,6 +790,68 @@ def _create_lightning_marker(lat, lon, reading_info, marker_index):
     )
 
 
+def _is_within_singapore_bounds(lat, lon):
+    """
+    Check if coordinates are within Singapore's approximate bounds.
+    
+    Args:
+        lat: Latitude value
+        lon: Longitude value
+    
+    Returns:
+        True if within bounds, False otherwise
+    """
+    if lat is None or lon is None:
+        return False
+    
+    try:
+        lat_float = float(lat)
+        lon_float = float(lon)
+        # Singapore's approximate bounds:
+        # Latitude: 1.15 to 1.48
+        # Longitude: 103.59 to 104.05
+        return (1.15 <= lat_float <= 1.48) and (103.59 <= lon_float <= 104.05)
+    except (ValueError, TypeError):
+        return False
+
+
+def _is_within_last_5_minutes(datetime_str):
+    """
+    Check if a datetime string is within the last 5 minutes.
+    
+    Args:
+        datetime_str: ISO 8601 datetime string (e.g., "2024-01-01T12:00:00+08:00")
+    
+    Returns:
+        True if within last 5 minutes, False otherwise
+    """
+    if not datetime_str:
+        return False
+    
+    try:
+        # Parse ISO 8601 format datetime
+        # Handle both with and without timezone
+        if '+' in datetime_str or datetime_str.endswith('Z'):
+            reading_time = datetime.fromisoformat(
+                datetime_str.replace('Z', '+00:00')
+            )
+        else:
+            reading_time = datetime.fromisoformat(datetime_str)
+        
+        # Get current time (assuming Singapore timezone, UTC+8)
+        now = datetime.now(
+            reading_time.tzinfo
+        ) if reading_time.tzinfo else datetime.now()
+        
+        # Calculate time difference
+        time_diff = now - reading_time
+        
+        # Check if within last 5 minutes (300 seconds)
+        return time_diff <= timedelta(minutes=5)
+    except (ValueError, TypeError):
+        return False
+
+
 def _process_lightning_reading(reading, marker_index):
     """Process a single lightning reading and return marker if valid."""
     location = reading.get('location', {})
@@ -759,13 +862,22 @@ def _process_lightning_reading(reading, marker_index):
     if not lat_str or not lon_str:
         return None, marker_index
 
+    # Check if coordinates are within Singapore bounds
+    if not _is_within_singapore_bounds(lat_str, lon_str):
+        return None, marker_index
+
+    # Check if lightning was detected within last 5 minutes
+    datetime_str = reading.get('datetime', '')
+    if not _is_within_last_5_minutes(datetime_str):
+        return None, marker_index
+
     try:
         lat = float(lat_str)
         lon = float(lon_str)
         reading_info = {
             'text': reading.get('text', 'Lightning'),
             'type': reading.get('type', 'C'),
-            'datetime': reading.get('datetime', '')
+            'datetime': datetime_str
         }
 
         marker = _create_lightning_marker(lat, lon, reading_info, marker_index)
@@ -877,9 +989,68 @@ def create_flood_markers(data):
     return markers
 
 
+def format_lightning_readings(data):
+    """
+    Format lightning readings to show count of detected locations.
+    Returns HTML content for the lightning readings display.
+    """
+    if not data or 'data' not in data:
+        return html.Span("Error loading data", style={"color": "#ff6b6b", "fontSize": "12px"})
+
+    records = data['data'].get('records', [])
+    if not records:
+        return html.Span("0 locations", style={"color": "#999", "fontSize": "12px"})
+
+    # Count lightning locations detected within last 5 minutes and within Singapore bounds
+    lightning_count = 0
+    for record in records:
+        item = record.get('item', {})
+        readings = item.get('readings', [])
+        for reading in readings:
+            location = reading.get('location', {})
+            lat = location.get('latitude', '')
+            lon = location.get('longtitude') or location.get('longitude', '')
+            datetime_str = reading.get('datetime', '')
+            # Count if location is available, within Singapore bounds, and within last 5 minutes
+            if lat and lon and _is_within_singapore_bounds(lat, lon) and _is_within_last_5_minutes(datetime_str):
+                lightning_count += 1
+
+    return html.Span(
+        f"{lightning_count} location{'s' if lightning_count != 1 else ''} detected",
+        style={"color": "#FFD700", "fontSize": "12px", "fontWeight": "600"}
+    )
+
+
+def format_flood_readings(data):
+    """
+    Format flood readings to show count of active alerts.
+    Returns HTML content for the flood readings display.
+    """
+    if not data or 'data' not in data:
+        return html.Span("Error loading data", style={"color": "#ff6b6b", "fontSize": "12px"})
+
+    records = data['data'].get('records', [])
+    if not records:
+        return html.Span("No alerts", style={"color": "#999", "fontSize": "12px"})
+
+    # Extract first record
+    first_record = records[0]
+    item = first_record.get('item', {})
+    readings = item.get('readings', [])
+
+    if not readings:
+        return html.Span("No alerts", style={"color": "#999", "fontSize": "12px"})
+
+    alert_count = len(readings)
+    return html.Span(
+        f"{alert_count} alert{'s' if alert_count != 1 else ''} active",
+        style={"color": "#ff6b6b", "fontSize": "12px", "fontWeight": "600"}
+    )
+
+
 def format_lightning_indicator(data):
     """
-    Format lightning indicator with each alert as a sub-div (mimics metrics design).
+    Format lightning indicator showing only the total count of lightning locations.
     Returns HTML content for the lightning indicator.
     """
     if not data or 'data' not in data:
@@ -907,113 +1078,64 @@ def format_lightning_indicator(data):
     if not records:
         return html.Div(
             [
-                html.Div(
-                    [
-                        html.Span("⚡ No lightning detected", style={
-                            "fontSize": "11px",
-                            "color": "#888",
-                            "fontWeight": "600",
-                        }),
-                    ],
+                html.P(
+                    "0",
                     style={
-                        "padding": "6px 8px",
-                        "backgroundColor": "#3a4a5a",
-                        "borderRadius": "4px",
-                        "borderLeft": "3px solid #888",
+                        "fontSize": "24px",
+                        "color": "#888",
+                        "fontWeight": "600",
+                        "margin": "0",
+                        "textAlign": "center",
                     }
                 )
             ]
         )
 
-    # Collect all lightning readings
-    lightning_readings = []
+    # Count lightning locations detected within last 5 minutes and within Singapore bounds
+    lightning_count = 0
     for record in records:
         item = record.get('item', {})
         readings = item.get('readings', [])
         for reading in readings:
-            text = reading.get('text', 'Lightning')
-            lightning_type = reading.get('type', 'C')
-            datetime_str = reading.get('datetime', '')
             location = reading.get('location', {})
             lat = location.get('latitude', '')
             lon = location.get('longtitude') or location.get('longitude', '')
-            
-            lightning_readings.append({
-                'text': text,
-                'type': lightning_type,
-                'datetime': datetime_str,
-                'location': f"Lat: {lat}, Lon: {lon}" if lat and lon else "Location unknown"
-            })
+            datetime_str = reading.get('datetime', '')
+            # Count if location is available, within Singapore bounds, and within last 5 minutes
+            if lat and lon and _is_within_singapore_bounds(lat, lon) and _is_within_last_5_minutes(datetime_str):
+                lightning_count += 1
 
-    if not lightning_readings:
+    if lightning_count == 0:
         return html.Div(
             [
-                html.Div(
-                    [
-                        html.Span("⚡ No lightning detected", style={
-                            "fontSize": "11px",
-                            "color": "#888",
-                            "fontWeight": "600",
-                        }),
-                    ],
+                html.P(
+                    "0",
                     style={
-                        "padding": "6px 8px",
-                        "backgroundColor": "#3a4a5a",
-                        "borderRadius": "4px",
-                        "borderLeft": "3px solid #888",
+                        "fontSize": "24px",
+                        "color": "#888",
+                        "fontWeight": "600",
+                        "margin": "0",
+                        "textAlign": "center",
                     }
                 )
             ]
         )
 
-    # Create sub-divs for each lightning alert (mimics reading items)
-    alert_divs = []
-    for reading in lightning_readings:
-        alert_divs.append(
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            html.Span(f"⚡ {reading['text']}", style={
-                                "fontSize": "11px",
-                                "color": "#FFD700",
-                                "fontWeight": "600",
-                            }),
-                        ],
-                        style={"marginBottom": "2px"}
-                    ),
-                    html.Div(
-                        [
-                            html.Span(f"Type: {reading['type']}", style={
-                                "fontSize": "11px",
-                                "color": "#ccc",
-                            }),
-                            html.Span(f" | {reading['datetime']}", style={
-                                "fontSize": "11px",
-                                "color": "#888",
-                            }),
-                        ],
-                        style={"marginLeft": "4px"}
-                    ),
-                    html.Div(
-                        html.Span(reading['location'], style={
-                            "fontSize": "10px",
-                            "color": "#888",
-                            "marginLeft": "4px",
-                        }),
-                    ),
-                ],
+    # Show only the total count on the next line
+    return html.Div(
+        [
+            html.P(
+                str(lightning_count),
                 style={
-                    "padding": "6px 8px",
-                    "backgroundColor": "#3a4a5a",
-                    "borderRadius": "4px",
-                    "marginBottom": "4px",
-                    "borderLeft": "3px solid #FFD700",
+                    "fontSize": "24px",
+                    "color": "#FFD700",
+                    "fontWeight": "600",
+                    "margin": "0",
+                    "textAlign": "center",
                 }
             )
-        )
-
-    return html.Div(alert_divs)
+        ]
+    )
 
 
 def format_flood_indicator(data):
@@ -1046,19 +1168,14 @@ def format_flood_indicator(data):
     if not records:
         return html.Div(
             [
-                html.Div(
-                    [
-                        html.Span("🌊 No flooding notice at the moment", style={
-                            "fontSize": "11px",
-                            "color": "#888",
-                            "fontWeight": "600",
-                        }),
-                    ],
+                html.P(
+                    "0",
                     style={
-                        "padding": "6px 8px",
-                        "backgroundColor": "#3a4a5a",
-                        "borderRadius": "4px",
-                        "borderLeft": "3px solid #888",
+                        "fontSize": "24px",
+                        "color": "#888",
+                        "fontWeight": "600",
+                        "margin": "0",
+                        "textAlign": "center",
                     }
                 )
             ]
@@ -1072,19 +1189,14 @@ def format_flood_indicator(data):
     if not readings:
         return html.Div(
             [
-                html.Div(
-                    [
-                        html.Span("🌊 No flooding notice at the moment", style={
-                            "fontSize": "11px",
-                            "color": "#888",
-                            "fontWeight": "600",
-                        }),
-                    ],
+                html.P(
+                    "0",
                     style={
-                        "padding": "6px 8px",
-                        "backgroundColor": "#3a4a5a",
-                        "borderRadius": "4px",
-                        "borderLeft": "3px solid #888",
+                        "fontSize": "24px",
+                        "color": "#888",
+                        "fontWeight": "600",
+                        "margin": "0",
+                        "textAlign": "center",
                     }
                 )
             ]
@@ -1096,10 +1208,17 @@ def format_flood_indicator(data):
         description = reading.get('description', '')
         instruction = reading.get('instruction', '')
         area = reading.get('area', {})
-        circle = area.get('circle', {})
-        center = circle.get('center', {})
-        lat = center.get('latitude', '')
-        lon = center.get('longitude', '')
+        circle = area.get('circle', [])
+
+        # Circle format: [latitude, longitude, radius]
+        lat = ''
+        lon = ''
+        if circle and isinstance(circle, list) and len(circle) >= 2:
+            try:
+                lat = str(circle[0])
+                lon = str(circle[1])
+            except (ValueError, TypeError, IndexError):
+                pass
 
         # Combine description and instruction as a sentence
         if description and instruction:
@@ -1120,59 +1239,207 @@ def format_flood_indicator(data):
     if not flood_alerts:
         return html.Div(
             [
-                html.Div(
-                    [
-                        html.Span("🌊 No flooding notice at the moment", style={
-                            "fontSize": "11px",
-                            "color": "#888",
-                            "fontWeight": "600",
-                        }),
-                    ],
+                html.P(
+                    "0",
                     style={
-                        "padding": "6px 8px",
-                        "backgroundColor": "#3a4a5a",
-                        "borderRadius": "4px",
-                        "borderLeft": "3px solid #888",
+                        "fontSize": "24px",
+                        "color": "#888",
+                        "fontWeight": "600",
+                        "margin": "0",
+                        "textAlign": "center",
                     }
                 )
             ]
         )
 
-    # Create sub-divs for each flood alert (mimics reading items)
-    alert_divs = []
-    for alert in flood_alerts:
-        alert_divs.append(
+    # Show only the total count on the next line
+    flood_count = len(flood_alerts)
+    return html.Div(
+        [
+            html.P(
+                str(flood_count),
+                style={
+                    "fontSize": "24px",
+                    "color": "#ff6b6b",
+                    "fontWeight": "600",
+                    "margin": "0",
+                    "textAlign": "center",
+                }
+            )
+        ]
+    )
+
+
+def format_traffic_incidents_indicator(data):
+    """
+    Format traffic incidents indicator showing count by incident type.
+    Returns HTML content for the traffic incidents indicator.
+    """
+    if not data:
+        return html.Div(
+            [
+                html.P(
+                    "Error",
+                    style={
+                        "fontSize": "12px",
+                        "color": "#ff6b6b",
+                        "textAlign": "center",
+                        "margin": "0",
+                    }
+                )
+            ]
+        )
+
+    # Print response keys for validation
+    print("Traffic Incidents API Response Keys:", list(data.keys()) if isinstance(data, dict) else "Not a dict")
+    if isinstance(data, dict):
+        for key, value in data.items():
+            print(f"  {key}: {type(value).__name__}")
+            if isinstance(value, list) and len(value) > 0:
+                print(f"    First item keys: {list(value[0].keys()) if isinstance(value[0], dict) else 'Not a dict'}")
+
+    # Extract incidents - check common response structures
+    incidents = []
+    if isinstance(data, dict):
+        # Try different possible keys
+        if 'value' in data:
+            incidents = data.get('value', [])
+        elif 'incidents' in data:
+            incidents = data.get('incidents', [])
+        elif 'data' in data:
+            incidents = data.get('data', [])
+        elif isinstance(data.get('items'), list):
+            incidents = data.get('items', [])
+        else:
+            # If data is a list directly
+            if isinstance(data, list):
+                incidents = data
+            else:
+                # Try to find any list in the response
+                for key, value in data.items():
+                    if isinstance(value, list):
+                        incidents = value
+                        break
+
+    if not incidents:
+        return html.Div(
+            [
+                html.P(
+                    "No incidents",
+                    style={
+                        "fontSize": "12px",
+                        "color": "#888",
+                        "textAlign": "center",
+                        "margin": "0",
+                    }
+                )
+            ]
+        )
+
+    # Count incidents by type/name
+    incident_counts = {}
+    for incident in incidents:
+        if isinstance(incident, dict):
+            # Try different possible keys for incident name/type
+            incident_name = (
+                incident.get('Type') or
+                incident.get('type') or
+                incident.get('Message') or
+                incident.get('message') or
+                incident.get('IncidentType') or
+                incident.get('incidentType') or
+                incident.get('Name') or
+                incident.get('name') or
+                'Unknown'
+            )
+            incident_counts[incident_name] = incident_counts.get(incident_name, 0) + 1
+
+    if not incident_counts:
+        return html.Div(
+            [
+                html.P(
+                    "No incidents",
+                    style={
+                        "fontSize": "12px",
+                        "color": "#888",
+                        "textAlign": "center",
+                        "margin": "0",
+                    }
+                )
+            ]
+        )
+
+    # Create grid layout (n×5) - 5 columns
+    incident_items = sorted(incident_counts.items())
+    if not incident_items:
+        return html.Div(
+            [
+                html.P(
+                    "No incidents",
+                    style={
+                        "fontSize": "12px",
+                        "color": "#888",
+                        "textAlign": "center",
+                        "margin": "0",
+                    }
+                )
+            ]
+        )
+
+    # Create grid tiles
+    grid_tiles = []
+    for incident_name, count in incident_items:
+        grid_tiles.append(
             html.Div(
                 [
                     html.Div(
-                        [
-                            html.Span(f"🌊 {alert['text']}", style={
-                                "fontSize": "11px",
-                                "color": "#ff6b6b",
-                                "fontWeight": "600",
-                            }),
-                        ],
-                        style={"marginBottom": "2px"}
+                        incident_name,
+                        style={
+                            "fontSize": "10px",
+                            "color": "#FF9800",
+                            "fontWeight": "600",
+                            "textAlign": "center",
+                            "marginBottom": "4px",
+                            "wordWrap": "break-word",
+                            "overflowWrap": "break-word",
+                            "lineHeight": "1.3",
+                        }
                     ),
                     html.Div(
-                        html.Span(alert['location'], style={
-                            "fontSize": "10px",
-                            "color": "#888",
-                            "marginLeft": "4px",
-                        }),
+                        str(count),
+                        style={
+                            "fontSize": "18px",
+                            "color": "#FF9800",
+                            "fontWeight": "700",
+                            "textAlign": "center",
+                        }
                     ),
                 ],
                 style={
-                    "padding": "6px 8px",
+                    "padding": "8px",
                     "backgroundColor": "#3a4a5a",
                     "borderRadius": "4px",
-                    "marginBottom": "4px",
-                    "borderLeft": "3px solid #ff6b6b",
+                    "borderLeft": "3px solid #FF9800",
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "justifyContent": "center",
+                    "minHeight": "70px",
+                    "height": "100%",
+                    "boxSizing": "border-box",
                 }
             )
         )
 
-    return html.Div(alert_divs)
+    # Arrange in grid: 5 columns with equal-sized tiles
+    return html.Div(
+        grid_tiles,
+        style={
+            "display": "grid",
+            "gridTemplateColumns": "repeat(5, 1fr)",
+            "gap": "8px",
+            "gridAutoRows": "minmax(70px, auto)",
+        }
+    )
 
 
 def register_realtime_weather_callbacks(app):
@@ -1222,6 +1489,26 @@ def register_realtime_weather_callbacks(app):
         _ = n_intervals
         speed_data = fetch_realtime_data('wind-speed')
         return format_wind_readings(speed_data)
+
+    @app.callback(
+        Output('lightning-readings-content', 'children'),
+        Input('realtime-weather-interval', 'n_intervals')
+    )
+    def update_lightning_readings(n_intervals):
+        """Update lightning readings periodically."""
+        _ = n_intervals
+        data = fetch_lightning_data()
+        return format_lightning_readings(data)
+
+    @app.callback(
+        Output('flood-readings-content', 'children'),
+        Input('realtime-weather-interval', 'n_intervals')
+    )
+    def update_flood_readings(n_intervals):
+        """Update flood readings periodically."""
+        _ = n_intervals
+        data = fetch_flood_alerts()
+        return format_flood_readings(data)
 
     @app.callback(
         Output('wind-speed-legend', 'children'),
@@ -1282,14 +1569,40 @@ def register_realtime_weather_callbacks(app):
         return {"display": "none"}
 
     @app.callback(
+        Output('lightning-sensor-values', 'style'),
+        Input('toggle-lightning-readings', 'n_clicks'),
+        prevent_initial_call=True
+    )
+    def toggle_lightning_sensor_values(n_clicks):
+        """Toggle lightning sensor values section visibility."""
+        if n_clicks and n_clicks % 2 == 1:
+            return {"display": "block", "backgroundColor": "#3a4a5a",
+                    "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
+        return {"display": "none"}
+
+    @app.callback(
+        Output('flood-sensor-values', 'style'),
+        Input('toggle-flood-readings', 'n_clicks'),
+        prevent_initial_call=True
+    )
+    def toggle_flood_sensor_values(n_clicks):
+        """Toggle flood sensor values section visibility."""
+        if n_clicks and n_clicks % 2 == 1:
+            return {"display": "block", "backgroundColor": "#3a4a5a",
+                    "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
+        return {"display": "none"}
+
+    @app.callback(
         Output('sensor-markers', 'children'),
         [Input('toggle-temp-readings', 'n_clicks'),
          Input('toggle-rainfall-readings', 'n_clicks'),
          Input('toggle-humidity-readings', 'n_clicks'),
-         Input('toggle-wind-readings', 'n_clicks')],
+         Input('toggle-wind-readings', 'n_clicks'),
+         Input('toggle-lightning-readings', 'n_clicks'),
+         Input('toggle-flood-readings', 'n_clicks')],
         prevent_initial_call=True
     )
-    def update_sensor_markers(_temp_clicks, _rain_clicks, _humid_clicks, _wind_clicks):
+    def update_sensor_markers(_temp_clicks, _rain_clicks, _humid_clicks, _wind_clicks, _lightning_clicks, _flood_clicks):
         """Update sensor markers based on which toggle is active."""
         ctx = callback_context
         if not ctx.triggered:
@@ -1312,6 +1625,14 @@ def register_realtime_weather_callbacks(app):
             if button_id == 'toggle-wind-readings':
                 speed_data = fetch_realtime_data('wind-speed')
                 return create_wind_textbox_markers(speed_data)
+            if button_id == 'toggle-lightning-readings':
+                data = fetch_lightning_data()
+                if data:
+                    return create_lightning_markers(data)
+            if button_id == 'toggle-flood-readings':
+                data = fetch_flood_alerts()
+                if data:
+                    return create_flood_markers(data)
 
         # If toggled off, clear markers
         return []
@@ -1393,6 +1714,30 @@ def register_realtime_weather_callbacks(app):
             reading_divs.append(_create_reading_div(name, display, "#4CAF50"))
 
         return _build_grid_content(reading_divs, reading_item.get('timestamp', ''))
+
+    @app.callback(
+        Output('lightning-sensor-content', 'children'),
+        [Input('lightning-sensor-values', 'style'),
+         Input('realtime-weather-interval', 'n_intervals')]
+    )
+    def update_lightning_sensor_content(style, _n_intervals):
+        """Update lightning sensor values when section is visible."""
+        if style and style.get('display') == 'none':
+            return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
+        data = fetch_lightning_data()
+        return format_lightning_indicator(data)
+
+    @app.callback(
+        Output('flood-sensor-content', 'children'),
+        [Input('flood-sensor-values', 'style'),
+         Input('realtime-weather-interval', 'n_intervals')]
+    )
+    def update_flood_sensor_content(style, _n_intervals):
+        """Update flood sensor values when section is visible."""
+        if style and style.get('display') == 'none':
+            return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
+        data = fetch_flood_alerts()
+        return format_flood_indicator(data)
 
     @app.callback(
         [Output('readings-section', 'style'),
@@ -1679,6 +2024,37 @@ def register_realtime_weather_callbacks(app):
         if data:
             return create_flood_markers(data)
         return []
+
+    # Main page callbacks for lightning and flood indicators
+    @app.callback(
+        Output('main-lightning-indicator', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_main_lightning_indicator(n_intervals):
+        """Update lightning status indicator on main page periodically."""
+        _ = n_intervals
+        data = fetch_lightning_data()
+        return format_lightning_indicator(data)
+
+    @app.callback(
+        Output('main-flood-indicator', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_main_flood_indicator(n_intervals):
+        """Update flood status indicator on main page periodically."""
+        _ = n_intervals
+        data = fetch_flood_alerts()
+        return format_flood_indicator(data)
+
+    @app.callback(
+        Output('main-traffic-incidents-indicator', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_main_traffic_incidents_indicator(n_intervals):
+        """Update traffic incidents indicator on main page periodically."""
+        _ = n_intervals
+        data = fetch_traffic_incidents()
+        return format_traffic_incidents_indicator(data)
 
 
 def _get_btn_styles(active_type):

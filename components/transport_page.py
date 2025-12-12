@@ -245,9 +245,8 @@ def transport_page():
                                     ),
                                 ]
                             ),
-                            # Empty container for future use
+                            # PUB CCTV section
                             html.Div(
-                                id="transport-extra-container",
                                 style={
                                     "flex": "1",
                                     "backgroundColor": "#2c3e50",
@@ -256,16 +255,57 @@ def transport_page():
                                     "minHeight": "100px",
                                 },
                                 children=[
-                                    html.P(
-                                        "Additional transport information",
+                                    html.Div(
                                         style={
-                                            "color": "#666",
-                                            "textAlign": "center",
-                                            "padding": "20px",
-                                            "fontStyle": "italic",
-                                            "fontSize": "12px",
-                                        }
-                                    )
+                                            "display": "flex",
+                                            "justifyContent": "space-between",
+                                            "alignItems": "center",
+                                            "borderBottom": "1px solid #5a6a7a",
+                                            "paddingBottom": "10px",
+                                            "marginBottom": "15px",
+                                        },
+                                        children=[
+                                            html.H5(
+                                                "📹 PUB CCTV",
+                                                style={
+                                                    "margin": "0",
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                }
+                                            ),
+                                            html.Button(
+                                                "Show on Map",
+                                                id="pub-cctv-toggle-btn",
+                                                n_clicks=0,
+                                                style={
+                                                    "backgroundColor": "#00BCD4",
+                                                    "border": "none",
+                                                    "borderRadius": "4px",
+                                                    "color": "#fff",
+                                                    "cursor": "pointer",
+                                                    "padding": "6px 12px",
+                                                    "fontSize": "12px",
+                                                    "fontWeight": "600",
+                                                },
+                                            ),
+                                        ]
+                                    ),
+                                    # PUB CCTV count display
+                                    html.Div(
+                                        id="pub-cctv-count-display",
+                                        children=[
+                                            html.P(
+                                                "Click 'Show on Map' to load CCTV locations",
+                                                style={
+                                                    "color": "#999",
+                                                    "textAlign": "center",
+                                                    "padding": "20px",
+                                                    "fontStyle": "italic",
+                                                    "fontSize": "12px",
+                                                }
+                                            )
+                                        ]
+                                    ),
                                 ]
                             ),
                         ]
@@ -302,6 +342,7 @@ def transport_page():
                                     dl.LayerGroup(id="taxi-markers"),
                                     dl.LayerGroup(id="cctv-markers"),
                                     dl.LayerGroup(id="erp-markers"),
+                                    dl.LayerGroup(id="pub-cctv-markers"),
                                 ],
                                 zoomControl=True,
                                 dragging=True,
@@ -315,6 +356,7 @@ def transport_page():
             dcc.Store(id="taxi-toggle-state", data=False),
             dcc.Store(id="cctv-toggle-state", data=False),
             dcc.Store(id="erp-toggle-state", data=False),
+            dcc.Store(id="pub-cctv-toggle-state", data=False),
             # Interval for auto-refresh
             dcc.Interval(
                 id='transport-interval',

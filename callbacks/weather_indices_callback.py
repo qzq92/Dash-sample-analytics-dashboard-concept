@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 import dash_leaflet as dl
 from dash import html, dcc, Input, Output, State
 from utils.async_fetcher import fetch_url, get_default_headers
+from callbacks.transport_callback import fetch_taxi_availability
 
 # Thread pool for async exposure index fetching
 _exposure_executor = ThreadPoolExecutor(max_workers=5)
@@ -515,6 +516,77 @@ def _create_single_psi_marker(region_info, readings, pollutants):
     )
 
 
+def create_simple_psi_marker(region_info, readings):
+    """Create a simplified PSI marker showing only 24h PSI value."""
+    region_name = region_info.get("name", "")
+    label_location = region_info.get("labelLocation", {})
+    lat = label_location.get("latitude")
+    lon = label_location.get("longitude")
+
+    if not lat or not lon or not region_name:
+        return None
+
+    # Get 24H PSI value and category
+    psi_value = readings.get("psi_twenty_four_hourly", {}).get(region_name)
+    psi_color = "#60a5fa"  # Default blue color
+    if psi_value is not None:
+        psi_color, psi_category = get_psi_category(psi_value)
+        psi_text = f"{region_name.upper()}<br/>24H PSI: <span style='color: {psi_color}; font-weight: bold;'>{psi_value}</span><br/>({psi_category})"
+    else:
+        psi_text = f"{region_name.upper()}<br/>24H PSI: N/A"
+
+    # Create simplified text box HTML with only PSI value
+    text_box_html = f'''
+        <div style="
+            background-color: rgba(74, 90, 106, 0.95);
+            border: 2px solid {psi_color};
+            border-radius: 8px;
+            padding: 8px 10px;
+            min-width: 120px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            text-align: center;
+        ">
+            <div style="
+                font-weight: bold;
+                font-size: 12px;
+                color: #fff;
+                line-height: 1.4;
+            ">{psi_text}</div>
+        </div>
+    '''
+
+    return dl.DivMarker(
+        id=f"main-psi-{region_name}",
+        position=[lat, lon],
+        iconOptions={
+            'className': 'main-psi-textbox',
+            'html': text_box_html,
+            'iconSize': [140, 80],
+            'iconAnchor': [70, 40],
+        }
+    )
+
+
+def create_main_psi_markers(data):
+    """Create simplified PSI markers for main page showing only 24h PSI."""
+    if not data or data.get("code") != 0:
+        return []
+
+    items = data.get("data", {}).get("items", [])
+    region_metadata = data.get("data", {}).get("regionMetadata", [])
+
+    if not items or not region_metadata:
+        return []
+
+    readings = items[0].get("readings", {})
+
+    markers = [
+        create_simple_psi_marker(region_info, readings)
+        for region_info in region_metadata
+    ]
+    return [m for m in markers if m is not None]
+
+
 def create_psi_markers(data):
     """Create map markers for PSI regions with pollutant data in tooltips."""
     if not data or data.get("code") != 0:
@@ -969,13 +1041,90 @@ def register_weather_indices_callbacks(app):
         return create_psi_markers(data)
 
     @app.callback(
-        Output('psi-24h-content', 'children'),
+        Output('taxi-count-content', 'children'),
         Input('interval-component', 'n_intervals')
     )
-    def update_main_page_psi(_n_intervals):
-        """Update 24H PSI display on main page."""
+    def update_main_page_taxi_count(_n_intervals):
+        """Update taxi count display on main page."""
+        data = fetch_taxi_availability()
+        return format_main_page_taxi_count(data)
+
+    @app.callback(
+        Output('main-psi-markers', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_main_psi_markers(_n_intervals):
+        """Update PSI markers on main page map (showing only 24h PSI)."""
         data = fetch_psi_data()
-        return format_main_page_psi(data)
+        return create_main_psi_markers(data)
+
+
+
+def format_main_page_taxi_count(data):
+    """
+    Format taxi count for main page display.
+    
+    Args:
+        data: API response with taxi data
+    
+    Returns:
+        HTML Div with taxi count information
+    """
+    if not data or 'features' not in data:
+        return html.P(
+            "Error loading taxi data",
+            style={
+                "textAlign": "center",
+                "color": "#ff6b6b",
+                "fontSize": "12px"
+            }
+        )
+    
+    features = data.get('features', [])
+    if not features:
+        return html.P(
+            "No taxi data available",
+            style={
+                "textAlign": "center",
+                "color": "#999",
+                "fontSize": "12px"
+            }
+        )
+    
+    # Get taxi count from properties
+    first_feature = features[0]
+    properties = first_feature.get('properties', {})
+    taxi_count = properties.get('taxi_count', 0)
+    
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span(
+                        "🚕",
+                        style={"fontSize": "24px", "marginRight": "8px"}
+                    ),
+                    html.Span(
+                        f"{taxi_count:,}",
+                        style={
+                            "fontSize": "28px",
+                            "fontWeight": "bold",
+                            "color": "#FFD700",
+                        }
+                    ),
+                ],
+                style={
+                    "display": "flex",
+                    "alignItems": "center",
+                    "justifyContent": "center",
+                    "marginBottom": "4px",
+                }
+            ),
+        ],
+        style={
+            "padding": "4px 0",
+        }
+    )
 
 
 def _calc_regional_average(psi_data):

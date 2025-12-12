@@ -221,3 +221,107 @@ def register_mrt_callbacks(app):
         # Return all station items
         return station_items
 
+    # Callback for nearby transport page
+    @app.callback(
+        Output('nearby-transport-mrt-content', 'children'),
+        Input('nearby-transport-search', 'value')
+    )
+    def update_nearby_transport_mrt_content(search_value):
+        """
+        Update the nearest MRT content for nearby transport page based on selected location.
+        
+        Args:
+            search_value: Selected value from search dropdown (format: 'lat,lon,address')
+        
+        Returns:
+            HTML Div containing nearest MRT/LRT stations within 1000m
+        """
+        if not search_value:
+            return html.P(
+                "Select a location to view nearest MRT stations",
+                style={
+                    "textAlign": "center",
+                    "color": "#999",
+                    "fontSize": "12px",
+                    "fontStyle": "italic",
+                    "padding": "15px"
+                }
+            )
+        
+        try:
+            # Parse the search value to get coordinates
+            parts = search_value.split(',', 2)
+            lat = float(parts[0])
+            lon = float(parts[1])
+        except (ValueError, IndexError, TypeError):
+            return html.P(
+                "Invalid location coordinates",
+                style={
+                    "textAlign": "center",
+                    "color": "#ff6b6b",
+                    "fontSize": "12px",
+                    "padding": "15px"
+                }
+            )
+        
+        # Fetch nearby MRT stations within 1000m
+        stations = fetch_nearby_mrt_stations(lat, lon, radius_m=1000)
+        
+        if not stations:
+            return html.P(
+                "No MRT/LRT stations found within specified radius",
+                style={
+                    "textAlign": "center",
+                    "color": "#999",
+                    "fontSize": "12px",
+                    "fontStyle": "italic",
+                    "padding": "15px"
+                }
+            )
+        
+        # Build display items for each station
+        station_items = []
+        for station in stations:
+            name = station['name']
+            distance_m = station['distance_m']
+            
+            # Format distance display
+            if distance_m < 1000:
+                distance_str = f"{int(distance_m)}m"
+            else:
+                distance_str = f"{distance_m/1000:.2f}km"
+            
+            station_items.append(
+                html.Div(
+                    [
+                        html.Div(
+                            name,
+                            style={
+                                "fontWeight": "600",
+                                "fontSize": "14px",
+                                "color": "#fff",
+                                "marginBottom": "4px"
+                            }
+                        ),
+                        html.Div(
+                            f"Distance: {distance_str}",
+                            style={
+                                "fontSize": "12px",
+                                "color": "#60a5fa",
+                                "fontWeight": "500"
+                            }
+                        )
+                    ],
+                    style={
+                        "padding": "10px 12px",
+                        "borderBottom": "1px solid #444",
+                        "marginBottom": "6px",
+                        "backgroundColor": "#1a1a1a",
+                        "borderRadius": "4px"
+                    }
+                )
+            )
+        
+        # Return all station items
+        return station_items
+

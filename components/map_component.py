@@ -59,7 +59,6 @@ def map_component(lat=1.35, lon=103.81):
     Default display and layout of the map component. No API is needed as this is static rendering of map for quick loading
     Coordinates are provided in EPSG:4326 (WGS84 lat/lon) format, which Leaflet converts automatically.
     
-    Note: The map center will be updated via callback when search bar value changes.
     The initial center coordinates are used only for initial rendering.
     """
     onemap_tiles_url = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
@@ -86,10 +85,7 @@ def map_component(lat=1.35, lon=103.81):
                     maxNativeZoom=19,
                 ),
                 dl.ScaleControl(imperial=False, position="bottomleft"),
-                dl.LocateControl(locateOptions={"enableHighAccuracy": True}),
-                dl.LayerGroup(id="markers-layer"),
-                dl.LayerGroup(id="bus-stop-markers"),
-                dl.LayerGroup(id="carpark-markers"),
+                dl.LayerGroup(id="main-psi-markers"),
             ],
         )
     ], style={"width": "100%", "height": "100%", "display": "flex", "flexDirection": "column"})

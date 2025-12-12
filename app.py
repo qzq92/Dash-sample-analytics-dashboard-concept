@@ -8,10 +8,11 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from components.banner_component import build_dashboard_banner
-from components.map_component import map_component, search_bar
+from components.map_component import map_component
 from components.realtime_weather_page import realtime_weather_page
 from components.weather_indices_page import weather_indices_page
 from components.transport_page import transport_page
+from components.nearby_transport_page import nearby_transport_page
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
 from callbacks.weather_callback import register_weather_callbacks
@@ -64,8 +65,8 @@ app.layout = html.Div(
             ],
         ),
         # Hidden search bar section div (for tab navigation callback compatibility)
-        html.Div(
-            id="search-bar-section",
+                html.Div(
+                    id="search-bar-section",
             style={"display": "none"},
         ),
 
@@ -79,43 +80,170 @@ app.layout = html.Div(
                 weather_indices_page(),
                 # Transport page (hidden by default)
                 transport_page(),
+                # Nearby transport page (hidden by default)
+                nearby_transport_page(),
                 # Main content area with map and right panel side by side
                 html.Div(
-                    id="main-content-area",
+                    id="main-content",
                     style={
                         "display": "flex",
+                        "flexDirection": "column",
                         "width": "100%",
-                        "gap": "20px",
-                        "padding": "10px 20px",
-                        "height": "calc(100vh - 100px)",  # Adjusted for header only (search bar moved to map)
-                        "alignItems": "stretch",  # Ensure both containers have same height
                     },
                     children=[
-                        # Left container - Search bar and Map
+                        html.Div(
+                            id="main-content-area",
+                            style={
+                                "display": "flex",
+                                "width": "100%",
+                                "gap": "20px",
+                                "padding": "20px",
+                                "height": "calc(100vh - 100px)",  # Adjusted for header only (search bar moved to map)
+                                "alignItems": "stretch",  # Ensure both containers have same height
+                                "boxSizing": "border-box",  # Ensure padding is included in width calculation
+                            },
+                    children=[
+                        # Left container - Land Checkpoints
                         html.Div(
                             id="left-container",
+                            style={
+                                "width": "25%",
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "height": "100%",
+                            },
+                            children=[
+                                html.Div(
+                                    id="camera-feeds-section",
+                                    style={
+                                        "width": "100%",
+                                        "height": "100%",
+                                        "backgroundColor": "#000000",
+                                        "borderRadius": "5px",
+                                        "padding": "0",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "justifyContent": "space-around",
+                                        "flexWrap": "nowrap",
+                                    },
+                                    children=[
+                                        html.H4(
+                                            "Land Checkpoints",
+                                            style={
+                                                "textAlign": "center",
+                                                "margin": "5px 0 5px 0",
+                                                "color": "#fff",
+                                                "fontWeight": "700",
+                                                "fontSize": "18px"
+                                            }
+                                        ),
+                                        html.Div(
+                                            id="camera-2701-container",
+                                            children=[
+                                                html.Div(
+                                                    style={
+                                                        "width": "100%",
+                                                        "flex": "1",
+                                                        "minHeight": "0",
+                                                        "overflow": "hidden",
+                                                        "display": "flex",
+                                                        "alignItems": "center",
+                                                        "justifyContent": "center",
+                                                        "backgroundColor": "#000",
+                                                    },
+                                                    children=[
+                                                        html.Img(
+                                                            id="camera-feed-2701",
+                                                            src="",
+                                                            style={
+                                                                "width": "100%",
+                                                                "height": "100%",
+                                                                "objectFit": "cover",
+                                                            }
+                                                        ),
+                                                    ]
+                                                ),
+                                                html.Div(
+                                                    id="camera-2701-metadata",
+                                                    style={
+                                                        "textAlign": "center",
+                                                        "padding": "5px 0",
+                                                        "fontSize": "12px",
+                                                        "color": "#ccc",
+                                                    }
+                                                ),
+                                            ],
+                                            style={
+                                                "flex": "1",
+                                                "padding": "10px",
+                                                "display": "flex",
+                                                "flexDirection": "column",
+                                                "minHeight": "0",
+                                            }
+                                        ),
+                                        html.Div(
+                                            id="camera-4713-container",
+                                            children=[
+                                                html.Div(
+                                                    style={
+                                                        "width": "100%",
+                                                        "flex": "1",
+                                                        "minHeight": "0",
+                                                        "overflow": "hidden",
+                                                        "display": "flex",
+                                                        "alignItems": "center",
+                                                        "justifyContent": "center",
+                                                        "backgroundColor": "#000",
+                                                    },
+                                                    children=[
+                                                        html.Img(
+                                                            id="camera-feed-4713",
+                                                            src="",
+                                                            style={
+                                                                "width": "100%",
+                                                                "height": "100%",
+                                                                "objectFit": "cover",
+                                                            }
+                                                        ),
+                                                    ]
+                                                ),
+                                                html.Div(
+                                                    id="camera-4713-metadata",
+                                                    style={
+                                                        "textAlign": "center",
+                                                        "padding": "5px 0",
+                                                        "fontSize": "12px",
+                                                        "color": "#ccc",
+                                                    }
+                                                ),
+                                            ],
+                                            style={
+                                                "flex": "1",
+                                                "padding": "10px",
+                                                "display": "flex",
+                                                "flexDirection": "column",
+                                                "minHeight": "0",
+                                            }
+                                        ),
+                                    ]
+                                ),
+                            ]
+                        ),
+                        # Center container - Map
+                        html.Div(
+                            id="center-container",
                             style={
                                 "width": "50%",
                                 "display": "flex",
                                 "flexDirection": "column",
                                 "height": "100%",
-                                "gap": "10px",
                             },
                             children=[
-                                # Search bar above map
-                                html.Div(
-                                    id="map-search-bar",
-                                    style={
-                                        "flexShrink": "0",
-                                    },
-                                    children=[
-                                        search_bar()
-                                    ]
-                                ),
                                 # Map container
                                 html.Div(
                                     style={
-                                        "flex": "1",
+                                        "width": "100%",
+                                        "height": "100%",
                                         "minHeight": "0",
                                     },
                                     children=[
@@ -124,366 +252,222 @@ app.layout = html.Div(
                                 ),
                             ]
                         ),
-                        # Right container - CCTV and Weather side by side at top, Nearest facilities at bottom
+                        # Right container - PSI and 24-hour forecast
                         html.Div(
                             id="right-container",
                             style={
-                                "width": "50%",
+                                "width": "25%",
                                 "display": "flex",
                                 "flexDirection": "column",
-                                "gap": "20px",
+                                "gap": "10px",
                                 "height": "100%",
                             },
                             children=[
-                                # Top row: CCTV feeds and 24-hour Weather forecast side by side
+                                # Incidents and Alerts container
                                 html.Div(
-                                    id="top-right-section",
+                                    id="incidents-and-alerts",
                                     style={
                                         "display": "flex",
-                                        "gap": "20px",
-                                        "flex": "1",
-                                        "minHeight": "0",
+                                        "flexDirection": "column",
+                                        "marginBottom": "10px",
                                     },
                                     children=[
-                                        # CCTV feeds section (left side)
+                                        # Lightning and Flood side by side
                                         html.Div(
-                                            id="camera-feeds-section",
                                             style={
-                                                "flex": "1",
-                                                "backgroundColor": "#000000",
-                                                "borderRadius": "5px",
-                                                "padding": "0",
                                                 "display": "flex",
-                                                "flexDirection": "column",
-                                                "justifyContent": "space-around",
-                                                "flexWrap": "nowrap",
-                                            },
-                                            children=[
-                                                html.H4(
-                                                    "Land Checkpoints",
-                                                    style={
-                                                        "textAlign": "center",
-                                                        "margin": "5px 0 5px 0",
-                                                        "color": "#fff",
-                                                        "fontWeight": "700",
-                                                        "fontSize": "18px"
-                                                    }
-                                                ),
-                                                html.Div(
-                                                    id="camera-2701-container",
-                                                    children=[
-                                                        html.Div(
-                                                            style={
-                                                                "width": "100%",
-                                                                "flex": "1",
-                                                                "minHeight": "0",
-                                                                "overflow": "hidden",
-                                                                "display": "flex",
-                                                                "alignItems": "center",
-                                                                "justifyContent": "center",
-                                                                "backgroundColor": "#000",
-                                                            },
-                                                            children=[
-                                                                html.Img(
-                                                                    id="camera-feed-2701",
-                                                                    src="",
-                                                                    style={
-                                                                        "width": "100%",
-                                                                        "height": "100%",
-                                                                        "objectFit": "cover",
-                                                                    }
-                                                                ),
-                                                            ]
-                                                        ),
-                                                        html.Div(
-                                                            id="camera-2701-metadata",
-                                                            style={
-                                                                "textAlign": "center",
-                                                                "padding": "5px 0",
-                                                                "fontSize": "12px",
-                                                                "color": "#ccc",
-                                                            }
-                                                        ),
-                                                    ],
-                                                    style={
-                                                        "flex": "1",
-                                                        "padding": "10px",
-                                                        "display": "flex",
-                                                        "flexDirection": "column",
-                                                        "minHeight": "0",
-                                                    }
-                                                ),
-                                                html.Div(
-                                                    id="camera-4713-container",
-                                                    children=[
-                                                        html.Div(
-                                                            style={
-                                                                "width": "100%",
-                                                                "flex": "1",
-                                                                "minHeight": "0",
-                                                                "overflow": "hidden",
-                                                                "display": "flex",
-                                                                "alignItems": "center",
-                                                                "justifyContent": "center",
-                                                                "backgroundColor": "#000",
-                                                            },
-                                                            children=[
-                                                                html.Img(
-                                                                    id="camera-feed-4713",
-                                                                    src="",
-                                                                    style={
-                                                                        "width": "100%",
-                                                                        "height": "100%",
-                                                                        "objectFit": "cover",
-                                                                    }
-                                                                ),
-                                                            ]
-                                                        ),
-                                                        html.Div(
-                                                            id="camera-4713-metadata",
-                                                            style={
-                                                                "textAlign": "center",
-                                                                "padding": "5px 0",
-                                                                "fontSize": "12px",
-                                                                "color": "#ccc",
-                                                            }
-                                                        ),
-                                                    ],
-                                                    style={
-                                                        "flex": "1",
-                                                        "padding": "10px",
-                                                        "display": "flex",
-                                                        "flexDirection": "column",
-                                                        "minHeight": "0",
-                                                    }
-                                                ),
-                                            ]
-                                        ),
-                                        # Right column: PSI and 24-hour forecast stacked
-                                        html.Div(
-                                            id="right-info-column",
-                                            style={
-                                                "flex": "1",
-                                                "display": "flex",
-                                                "flexDirection": "column",
+                                                "flexDirection": "row",
                                                 "gap": "10px",
-                                                "minHeight": "0",
+                                                "marginBottom": "10px",
                                             },
                                             children=[
-                                                # Average PSI section (top)
+                                                # Lightning indicator
                                                 html.Div(
-                                                    id="psi-24h-section",
+                                                    id="main-lightning-indicator-container",
                                                     style={
-                                                        "backgroundColor": "#2c3e50",
-                                                        "borderRadius": "5px",
-                                                        "padding": "8px 10px",
-                                                        "flexShrink": "0",
-                                                    },
-                                                    children=[
-                                                        html.H5(
-                                                            "Average PSI Reading",
-                                                            style={
-                                                                "textAlign": "center",
-                                                                "margin": "0 0 8px 0",
-                                                                "color": "#fff",
-                                                                "fontWeight": "700",
-                                                                "fontSize": "14px",
-                                                            }
-                                                        ),
-                                                        html.Div(
-                                                            id="psi-24h-content",
-                                                            children=[
-                                                                html.P("Loading...", style={"textAlign": "center", "color": "#999", "fontSize": "12px"})
-                                                            ],
-                                                        ),
-                                                    ]
-                                                ),
-                                                # 24-hour Weather forecast section (bottom)
-                                                html.Div(
-                                                    id="weather-forecast-24h-section",
-                                                    style={
-                                                        "flex": "1",
                                                         "backgroundColor": "#4a5a6a",
-                                                        "borderRadius": "5px",
-                                                        "padding": "6px",
+                                                        "borderRadius": "8px",
+                                                        "padding": "10px",
                                                         "display": "flex",
                                                         "flexDirection": "column",
                                                         "overflow": "hidden",
-                                                        "minHeight": "0",
+                                                        "flex": "1",
                                                     },
                                                     children=[
                                                         html.H5(
-                                                            "Next 24-Hour Forecast",
+                                                            "⚡ Lightning Alerts Location (last 5 minute)",
                                                             style={
-                                                                "textAlign": "center",
-                                                                "margin": "0 0 8px 0",
-                                                                "color": "#fff",
-                                                                "fontWeight": "700",
-                                                                "flexShrink": "0",
-                                                                "fontSize": "14px",
+                                                                "color": "#FFD700",
+                                                                "margin": "0 0 5px 0",
+                                                                "fontWeight": "600",
+                                                                "fontSize": "13px"
                                                             }
                                                         ),
                                                         html.Div(
-                                                            id="weather-24h-content",
-                                                            children=[
-                                                                html.P("Loading...", style={"textAlign": "center",  "color": "#999"})
-                                                            ],
+                                                            id="main-lightning-indicator",
                                                             style={
                                                                 "flex": "1",
-                                                                "display": "flex",
-                                                                "alignItems": "center",
-                                                                "justifyContent": "center",
-                                                                "overflow": "hidden",
+                                                                "overflowY": "auto",
+                                                                "overflowX": "hidden",
                                                                 "minHeight": "0",
-                                                                "minWidth": "0",
-                                                            }
-                                                        ),
+                                                            },
+                                                            children=[
+                                                                html.P("Loading...", style={
+                                                                    "color": "#999",
+                                                                    "fontSize": "12px"
+                                                                })
+                                                            ]
+                                                        )
                                                     ]
                                                 ),
+                                                # Flood indicator
+                                                html.Div(
+                                                    id="main-flood-indicator-container",
+                                                    style={
+                                                        "backgroundColor": "#4a5a6a",
+                                                        "borderRadius": "8px",
+                                                        "padding": "10px",
+                                                        "display": "flex",
+                                                        "flexDirection": "column",
+                                                        "overflow": "hidden",
+                                                        "flex": "1",
+                                                    },
+                                                    children=[
+                                                        html.H5(
+                                                            "🌊 Flood Alerts",
+                                                            style={
+                                                                "color": "#ff6b6b",
+                                                                "margin": "0 0 5px 0",
+                                                                "fontWeight": "600",
+                                                                "fontSize": "13px"
+                                                            }
+                                                        ),
+                                                        html.Div(
+                                                            id="main-flood-indicator",
+                                                            style={
+                                                                "flex": "1",
+                                                                "overflowY": "auto",
+                                                                "overflowX": "hidden",
+                                                                "minHeight": "0",
+                                                            },
+                                                            children=[
+                                                                html.P("No flooding notice at the moment", style={
+                                                                    "color": "#999",
+                                                                    "fontSize": "12px"
+                                                                })
+                                                            ]
+                                                        )
+                                                    ]
+                                                ),
+                                            ]
+                                        ),
+                                        # Traffic incidents alert (below)
+                                        html.Div(
+                                            id="main-traffic-incidents-container",
+                                            style={
+                                                "backgroundColor": "#4a5a6a",
+                                                "borderRadius": "8px",
+                                                "padding": "10px",
+                                                "display": "flex",
+                                                "flexDirection": "column",
+                                                "overflow": "hidden",
+                                            },
+                                            children=[
+                                                html.H5(
+                                                    "🚦 Traffic Incidents",
+                                                    style={
+                                                        "color": "#FF9800",
+                                                        "margin": "0 0 5px 0",
+                                                        "fontWeight": "600",
+                                                        "fontSize": "13px"
+                                                    }
+                                                ),
+                                                html.Div(
+                                                    id="main-traffic-incidents-indicator",
+                                                    style={
+                                                        "flex": "1",
+                                                        "overflowY": "auto",
+                                                        "overflowX": "hidden",
+                                                        "minHeight": "0",
+                                                    },
+                                                    children=[
+                                                        html.P("Loading...", style={
+                                                            "color": "#999",
+                                                            "fontSize": "12px"
+                                                        })
+                                                    ]
+                                                )
                                             ]
                                         ),
                                     ]
                                 ),
-                                # Bottom section: Nearest MRT, Carpark, and Bus Stop
+                                # Taxi count section
                                 html.Div(
-                                    id="nearest-facilities-section",
+                                    id="taxi-count-section",
                                     style={
-                                        "display": "flex",
-                                        "justifyContent": "space-between",
-                                        "width": "100%",
-                                        "gap": "20px",
+                                        "backgroundColor": "#2c3e50",
+                                        "borderRadius": "5px",
+                                        "padding": "8px 10px",
+                                        "flexShrink": "0",
+                                    },
+                                    children=[
+                                        html.H5(
+                                            "Registered Taxis on Ground",
+                                            style={
+                                                "textAlign": "center",
+                                                "margin": "0 0 8px 0",
+                                                "color": "#fff",
+                                                "fontWeight": "700",
+                                                "fontSize": "14px",
+                                            }
+                                        ),
+                                        html.Div(
+                                            id="taxi-count-content",
+                                            children=[
+                                                html.P("Loading...", style={"textAlign": "center", "color": "#999", "fontSize": "12px"})
+                                            ],
+                                        ),
+                                    ]
+                                ),
+                                # 24-hour Weather forecast section (bottom)
+                                html.Div(
+                                    id="weather-forecast-24h-section",
+                                    style={
                                         "flex": "1",
+                                        "backgroundColor": "#4a5a6a",
+                                        "borderRadius": "5px",
+                                        "padding": "6px",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "overflow": "hidden",
                                         "minHeight": "0",
                                     },
                                     children=[
-                                        # Nearest MRT column
-                                        html.Div(
-                                            id="nearest-mrt-column",
+                                        html.H5(
+                                            "Next 24-Hour Forecast",
                                             style={
-                                                "flex": "1",
-                                                "backgroundColor": "#2c3e50",
-                                                "borderRadius": "5px",
-                                                "padding": "15px",
-                                                "minHeight": "200px"
-                                            },
-                                            children=[
-                                                        html.H4(
-                                                    "Nearest MRT (1KM radius)",
-                                                    style={
-                                                        "textAlign": "center",
-                                                        "marginBottom": "10px",
-                                                        "color": "#fff",
-                                                        "fontWeight": "700",
-                                                        "fontSize": "14px"
-                                                    }
-                                                ),
-                                                html.Div(
-                                                    id="nearest-mrt-content",
-                                                    style={
-                                                        "overflowY": "auto",
-                                                        "overflowX": "hidden",
-                                                        "maxHeight": "calc(100% - 40px)"
-                                                    },
-                                                    children=[
-                                                        html.P(
-                                                            "Select a location to view nearest MRT stations",
-                                                            style={
-                                                                "textAlign": "center",
-                                                                "color": "#999",
-                                                                "fontSize": "12px",
-                                                                "fontStyle": "italic",
-                                                                "padding": "15px"
-                                                            }
-                                                        )
-                                                    ]
-                                                )
-                                            ]
+                                                "textAlign": "center",
+                                                "margin": "0 0 8px 0",
+                                                "color": "#fff",
+                                                "fontWeight": "700",
+                                                "flexShrink": "0",
+                                                "fontSize": "14px",
+                                            }
                                         ),
-                                        # Nearest Carpark column
                                         html.Div(
-                                            id="nearest-carpark-column",
+                                            id="weather-24h-content",
+                                            children=[
+                                                html.P("Loading...", style={"textAlign": "center",  "color": "#999"})
+                                            ],
                                             style={
                                                 "flex": "1",
-                                                "backgroundColor": "#2c3e50",
-                                                "borderRadius": "5px",
-                                                "padding": "15px",
-                                                "minHeight": "200px"
-                                            },
-                                            children=[
-                                                html.H4(
-                                                    "Top 5 Nearest HDB Carparks",
-                                                    style={
-                                                        "textAlign": "center",
-                                                        "marginBottom": "10px",
-                                                        "color": "#fff",
-                                                        "fontWeight": "700",
-                                                        "fontSize": "14px"
-                                                    }
-                                                ),
-                                                html.Div(
-                                                    id="nearest-carpark-content",
-                                                    style={
-                                                        "overflowY": "auto",
-                                                        "overflowX": "hidden",
-                                                        "maxHeight": "calc(100% - 40px)"
-                                                    },
-                                                    children=[
-                                                        html.P(
-                                                            "Select a location to view nearest carparks",
-                                                            style={
-                                                                "textAlign": "center",
-                                                                "color": "#999",
-                                                                "fontSize": "12px",
-                                                                "fontStyle": "italic",
-                                                                "padding": "15px"
-                                                            }
-                                                        )
-                                                    ]
-                                                )
-                                            ]
-                                        ),
-                                        # Nearest Bus Stop column
-                                        html.Div(
-                                            id="nearest-bus-stop-column",
-                                            style={
-                                                "flex": "1",
-                                                "backgroundColor": "#2c3e50",
-                                                "borderRadius": "5px",
-                                                "padding": "15px",
-                                                "minHeight": "200px"
-                                            },
-                                            children=[
-                                                html.H4(
-                                                    "Top 5 Nearest Bus Stops",
-                                                    style={
-                                                        "textAlign": "center",
-                                                        "marginBottom": "10px",
-                                                        "color": "#fff",
-                                                        "fontWeight": "700",
-                                                        "fontSize": "14px"
-                                                    }
-                                                ),
-                                                html.Div(
-                                                    id="nearest-bus-stop-content",
-                                                    style={
-                                                        "overflowY": "auto",
-                                                        "overflowX": "hidden",
-                                                        "maxHeight": "calc(100% - 40px)"
-                                                    },
-                                                    children=[
-                                                        html.P(
-                                                            "Select a location to view nearest bus stops",
-                                                            style={
-                                                                "textAlign": "center",
-                                                                "color": "#999",
-                                                                "fontSize": "12px",
-                                                                "fontStyle": "italic",
-                                                                "padding": "15px"
-                                                            }
-                                                        )
-                                                    ]
-                                                )
-                                            ]
+                                                "display": "flex",
+                                                "alignItems": "center",
+                                                "justifyContent": "center",
+                                                "overflow": "hidden",
+                                                "minHeight": "0",
+                                                "minWidth": "0",
+                                            }
                                         ),
                                     ]
                                 ),
@@ -491,6 +475,28 @@ app.layout = html.Div(
                         ),
                     ]
                 ),
+                # Footer with plotly|dash logo
+                html.Div(
+                    id="footer",
+                    style={
+                        "display": "flex",
+                        "justifyContent": "flex-end",
+                        "padding": "10px 20px",
+                        "width": "100%",
+                    },
+                    children=[
+                        html.A(
+                            html.Img(
+                                id="plotly-logo",
+                                src=r"../assets/dash-logo.png",
+                                style={"height": "30px"},
+                            ),
+                            href="https://plotly.com/dash/",
+                        ),
+                    ],
+                ),
+            ]
+        ),
                 # Interval component to update images and weather periodically
                 dcc.Interval(
                     id='interval-component',

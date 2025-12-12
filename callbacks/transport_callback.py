@@ -4,6 +4,7 @@ References:
 - Taxi: https://api.data.gov.sg/v1/transport/taxi-availability
 - Traffic Cameras: https://api.data.gov.sg/v1/transport/traffic-images
 - ERP Gantries: https://data.gov.sg/datasets/d_753090823cc9920ac41efaa6530c5893/view
+- PUB CCTV: https://data.gov.sg/datasets/d_1de1c45043183bec57e762d01c636eee/view
 """
 import re
 from dash import Input, Output, State, html
@@ -19,10 +20,20 @@ ERP_GANTRY_API_URL = (
     f"https://api-open.data.gov.sg/v1/public/api/datasets/"
     f"{ERP_GANTRY_DATASET_ID}/initiate-download"
 )
+PUB_CCTV_DATASET_ID = "d_1de1c45043183bec57e762d01c636eee"
+# PUB_CCTV_API_URL uses initiate-download endpoint to get download URL
+PUB_CCTV_API_URL = (
+    f"https://api-open.data.gov.sg/v1/public/api/datasets/"
+    f"{PUB_CCTV_DATASET_ID}/initiate-download"
+)
 
 # Cache for ERP gantry data (static dataset downloaded from S3, cache for 24 hours)
 _erp_gantry_cache = {'data': None, 'timestamp': 0}
 ERP_GANTRY_CACHE_TTL = 24 * 60 * 60  # 24 hours in seconds
+
+# Cache for PUB CCTV data (static dataset downloaded from S3, cache for 24 hours)
+_pub_cctv_cache = {'data': None, 'timestamp': 0}
+PUB_CCTV_CACHE_TTL = 24 * 60 * 60  # 24 hours in seconds
 
 
 def fetch_taxi_availability():
@@ -573,6 +584,258 @@ def create_erp_gantry_markers(gantry_data):
     return markers
 
 
+def fetch_pub_cctv_data():
+    """
+    Fetch PUB CCTV GeoJSON data using initiate-download API endpoint.
+    
+    The initiate-download endpoint returns a download URL which is then used to fetch
+    the actual GeoJSON file. Since this is a static dataset, the data is cached for
+    24 hours to avoid redundant downloads.
+    
+    Returns:
+        Dictionary containing GeoJSON data or None if error
+    """
+    import time
+    global _pub_cctv_cache
+
+    current_time = time.time()
+
+    # Check if cache is valid (24 hours)
+    if (_pub_cctv_cache['data'] is not None and
+            current_time - _pub_cctv_cache['timestamp'] < PUB_CCTV_CACHE_TTL):
+        print("Using cached PUB CCTV data")
+        return _pub_cctv_cache['data']
+
+    # Step 1: Call initiate-download to get download URL
+    print(f"Initiating PUB CCTV download: {PUB_CCTV_API_URL}")
+    init_response = fetch_url(PUB_CCTV_API_URL)
+    
+    if init_response is None:
+        print("Failed to initiate PUB CCTV download: No response")
+        return None
+    
+    if init_response.get('code') != 0:
+        error_msg = init_response.get('errorMsg', 'Unknown error')
+        print(f"Failed to initiate PUB CCTV download: {error_msg}")
+        return None
+
+    # Extract URL from response structure: {"code": 0, "data": {"url": "..."}}
+    data = init_response.get('data', {})
+    download_url = data.get('url')
+    
+    if not download_url:
+        print("No download URL in initiate-download response")
+        print(f"Response data: {data}")
+        return None
+
+    print(f"Download URL extracted successfully: {download_url[:80]}...")
+    print(f"Downloading PUB CCTV GeoJSON from: {download_url[:80]}...")
+
+    # Step 2: Fetch the actual GeoJSON file from the extracted download URL
+    geojson_data = fetch_url(download_url)
+    
+    if not geojson_data:
+        print("Failed to download PUB CCTV GeoJSON data from URL")
+        return None
+    
+    print("Successfully downloaded PUB CCTV GeoJSON data")
+
+    # Update cache if successful
+    if geojson_data is not None:
+        _pub_cctv_cache['data'] = geojson_data
+        _pub_cctv_cache['timestamp'] = current_time
+        print("PUB CCTV data cached successfully")
+
+    return geojson_data
+
+
+def extract_cctv_info(description_html):
+    """
+    Extract CCTV information from HTML description field.
+    
+    Args:
+        description_html: HTML string containing CCTV attributes
+    
+    Returns:
+        Dictionary with CCTV information (cctv_id, catchment, ref_name, hyperlink)
+    """
+    if not description_html:
+        return {
+            'cctv_id': 'Unknown',
+            'catchment': 'Unknown',
+            'ref_name': 'Unknown',
+            'hyperlink': None
+        }
+
+    info = {
+        'cctv_id': 'Unknown',
+        'catchment': 'Unknown',
+        'ref_name': 'Unknown',
+        'hyperlink': None
+    }
+
+    # Extract CCTVID
+    match = re.search(r'<th>CCTVID</th>\s*<td>([^<]*)</td>', description_html)
+    if match:
+        info['cctv_id'] = match.group(1).strip()
+
+    # Extract CATCHMENT
+    match = re.search(r'<th>CATCHMENT</th>\s*<td>([^<]*)</td>', description_html)
+    if match:
+        info['catchment'] = match.group(1).strip()
+
+    # Extract REF_NAME
+    match = re.search(r'<th>REF_NAME</th>\s*<td>([^<]*)</td>', description_html)
+    if match:
+        info['ref_name'] = match.group(1).strip()
+
+    # Extract HYPERLINK
+    match = re.search(r'<th>HYPERLINK</th>\s*<td>([^<]*)</td>', description_html)
+    if match:
+        info['hyperlink'] = match.group(1).strip()
+
+    return info
+
+
+def parse_pub_cctv_data(geojson_data):
+    """
+    Parse PUB CCTV GeoJSON data.
+    
+    Args:
+        geojson_data: GeoJSON FeatureCollection
+    
+    Returns:
+        List of dictionaries with CCTV information
+    """
+    cctvs = []
+
+    if not geojson_data or 'features' not in geojson_data:
+        return cctvs
+
+    features = geojson_data.get('features', [])
+
+    for feature in features:
+        properties = feature.get('properties', {})
+        geometry = feature.get('geometry', {})
+
+        if geometry.get('type') != 'Point':
+            continue
+
+        coordinates = geometry.get('coordinates', [])
+        if len(coordinates) < 2:
+            continue
+
+        # Extract CCTV info from description
+        description = properties.get('Description', '')
+        cctv_info = extract_cctv_info(description)
+        unique_id = properties.get('Name', '')
+
+        # Point coordinates are [lon, lat, z] in GeoJSON, convert to [lat, lon] for Leaflet
+        lon, lat = coordinates[0], coordinates[1]
+
+        cctvs.append({
+            'cctv_id': cctv_info['cctv_id'],
+            'catchment': cctv_info['catchment'],
+            'ref_name': cctv_info['ref_name'],
+            'hyperlink': cctv_info['hyperlink'],
+            'unique_id': unique_id,
+            'coordinates': [lat, lon],
+            'description': description,
+        })
+
+    return cctvs
+
+
+def create_pub_cctv_markers(cctv_data):
+    """
+    Create map markers for PUB CCTV locations.
+    
+    Args:
+        cctv_data: List of CCTV dictionaries
+    
+    Returns:
+        List of dl.CircleMarker components
+    """
+    markers = []
+
+    for cctv in cctv_data:
+        coords = cctv.get('coordinates', [])
+        cctv_id = cctv.get('cctv_id', 'Unknown')
+        ref_name = cctv.get('ref_name', 'Unknown')
+        catchment = cctv.get('catchment', 'Unknown')
+
+        if not coords or len(coords) < 2:
+            continue
+
+        # Create tooltip text
+        tooltip_text = f"PUB CCTV {cctv_id}"
+        if ref_name and ref_name != 'Unknown':
+            tooltip_text += f"\n{ref_name}"
+        if catchment and catchment != 'Unknown':
+            tooltip_text += f"\nCatchment: {catchment}"
+
+        # Create circle marker for CCTV location
+        markers.append(
+            dl.CircleMarker(
+                center=coords,
+                radius=6,
+                color="#00BCD4",
+                fill=True,
+                fillColor="#00BCD4",
+                fillOpacity=0.7,
+                weight=2,
+                children=[
+                    dl.Tooltip(tooltip_text),
+                ]
+            )
+        )
+
+    return markers
+
+
+def format_pub_cctv_count_display(cctv_data):
+    """
+    Format the PUB CCTV count display.
+    
+    Args:
+        cctv_data: List of CCTV dictionaries
+    
+    Returns:
+        HTML Div with CCTV count information
+    """
+    if not cctv_data:
+        return html.Div(
+            [
+                html.P(
+                    "Error loading PUB CCTV data",
+                    style={
+                        "color": "#ff6b6b",
+                        "textAlign": "center",
+                        "padding": "20px",
+                        "fontSize": "12px",
+                    }
+                )
+            ]
+        )
+
+    count = len(cctv_data)
+    return html.Div(
+        [
+            html.P(
+                f"Total CCTV locations: {count}",
+                style={
+                    "color": "#fff",
+                    "textAlign": "center",
+                    "padding": "10px",
+                    "fontSize": "14px",
+                    "fontWeight": "600",
+                    "margin": "0",
+                }
+            )
+        ]
+    )
+
+
 def format_erp_count_display(gantry_data):
     """
     Format the ERP gantry count display.
@@ -878,6 +1141,80 @@ def register_transport_callbacks(app):
         # Create markers and count display
         markers = create_erp_gantry_markers(gantry_data)
         count_display = format_erp_count_display(gantry_data)
+
+        return markers, count_display
+
+    @app.callback(
+        [Output('pub-cctv-toggle-state', 'data'),
+         Output('pub-cctv-toggle-btn', 'style'),
+         Output('pub-cctv-toggle-btn', 'children')],
+        Input('pub-cctv-toggle-btn', 'n_clicks'),
+        State('pub-cctv-toggle-state', 'data'),
+        prevent_initial_call=True
+    )
+    def toggle_pub_cctv_display(_n_clicks, current_state):
+        """Toggle PUB CCTV markers display on/off."""
+        new_state = not current_state
+
+        if new_state:
+            # Active state - cyan background
+            style = {
+                "backgroundColor": "#00BCD4",
+                "border": "none",
+                "borderRadius": "4px",
+                "color": "#fff",
+                "cursor": "pointer",
+                "padding": "6px 12px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Hide from Map"
+        else:
+            # Inactive state - outline
+            style = {
+                "backgroundColor": "transparent",
+                "border": "2px solid #00BCD4",
+                "borderRadius": "4px",
+                "color": "#00BCD4",
+                "cursor": "pointer",
+                "padding": "4px 10px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Show on Map"
+
+        return new_state, style, text
+
+    @app.callback(
+        [Output('pub-cctv-markers', 'children'),
+         Output('pub-cctv-count-display', 'children')],
+        [Input('pub-cctv-toggle-state', 'data'),
+         Input('transport-interval', 'n_intervals')]
+    )
+    def update_pub_cctv_display(show_pub_cctv, n_intervals):
+        """Update PUB CCTV markers and count display."""
+        _ = n_intervals  # Used for periodic refresh
+
+        if not show_pub_cctv:
+            # Return empty markers and default message
+            return [], html.P(
+                "Click 'Show on Map' to load CCTV locations",
+                style={
+                    "color": "#999",
+                    "textAlign": "center",
+                    "padding": "20px",
+                    "fontStyle": "italic",
+                    "fontSize": "12px",
+                }
+            )
+
+        # Fetch CCTV data
+        geojson_data = fetch_pub_cctv_data()
+        cctv_data = parse_pub_cctv_data(geojson_data)
+
+        # Create markers and count display
+        markers = create_pub_cctv_markers(cctv_data)
+        count_display = format_pub_cctv_count_display(cctv_data)
 
         return markers, count_display
 
