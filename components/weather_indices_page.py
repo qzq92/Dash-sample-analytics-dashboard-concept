@@ -43,6 +43,8 @@ def weather_indices_page():
             dcc.Store(id="zika-clusters-toggle-state", data=False),
             # Store for Dengue clusters toggle state
             dcc.Store(id="dengue-clusters-toggle-state", data=False),
+            # Store for PSI display mode toggle state (False = map text boxes, True = table)
+            dcc.Store(id="psi-display-mode-toggle-state", data=False),
             # Main content container: map on left, indices on right
             html.Div(
                 id="weather-indices-content",
@@ -149,21 +151,6 @@ def weather_indices_page():
                                                     "fontWeight": "600",
                                                 }
                                             ),
-                                            html.Button(
-                                                "📍",
-                                                id="toggle-zika-clusters",
-                                                n_clicks=0,
-                                                style={
-                                                    "backgroundColor": "transparent",
-                                                    "border": "0.0625rem solid #6a7a8a",
-                                                    "borderRadius": "0.25rem",
-                                                    "color": "#ccc",
-                                                    "cursor": "pointer",
-                                                    "padding": "0.25rem 0.5rem",
-                                                    "fontSize": "0.875rem",
-                                                },
-                                                title="Show Zika clusters on map"
-                                            ),
                                         ]
                                     ),
                                     html.Div(
@@ -214,21 +201,6 @@ def weather_indices_page():
                                                     "fontWeight": "600",
                                                 }
                                             ),
-                                            html.Button(
-                                                "📍",
-                                                id="toggle-dengue-clusters",
-                                                n_clicks=0,
-                                                style={
-                                                    "backgroundColor": "transparent",
-                                                    "border": "0.0625rem solid #6a7a8a",
-                                                    "borderRadius": "0.25rem",
-                                                    "color": "#ccc",
-                                                    "cursor": "pointer",
-                                                    "padding": "0.25rem 0.5rem",
-                                                    "fontSize": "0.875rem",
-                                                },
-                                                title="Show Dengue clusters on map"
-                                            ),
                                         ]
                                     ),
                                     html.Div(
@@ -264,6 +236,67 @@ def weather_indices_page():
                             "flexDirection": "column",
                         },
                         children=[
+                            # Toggle buttons above map
+                            html.Div(
+                                style={
+                                    "display": "flex",
+                                    "justifyContent": "flex-start",
+                                    "gap": "0.5rem",
+                                    "padding": "0.5rem",
+                                    "backgroundColor": "#2a3a4a",
+                                    "borderRadius": "0.5rem 0.5rem 0 0",
+                                },
+                                children=[
+                                    html.Button(
+                                        "📊 PSI Table View",
+                                        id="toggle-psi-display-mode",
+                                        n_clicks=0,
+                                        style={
+                                            "padding": "0.375rem 0.75rem",
+                                            "borderRadius": "0.375rem",
+                                            "border": "0.125rem solid #60a5fa",
+                                            "backgroundColor": "transparent",
+                                            "color": "#60a5fa",
+                                            "cursor": "pointer",
+                                            "fontSize": "0.75rem",
+                                            "fontWeight": "600",
+                                        },
+                                        title="Toggle between table view and map text boxes"
+                                    ),
+                                    html.Button(
+                                        "Show Zika Cluster(s)",
+                                        id="toggle-zika-clusters",
+                                        n_clicks=0,
+                                        style={
+                                            "padding": "0.375rem 0.75rem",
+                                            "borderRadius": "0.375rem",
+                                            "border": "0.125rem solid #ff4444",
+                                            "backgroundColor": "transparent",
+                                            "color": "#ff4444",
+                                            "cursor": "pointer",
+                                            "fontSize": "0.75rem",
+                                            "fontWeight": "600",
+                                        },
+                                        title="Toggle Zika clusters on map"
+                                    ),
+                                    html.Button(
+                                        "Show Dengue Cluster(s)",
+                                        id="toggle-dengue-clusters",
+                                        n_clicks=0,
+                                        style={
+                                            "padding": "0.375rem 0.75rem",
+                                            "borderRadius": "0.375rem",
+                                            "border": "0.125rem solid #ff8800",
+                                            "backgroundColor": "transparent",
+                                            "color": "#ff8800",
+                                            "cursor": "pointer",
+                                            "fontSize": "0.75rem",
+                                            "fontWeight": "600",
+                                        },
+                                        title="Toggle Dengue clusters on map"
+                                    ),
+                                ]
+                            ),
                             # Map
                             html.Div(
                                 style={
@@ -332,6 +365,28 @@ def weather_indices_page():
                             "height": "100%",
                         },
                         children=[
+                            # PSI Metrics Table
+                            html.Div(
+                                id="psi-metrics-table-container",
+                                style={
+                                    "display": "none",  # Hidden by default, shown when toggle is on
+                                    "marginBottom": "0.5rem",
+                                    "flexShrink": "0",
+                                    "padding": "2rem",
+                                },
+                                children=[
+                                    html.Div(
+                                        id="psi-metrics-table-content",
+                                        children=[
+                                            html.P("Loading PSI data...", style={
+                                                "color": "#ccc",
+                                                "textAlign": "center",
+                                                "padding": "0.75rem",
+                                            })
+                                        ],
+                                    ),
+                                ]
+                            ),
                             html.Div(
                                 "Pollutant Abbreviations",
                                 style={

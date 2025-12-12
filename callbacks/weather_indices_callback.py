@@ -755,25 +755,31 @@ def format_psi_display(data):
         style={
             "display": "grid",
             "gridTemplateColumns": "70px repeat(7, 1fr)",
-            "gap": "4px",
-            "padding": "8px 4px",
+            "gap": "0",
+            "padding": "0.5rem",
             "backgroundColor": "#2a3a4a",
-            "borderRadius": "4px 4px 0 0",
+            "borderRadius": "0.25rem 0.25rem 0 0",
             "fontWeight": "bold",
+            "border": "0.0625rem solid #5a6a7a",
+            "borderBottom": "0.125rem solid #60a5fa",
         },
         children=[
             html.Div("Region", style={
-                "fontSize": "9px",
+                "fontSize": "0.5625rem",
                 "color": "#60a5fa",
-                "textAlign": "center"
+                "textAlign": "center",
+                "borderRight": "0.0625rem solid #5a6a7a",
+                "paddingRight": "0.25rem",
             })
         ] + [
             html.Div(name, style={
-                "fontSize": "9px",
+                "fontSize": "0.5625rem",
                 "color": "#60a5fa",
-                "textAlign": "center"
+                "textAlign": "center",
+                "borderRight": "0.0625rem solid #5a6a7a" if i < len(pollutants) - 1 else "none",
+                "paddingRight": "0.25rem" if i < len(pollutants) - 1 else "0",
             })
-            for _, name in pollutants
+            for i, (_, name) in enumerate(pollutants)
         ]
     )
 
@@ -831,27 +837,66 @@ def format_psi_display(data):
                     )
                 )
 
+        # Add border styles to each cell
+        styled_cells = []
+        for i, cell in enumerate(cells):
+            # Get existing styles from cell if it's a Div
+            if isinstance(cell, html.Div):
+                existing_style = cell.style if hasattr(cell, 'style') else {}
+                existing_style.update({
+                    "borderRight": "0.0625rem solid #5a6a7a" if i < len(cells) - 1 else "none",
+                    "paddingRight": "0.25rem" if i < len(cells) - 1 else "0",
+                })
+                # Create new Div with updated styles
+                styled_cells.append(
+                    html.Div(
+                        cell.children if hasattr(cell, 'children') else cell,
+                        style=existing_style
+                    )
+                )
+            else:
+                # If it's a string, create a Div
+                styled_cells.append(
+                    html.Div(
+                        cell,
+                        style={
+                            "fontSize": "0.625rem",
+                            "color": "#ccc",
+                            "textAlign": "center",
+                            "fontWeight": "600",
+                            "borderRight": "0.0625rem solid #5a6a7a" if i < len(cells) - 1 else "none",
+                            "paddingRight": "0.25rem" if i < len(cells) - 1 else "0",
+                        }
+                    )
+                )
+        
         table_rows.append(
             html.Div(
                 style={
                     "display": "grid",
                     "gridTemplateColumns": "70px repeat(7, 1fr)",
-                    "gap": "4px",
-                    "padding": "8px 4px",
+                    "gap": "0",
+                    "padding": "0.5rem",
                     "backgroundColor": "#3a4a5a",
-                    "borderBottom": "1px solid #2a3a4a",
+                    "borderBottom": "0.0625rem solid #5a6a7a",
+                    "borderLeft": "0.0625rem solid #5a6a7a",
+                    "borderRight": "0.0625rem solid #5a6a7a",
                 },
-                children=cells
+                children=styled_cells
             )
         )
 
     return html.Div(
+        style={
+            "padding": "2rem",
+        },
         children=[
             html.Div(
                 style={
                     "backgroundColor": "#3a4a5a",
-                    "borderRadius": "6px",
-                    "overflow": "hidden"
+                    "borderRadius": "0.375rem",
+                    "overflow": "hidden",
+                    "border": "0.0625rem solid #5a6a7a",
                 },
                 children=[header_row] + table_rows
             ),
@@ -860,8 +905,8 @@ def format_psi_display(data):
                 style={
                     "textAlign": "center",
                     "color": "#888",
-                    "fontSize": "11px",
-                    "marginTop": "10px",
+                    "fontSize": "0.6875rem",
+                    "marginTop": "0.625rem",
                     "fontStyle": "italic",
                 }
             )
@@ -1599,13 +1644,49 @@ def register_weather_indices_callbacks(app):
 
 
     @app.callback(
-        Output('psi-markers', 'children'),
-        Input('weather-indices-interval', 'n_intervals')
+        [Output('psi-markers', 'children'),
+         Output('psi-metrics-table-content', 'children'),
+         Output('psi-metrics-table-container', 'style')],
+        [Input('weather-indices-interval', 'n_intervals'),
+         Input('psi-display-mode-toggle-state', 'data')]
     )
-    def update_psi_markers(_n_intervals):
-        """Update PSI markers on map (always displayed)."""
+    def update_psi_markers(_n_intervals, show_table):
+        """Update PSI markers on map or table based on toggle state."""
         data = fetch_psi_data()
-        return create_psi_markers(data)
+        
+        # If table mode is enabled, show table and hide map markers
+        if show_table:
+            table_content = format_psi_display(data)
+            return [], table_content, {"display": "block", "marginBottom": "0.5rem", "flexShrink": "0"}
+        
+        # Map mode: show markers and hide table
+        markers = create_psi_markers(data)
+        return markers, html.P("", style={"display": "none"}), {"display": "none"}
+
+    @app.callback(
+        [Output('psi-display-mode-toggle-state', 'data'),
+         Output('toggle-psi-display-mode', 'style')],
+        Input('toggle-psi-display-mode', 'n_clicks'),
+        State('psi-display-mode-toggle-state', 'data'),
+        prevent_initial_call=True
+    )
+    def toggle_psi_display_mode(_n_clicks, current_state):
+        """Toggle PSI display mode between table and map text boxes."""
+        if current_state is None:
+            current_state = False
+        
+        new_state = not current_state
+        return new_state, _get_toggle_style(new_state)
+
+    @app.callback(
+        Output('toggle-psi-display-mode', 'children'),
+        Input('psi-display-mode-toggle-state', 'data')
+    )
+    def update_psi_display_mode_button(is_table_mode):
+        """Update PSI display mode button label."""
+        if is_table_mode:
+            return "📍 PSI Map View"
+        return "📊 PSI Table View"
 
     @app.callback(
         Output('zika-clusters-content', 'children'),
@@ -1631,6 +1712,16 @@ def register_weather_indices_callbacks(app):
         
         new_state = not current_state
         return new_state, _get_toggle_style(new_state)
+
+    @app.callback(
+        Output('toggle-zika-clusters', 'children'),
+        Input('zika-clusters-toggle-state', 'data')
+    )
+    def update_zika_clusters_button_label(is_visible):
+        """Update Zika clusters button label based on toggle state."""
+        if is_visible:
+            return "Don't Show Zika Cluster(s)"
+        return "Show Zika Cluster(s)"
 
     @app.callback(
         Output('zika-clusters', 'children'),
@@ -1669,6 +1760,16 @@ def register_weather_indices_callbacks(app):
         
         new_state = not current_state
         return new_state, _get_toggle_style(new_state)
+
+    @app.callback(
+        Output('toggle-dengue-clusters', 'children'),
+        Input('dengue-clusters-toggle-state', 'data')
+    )
+    def update_dengue_clusters_button_label(is_visible):
+        """Update Dengue clusters button label based on toggle state."""
+        if is_visible:
+            return "Don't Show Dengue Cluster(s)"
+        return "Show Dengue Cluster(s)"
 
     @app.callback(
         Output('dengue-clusters', 'children'),
