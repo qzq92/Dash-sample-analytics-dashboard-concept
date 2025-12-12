@@ -4,3 +4,4 @@ venv
 .DS_Store
 .env
 api_key.py
+data/

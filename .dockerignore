@@ -62,5 +62,5 @@ tests/
 
 # Data files (if large, consider excluding or mounting as volume)
 # Uncomment if data files are too large
-# data/
+data/
 
