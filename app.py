@@ -26,46 +26,10 @@ from callbacks.transport_callback import register_transport_callbacks
 from auth.onemap_api import initialize_onemap_token
 from utils.data_download_helper import (
     download_hdb_carpark_csv,
-    download_speed_camera_csv,
-    clear_csv_files
+    download_speed_camera_csv
 )
 from callbacks.carpark_callback import clear_carpark_locations_cache
-from mcp import initialize_mcp_server
 
-# Initialize MCP server for Singapore LTA data
-print("Initializing MCP server for Singapore LTA...")
-mcp_server_process = initialize_mcp_server()
-if mcp_server_process:
-    print("MCP server initialized successfully")
-else:
-    print("Warning: MCP server initialization failed or skipped")
-
-# Clear all CSV files in data directory before downloading
-print("Clearing existing CSV files from data directory...")
-clear_csv_files()
-
-# Download HDB carpark data from initiate-download API on startup
-print("Downloading HDB carpark data from initiate-download API...")
-if download_hdb_carpark_csv():
-    print("HDB carpark data downloaded successfully")
-    # Clear cache so new data will be loaded
-    clear_carpark_locations_cache()
-else:
-    print("Warning: Failed to download HDB carpark data. Using existing CSV file if available.")
-
-# Download speed camera data from initiate-download API on startup
-print("Downloading speed camera data from initiate-download API...")
-if download_speed_camera_csv():
-    print("Speed camera data downloaded successfully")
-else:
-    print("Warning: Failed to download speed camera data. Using existing CSV file if available.")
-
-# Initialize OneMap API token on application startup
-print("Initializing OneMap API authentication...")
-if initialize_onemap_token():
-    print("OneMap API token initialized successfully")
-else:
-    print("Warning: Failed to initialize OneMap API token. Some features may not work.")
 
 # Dash instantiation ---------------------------------------------------------#
 app = Dash(__name__,
@@ -131,9 +95,9 @@ app.layout = html.Div(
                             style={
                                 "display": "flex",
                                 "width": "100%",
-                                "gap": "20px",
-                                "padding": "20px",
-                                "height": "calc(100vh - 100px)",  # Adjusted for header only (search bar moved to map)
+                                "gap": "0.5rem",
+                                "padding": "1.25rem",
+                                "height": "calc(100vh - 6.25rem)",  # Adjusted for header only (search bar moved to map)
                                 "alignItems": "stretch",  # Ensure both containers have same height
                                 "boxSizing": "border-box",  # Ensure padding is included in width calculation
                             },
@@ -142,7 +106,7 @@ app.layout = html.Div(
                         html.Div(
                             id="left-container",
                             style={
-                                "width": "25%",
+                                "width": "30%",
                                 "display": "flex",
                                 "flexDirection": "column",
                                 "height": "100%",
@@ -154,7 +118,7 @@ app.layout = html.Div(
                                         "width": "100%",
                                         "height": "100%",
                                         "backgroundColor": "#000000",
-                                        "borderRadius": "5px",
+                                        "borderRadius": "0.3125rem",
                                         "padding": "0",
                                         "display": "flex",
                                         "flexDirection": "column",
@@ -166,10 +130,10 @@ app.layout = html.Div(
                                             "Land Checkpoints",
                                             style={
                                                 "textAlign": "center",
-                                                "margin": "5px 0 5px 0",
+                                                "margin": "0.3125rem 0",
                                                 "color": "#fff",
                                                 "fontWeight": "700",
-                                                "fontSize": "18px"
+                                                "fontSize": "1.125rem"
                                             }
                                         ),
                                         html.Div(
@@ -202,15 +166,15 @@ app.layout = html.Div(
                                                     id="camera-2701-metadata",
                                                     style={
                                                         "textAlign": "center",
-                                                        "padding": "5px 0",
-                                                        "fontSize": "12px",
+                                                        "padding": "0.3125rem 0",
+                                                        "fontSize": "0.75rem",
                                                         "color": "#ccc",
                                                     }
                                                 ),
                                             ],
                                             style={
                                                 "flex": "1",
-                                                "padding": "10px",
+                                                "padding": "0.625rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
                                                 "minHeight": "0",
@@ -246,15 +210,15 @@ app.layout = html.Div(
                                                     id="camera-4713-metadata",
                                                     style={
                                                         "textAlign": "center",
-                                                        "padding": "5px 0",
-                                                        "fontSize": "12px",
+                                                        "padding": "0.3125rem 0",
+                                                        "fontSize": "0.75rem",
                                                         "color": "#ccc",
                                                     }
                                                 ),
                                             ],
                                             style={
                                                 "flex": "1",
-                                                "padding": "10px",
+                                                "padding": "0.625rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
                                                 "minHeight": "0",
@@ -274,6 +238,48 @@ app.layout = html.Div(
                                 "height": "100%",
                             },
                             children=[
+                                # Toggle buttons above map (top right corner)
+                                html.Div(
+                                    style={
+                                        "display": "flex",
+                                        "justifyContent": "flex-end",
+                                        "gap": "0.5rem",
+                                        "marginBottom": "0.5rem",
+                                        "padding": "0 0.25rem",
+                                    },
+                                    children=[
+                                        html.Button(
+                                            "📍 PSI Locations",
+                                            id="toggle-psi-locations",
+                                            n_clicks=0,
+                                            style={
+                                                "padding": "0.375rem 0.75rem",
+                                                "borderRadius": "0.375rem",
+                                                "border": "0.125rem solid #60a5fa",
+                                                "backgroundColor": "transparent",
+                                                "color": "#60a5fa",
+                                                "cursor": "pointer",
+                                                "fontSize": "0.75rem",
+                                                "fontWeight": "600",
+                                            }
+                                        ),
+                                        html.Button(
+                                            "🌦️ Show 2H Forecast",
+                                            id="toggle-2h-forecast",
+                                            n_clicks=0,
+                                            style={
+                                                "padding": "0.375rem 0.75rem",
+                                                "borderRadius": "0.375rem",
+                                                "border": "0.125rem solid #60a5fa",
+                                                "backgroundColor": "transparent",
+                                                "color": "#60a5fa",
+                                                "cursor": "pointer",
+                                                "fontSize": "0.75rem",
+                                                "fontWeight": "600",
+                                            }
+                                        ),
+                                    ]
+                                ),
                                 # Map container
                                 html.Div(
                                     style={
@@ -291,10 +297,10 @@ app.layout = html.Div(
                         html.Div(
                             id="right-container",
                             style={
-                                "width": "25%",
+                                "width": "20%",
                                 "display": "flex",
                                 "flexDirection": "column",
-                                "gap": "10px",
+                                "gap": "0.625rem",
                                 "height": "100%",
                             },
                             children=[
@@ -304,7 +310,7 @@ app.layout = html.Div(
                                     style={
                                         "display": "flex",
                                         "flexDirection": "column",
-                                        "marginBottom": "10px",
+                                        "marginBottom": "0.625rem",
                                     },
                                     children=[
                                         # Lightning and Flood side by side
@@ -312,8 +318,8 @@ app.layout = html.Div(
                                             style={
                                                 "display": "flex",
                                                 "flexDirection": "row",
-                                                "gap": "10px",
-                                                "marginBottom": "10px",
+                                                "gap": "0.625rem",
+                                                "marginBottom": "0.625rem",
                                             },
                                             children=[
                                                 # Lightning indicator
@@ -321,8 +327,8 @@ app.layout = html.Div(
                                                     id="main-lightning-indicator-container",
                                                     style={
                                                         "backgroundColor": "#4a5a6a",
-                                                        "borderRadius": "8px",
-                                                        "padding": "10px",
+                                                        "borderRadius": "0.5rem",
+                                                        "padding": "0.625rem",
                                                         "display": "flex",
                                                         "flexDirection": "column",
                                                         "overflow": "hidden",
@@ -330,12 +336,12 @@ app.layout = html.Div(
                                                     },
                                                     children=[
                                                         html.H5(
-                                                            "⚡ Lightning Alerts Location (last 5 minute)",
+                                                            "⚡ Lightning Alerts Reported Location(s) in last 5 minute",
                                                             style={
                                                                 "color": "#FFD700",
-                                                                "margin": "0 0 5px 0",
+                                                                "margin": "0 0 0.3125rem 0",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "13px"
+                                                                "fontSize": "0.8125rem"
                                                             }
                                                         ),
                                                         html.Div(
@@ -349,7 +355,7 @@ app.layout = html.Div(
                                                             children=[
                                                                 html.P("Loading...", style={
                                                                     "color": "#999",
-                                                                    "fontSize": "12px"
+                                                                    "fontSize": "0.75rem"
                                                                 })
                                                             ]
                                                         )
@@ -360,8 +366,8 @@ app.layout = html.Div(
                                                     id="main-flood-indicator-container",
                                                     style={
                                                         "backgroundColor": "#4a5a6a",
-                                                        "borderRadius": "8px",
-                                                        "padding": "10px",
+                                                        "borderRadius": "0.5rem",
+                                                        "padding": "0.625rem",
                                                         "display": "flex",
                                                         "flexDirection": "column",
                                                         "overflow": "hidden",
@@ -372,9 +378,9 @@ app.layout = html.Div(
                                                             "🌊 Flood Alerts",
                                                             style={
                                                                 "color": "#ff6b6b",
-                                                                "margin": "0 0 5px 0",
+                                                                "margin": "0 0 0.3125rem 0",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "13px"
+                                                                "fontSize": "0.8125rem"
                                                             }
                                                         ),
                                                         html.Div(
@@ -388,7 +394,7 @@ app.layout = html.Div(
                                                             children=[
                                                                 html.P("No flooding notice at the moment", style={
                                                                     "color": "#999",
-                                                                    "fontSize": "12px"
+                                                                    "fontSize": "0.75rem"
                                                                 })
                                                             ]
                                                         )
@@ -401,8 +407,8 @@ app.layout = html.Div(
                                             id="main-traffic-incidents-container",
                                             style={
                                                 "backgroundColor": "#4a5a6a",
-                                                "borderRadius": "8px",
-                                                "padding": "10px",
+                                                "borderRadius": "0.5rem",
+                                                "padding": "0.625rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
                                                 "overflow": "hidden",
@@ -412,9 +418,9 @@ app.layout = html.Div(
                                                     "🚦 Traffic Incidents",
                                                     style={
                                                         "color": "#FF9800",
-                                                        "margin": "0 0 5px 0",
+                                                        "margin": "0 0 0.3125rem 0",
                                                         "fontWeight": "600",
-                                                        "fontSize": "13px"
+                                                        "fontSize": "0.8125rem"
                                                     }
                                                 ),
                                                 html.Div(
@@ -428,7 +434,7 @@ app.layout = html.Div(
                                                     children=[
                                                         html.P("Loading...", style={
                                                             "color": "#999",
-                                                            "fontSize": "12px"
+                                                            "fontSize": "0.75rem"
                                                         })
                                                     ]
                                                 )
@@ -441,8 +447,8 @@ app.layout = html.Div(
                                     id="taxi-count-section",
                                     style={
                                         "backgroundColor": "#2c3e50",
-                                        "borderRadius": "5px",
-                                        "padding": "8px 10px",
+                                        "borderRadius": "0.3125rem",
+                                        "padding": "0.5rem 0.625rem",
                                         "flexShrink": "0",
                                     },
                                     children=[
@@ -450,16 +456,16 @@ app.layout = html.Div(
                                             "Registered Taxis on Ground",
                                             style={
                                                 "textAlign": "center",
-                                                "margin": "0 0 8px 0",
+                                                "margin": "0 0 0.5rem 0",
                                                 "color": "#fff",
                                                 "fontWeight": "700",
-                                                "fontSize": "14px",
+                                                "fontSize": "0.875rem",
                                             }
                                         ),
                                         html.Div(
                                             id="taxi-count-content",
                                             children=[
-                                                html.P("Loading...", style={"textAlign": "center", "color": "#999", "fontSize": "12px"})
+                                                html.P("Loading...", style={"textAlign": "center", "color": "#999", "fontSize": "0.75rem"})
                                             ],
                                         ),
                                     ]
@@ -470,8 +476,8 @@ app.layout = html.Div(
                                     style={
                                         "flex": "1",
                                         "backgroundColor": "#4a5a6a",
-                                        "borderRadius": "5px",
-                                        "padding": "6px",
+                                        "borderRadius": "0.3125rem",
+                                        "padding": "0.375rem",
                                         "display": "flex",
                                         "flexDirection": "column",
                                         "overflow": "hidden",
@@ -482,11 +488,11 @@ app.layout = html.Div(
                                             "Next 24-Hour Forecast",
                                             style={
                                                 "textAlign": "center",
-                                                "margin": "0 0 8px 0",
+                                                "margin": "0 0 0.5rem 0",
                                                 "color": "#fff",
                                                 "fontWeight": "700",
                                                 "flexShrink": "0",
-                                                "fontSize": "14px",
+                                                "fontSize": "0.875rem",
                                             }
                                         ),
                                         html.Div(
@@ -516,7 +522,7 @@ app.layout = html.Div(
                     style={
                         "display": "flex",
                         "justifyContent": "flex-end",
-                        "padding": "10px 20px",
+                        "padding": "0.625rem 1.25rem",
                         "width": "100%",
                     },
                     children=[
@@ -524,7 +530,7 @@ app.layout = html.Div(
                             html.Img(
                                 id="plotly-logo",
                                 src=r"../assets/dash-logo.png",
-                                style={"height": "30px"},
+                                style={"height": "1.875rem"},
                             ),
                             href="https://plotly.com/dash/",
                         ),
@@ -532,6 +538,10 @@ app.layout = html.Div(
                 ),
             ]
         ),
+                # Store for 2H forecast toggle state
+                dcc.Store(id="2h-forecast-toggle-state", data=False),
+                # Store for PSI locations toggle state
+                dcc.Store(id="psi-locations-toggle-state", data=False),
                 # Interval component to update images and weather periodically
                 dcc.Interval(
                     id='interval-component',
@@ -545,7 +555,34 @@ app.layout = html.Div(
 
 if __name__ == '__main__':
     logging.info(sys.version)
+    # Download HDB carpark data from initiate-download API on startup (only if file doesn't exist)
+    print("Checking HDB carpark data on startup...")
+    if download_hdb_carpark_csv(skip_if_exists=True):
+        # Check if file was actually downloaded (not skipped)
+        import os
+        csv_path = os.path.join(os.path.dirname(__file__), 'data', 'HDBCarparkInformation.csv')
+        if os.path.exists(csv_path):
+            # File exists - clear cache to ensure fresh data is loaded
+            print("HDB carpark data available (downloaded or already exists)")
+            clear_carpark_locations_cache()
+        else:
+            print("HDB carpark data file not found after download attempt")
+    else:
+        print("Warning: Failed to download HDB carpark data. Using existing CSV file if available.")
 
+    # Download speed camera data from initiate-download API on startup (only if file doesn't exist)
+    print("Checking speed camera data on startup...")
+    if download_speed_camera_csv(skip_if_exists=True):
+        print("Speed camera data available (downloaded or already exists)")
+    else:
+        print("Warning: Failed to download speed camera data. Using existing CSV file if available.")
+
+    # Initialize OneMap API token on application startup
+    print("Initializing OneMap API authentication...")
+    if initialize_onemap_token():
+        print("OneMap API token initialized successfully")
+    else:
+        print("Warning: Failed to initialize OneMap API token. Some features may not work.")
     # Enable hot reloading to capture latest changes in code
     # If running locally in Anaconda env:
     if "conda-forge" in sys.version:
