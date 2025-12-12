@@ -25,6 +25,16 @@ _carpark_executor = ThreadPoolExecutor(max_workers=5)
 CARPARK_AVAILABILITY_URL = "https://api.data.gov.sg/v1/transport/carpark-availability"
 
 
+def clear_carpark_locations_cache():
+    """
+    Clear the cached carpark locations data.
+    This should be called when the CSV file is updated.
+    """
+    global _carpark_locations_cache
+    _carpark_locations_cache = None
+    print("Carpark locations cache cleared")
+
+
 def load_carpark_locations() -> pd.DataFrame:
     """
     Load carpark locations from CSV with SVY21 coordinates.

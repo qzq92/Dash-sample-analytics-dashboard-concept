@@ -10,30 +10,11 @@ import re
 from dash import Input, Output, State, html
 import dash_leaflet as dl
 from utils.async_fetcher import fetch_url
+from utils.data_download_helper import fetch_erp_gantry_data, fetch_pub_cctv_data
 
 # API URLs
 TAXI_API_URL = "https://api.data.gov.sg/v1/transport/taxi-availability"
 TRAFFIC_IMAGES_API_URL = "https://api.data.gov.sg/v1/transport/traffic-images"
-ERP_GANTRY_DATASET_ID = "d_753090823cc9920ac41efaa6530c5893"
-# ERP_GANTRY_API_URL uses initiate-download endpoint to get download URL
-ERP_GANTRY_API_URL = (
-    f"https://api-open.data.gov.sg/v1/public/api/datasets/"
-    f"{ERP_GANTRY_DATASET_ID}/initiate-download"
-)
-PUB_CCTV_DATASET_ID = "d_1de1c45043183bec57e762d01c636eee"
-# PUB_CCTV_API_URL uses initiate-download endpoint to get download URL
-PUB_CCTV_API_URL = (
-    f"https://api-open.data.gov.sg/v1/public/api/datasets/"
-    f"{PUB_CCTV_DATASET_ID}/initiate-download"
-)
-
-# Cache for ERP gantry data (static dataset downloaded from S3, cache for 24 hours)
-_erp_gantry_cache = {'data': None, 'timestamp': 0}
-ERP_GANTRY_CACHE_TTL = 24 * 60 * 60  # 24 hours in seconds
-
-# Cache for PUB CCTV data (static dataset downloaded from S3, cache for 24 hours)
-_pub_cctv_cache = {'data': None, 'timestamp': 0}
-PUB_CCTV_CACHE_TTL = 24 * 60 * 60  # 24 hours in seconds
 
 
 def fetch_taxi_availability():
@@ -412,66 +393,7 @@ def format_cctv_count_display(camera_data):
     )
 
 
-def fetch_erp_gantry_data():
-    """
-    Fetch ERP gantry GeoJSON data using initiate-download API endpoint.
-    
-    The initiate-download endpoint returns a download URL which is then used to fetch
-    the actual GeoJSON file. Since this is a static dataset, the data is cached for
-    24 hours to avoid redundant downloads.
-    
-    Returns:
-        Dictionary containing GeoJSON data or None if error
-    """
-    import time
-    global _erp_gantry_cache
-
-    current_time = time.time()
-
-    # Check if cache is valid (24 hours)
-    if (_erp_gantry_cache['data'] is not None and
-            current_time - _erp_gantry_cache['timestamp'] < ERP_GANTRY_CACHE_TTL):
-        print("Using cached ERP gantry data")
-        return _erp_gantry_cache['data']
-
-    # Step 1: Call initiate-download to get download URL
-    print(f"Initiating ERP gantry download: {ERP_GANTRY_API_URL}")
-    init_response = fetch_url(ERP_GANTRY_API_URL)
-    
-    
-    if init_response.get('code') != 0:
-        error_msg = init_response.get('errorMsg', 'Unknown error')
-        print(f"Failed to initiate ERP gantry download: {error_msg}")
-        return None
-
-    # Extract URL from response structure: {"code": 0, "data": {"url": "..."}}
-    data = init_response.get('data', {})
-    download_url = data.get('url')
-    
-    if not download_url:
-        print("No download URL in initiate-download response")
-        print(f"Response data: {data}")
-        return None
-
-    print(f"Download URL extracted successfully: {download_url[:80]}...")
-    print(f"Downloading ERP gantry GeoJSON from: {download_url[:80]}...")
-
-    # Step 2: Fetch the actual GeoJSON file from the extracted download URL
-    geojson_data = fetch_url(download_url)
-    
-    if not geojson_data:
-        print("Failed to download ERP gantry GeoJSON data from URL")
-        return None
-    
-    print("Successfully downloaded ERP gantry GeoJSON data")
-
-    # Update cache if successful
-    if geojson_data is not None:
-        _erp_gantry_cache['data'] = geojson_data
-        _erp_gantry_cache['timestamp'] = current_time
-        print("ERP gantry data cached successfully")
-
-    return geojson_data
+# fetch_erp_gantry_data is now imported from utils.data_download_helper
 
 
 def extract_gantry_number(description_html):
@@ -584,69 +506,7 @@ def create_erp_gantry_markers(gantry_data):
     return markers
 
 
-def fetch_pub_cctv_data():
-    """
-    Fetch PUB CCTV GeoJSON data using initiate-download API endpoint.
-    
-    The initiate-download endpoint returns a download URL which is then used to fetch
-    the actual GeoJSON file. Since this is a static dataset, the data is cached for
-    24 hours to avoid redundant downloads.
-    
-    Returns:
-        Dictionary containing GeoJSON data or None if error
-    """
-    import time
-    global _pub_cctv_cache
-
-    current_time = time.time()
-
-    # Check if cache is valid (24 hours)
-    if (_pub_cctv_cache['data'] is not None and
-            current_time - _pub_cctv_cache['timestamp'] < PUB_CCTV_CACHE_TTL):
-        print("Using cached PUB CCTV data")
-        return _pub_cctv_cache['data']
-
-    # Step 1: Call initiate-download to get download URL
-    print(f"Initiating PUB CCTV download: {PUB_CCTV_API_URL}")
-    init_response = fetch_url(PUB_CCTV_API_URL)
-    
-    if init_response is None:
-        print("Failed to initiate PUB CCTV download: No response")
-        return None
-    
-    if init_response.get('code') != 0:
-        error_msg = init_response.get('errorMsg', 'Unknown error')
-        print(f"Failed to initiate PUB CCTV download: {error_msg}")
-        return None
-
-    # Extract URL from response structure: {"code": 0, "data": {"url": "..."}}
-    data = init_response.get('data', {})
-    download_url = data.get('url')
-    
-    if not download_url:
-        print("No download URL in initiate-download response")
-        print(f"Response data: {data}")
-        return None
-
-    print(f"Download URL extracted successfully: {download_url[:80]}...")
-    print(f"Downloading PUB CCTV GeoJSON from: {download_url[:80]}...")
-
-    # Step 2: Fetch the actual GeoJSON file from the extracted download URL
-    geojson_data = fetch_url(download_url)
-    
-    if not geojson_data:
-        print("Failed to download PUB CCTV GeoJSON data from URL")
-        return None
-    
-    print("Successfully downloaded PUB CCTV GeoJSON data")
-
-    # Update cache if successful
-    if geojson_data is not None:
-        _pub_cctv_cache['data'] = geojson_data
-        _pub_cctv_cache['timestamp'] = current_time
-        print("PUB CCTV data cached successfully")
-
-    return geojson_data
+# fetch_pub_cctv_data is now imported from utils.data_download_helper
 
 
 def extract_cctv_info(description_html):
