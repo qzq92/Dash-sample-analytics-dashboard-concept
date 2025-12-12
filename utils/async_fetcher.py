@@ -46,7 +46,8 @@ def fetch_url(url: str, headers: Optional[Dict] = None, timeout: int = 10) -> Op
     
     try:
         response = requests.get(url, headers=headers, timeout=timeout)
-        if response.status_code == 200:
+        # Accept any 2xx status code as success (200 OK, 201 Created, etc.)
+        if 200 <= response.status_code < 300:
             return response.json()
         print(f"API request failed: {url} - status={response.status_code}")
     except (requests.exceptions.RequestException, ValueError) as error:
