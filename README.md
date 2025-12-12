@@ -8,13 +8,19 @@ All data are retrieved via API calls to data.gov.sg accessible [here](https://be
 1. **Weather Metrics**: Temperature, rainfall, relative humidity, and wind speed (V2 APIs)
 2. **Environmental Alerts**: Lightning observations and flood alerts
 3. **Exposure Indexes**: UV Index, WBGT (Wet-Bulb Globe Temperature), and PSI (Pollutant Standards Index) with multiple pollutants (PM2.5, PM10, SO₂, CO, O₃, NO₂)
-4. **Transportation**: 
+4. **Health Clusters**: 
+   - Zika cluster information (Data.gov.sg poll-download API)
+   - Dengue cluster information (Data.gov.sg poll-download API)
+5. **Transportation**: 
    - Bus stop locations (OneMap API)
-   - Carpark availability (HDB Carpark Availability API)
+   - Carpark availability (LTA DataMall CarParkAvailabilityv2 API)
+   - HDB carpark information (Data.gov.sg initiate-download API)
+   - Speed camera locations (Data.gov.sg initiate-download API)
    - Taxi availability (Data.gov.sg Taxi Availability API)
    - Traffic cameras (Data.gov.sg Traffic Images API)
    - ERP gantry locations (LTA Gantry GeoJSON dataset via Data.gov.sg initiate-download API)
-5. **Traffic**: Live traffic camera feeds at key locations
+   - PUB CCTV locations (Data.gov.sg initiate-download API)
+6. **Traffic**: Live traffic camera feeds at key locations
 
 For developers, please refer to the link [here](https://guide.data.gov.sg/developers) on possible deprecation and updates on API and other information.
 
@@ -27,80 +33,134 @@ This analytics dashboard provides real-time information on:
 
 ### Main Dashboard
 - **Average PSI Reading**: 24-hour average Pollutant Standards Index across all regions (calculated from regional averages)
-- **24-Hour Weather Forecast**: Temperature, humidity, wind, and rain forecast (reduced padding for optimized layout)
+- **24-Hour Weather Forecast**: Temperature, humidity, wind, and rain forecast
+- **Health Cluster Metrics**: Active Zika and Dengue cluster counts displayed side-by-side
+- **Transport Metrics**: Registered taxis on ground, CCTV cameras, ERP gantries, and PUB CCTV locations
 - **Interactive Map**: Search locations and view nearby facilities (search bar positioned above map)
+- **Map Toggle Controls**: 
+  - **📍 PSI Locations**: Toggle visibility of PSI markers on map
+  - **🌦️ Show 2H Forecast**: Toggle 2-hour weather forecast markers on map
 - **Nearby Facilities**: Top 5 nearest MRT stations, bus stops, and HDB carparks with availability
 - **Traffic Cameras**: Live CCTV feeds from land checkpoints
 - **Environmental Indicators**: Lightning detection and flood alert status with color-coded alerts
+- **Layout**: Optimized 3:5:2 column ratio (left panel : map : right panel) with minimal gaps
 
 ### Realtime Weather Metrics Page
 - **Live Weather Readings**: Temperature, rainfall, humidity, and wind speed from stations across Singapore
+  - Temperature displays average value in sub-div
+  - Lightning and flood readings display counts in sub-divs
+- **WBGT (Wet-Bulb Globe Temperature)**: Heat stress measurements across Singapore with color-coded risk levels
+  - Average WBGT value displayed in sub-div
+  - Separate card from flood readings
 - **Interactive Map**: Toggle visibility of different weather marker types
 - **Status Indicators**: Lightning and flood alert indicators with color-coded status
-- **2-Hour Weather Forecast**: Toggle button to show/hide 2-hour area forecasts with weather map
-  - Area forecasts displayed in grid format
-  - Weather icons plotted on map showing forecast conditions
-  - Updates automatically when section is visible
+- **View Sensor Location Tab**: Toggle visibility of weather sensor locations on map
+  - Separate toggles for Flood and WBGT sensor locations
 
-### Pollutant & Exposure Indexes Page
+### Health Related Hazard Clusters & Indexes Page
 - **UV Index**: Hourly trend visualization with line graph
-- **WBGT (Wet-Bulb Globe Temperature)**: Heat stress measurements across Singapore with color-coded risk levels
 - **Regional PSI Data**: Comprehensive pollutant readings including:
   - 24H Mean PSI, PM2.5, PM10, Sulphur Dioxide
   - 8H Mean Carbon Monoxide and Ozone
   - 1H Max Nitrogen Dioxide
-- **Interactive Map**: Regional pollutant data displayed as text boxes on map with:
+- **PSI Display Modes**: Toggle between map text boxes and detailed metrics table
+  - **Map View**: Regional pollutant data displayed as text boxes on map
+  - **Table View**: Comprehensive table showing all PSI metrics with grid lines
+- **Zika Clusters**: 
+  - Polygon visualization of active Zika clusters on map
+  - Toggle button: "Show Zika Cluster(s)" / "Don't Show Zika Cluster(s)"
+  - Cluster information extracted from GeoJSON properties
+- **Dengue Clusters**: 
+  - Polygon visualization of active Dengue clusters on map
+  - Toggle button: "Show Dengue Cluster(s)" / "Don't Show Dengue Cluster(s)"
+  - Cluster count displayed on main dashboard
+- **Interactive Map**: 
+  - Standardized zoom level and boundaries across all pages
   - Average PSI value and category in region title
   - Color-coded pollutant values (PM values on left, others on right)
   - Full pollutant legend with color categories and thresholds
   - PSI color legend showing all risk levels
+- **Toggle Controls**: All toggle buttons (PSI display mode, Zika clusters, Dengue clusters) positioned above map
 - **Layout**: Optimized 2:6:2 ratio (indices panel : map : legend)
 
 ### Transport Info Page
 - **Taxi Availability**: Real-time taxi locations (4,500+ taxis) displayed as yellow markers on map
 - **Traffic Cameras**: CCTV camera locations with live feed popups showing traffic conditions
 - **ERP Gantries**: Electronic Road Pricing gantry locations displayed as red polylines on map
+- **PUB CCTV Locations**: Public Utilities Board CCTV camera locations
 - **Toggle Controls**: Show/hide each transport layer independently
+- **Metrics Display**: Count displays for taxis, CCTV cameras, ERP gantries, and PUB CCTV locations
+  - All metrics use responsive `rem` units for scalability
+  - Count displays fit within parent containers without overflow
 
 ## Application Structure
 
-The dashboard consists of 4 main pages accessible via tabs:
+The dashboard consists of 4 main pages accessible via tabs with glossy black-to-silver gradient styling:
 
-1. **🏠 Main Dashboard**: Overview with average PSI, weather forecast, nearby facilities, and interactive map
+1. **🏠 Main Dashboard**: Overview with average PSI, weather forecast, health cluster metrics, transport metrics, nearby facilities, and interactive map
+   - **2-Hour Weather Forecast**: Toggle button on main page to show/hide 2-hour weather predictions with map markers
+   - **PSI Locations**: Toggle button to show/hide PSI markers on map
 2. **📡 Realtime Weather Metrics**: Live temperature, rainfall, humidity, and wind speed readings across Singapore
-   - **2-Hour Weather Forecast**: Toggle button to show/hide detailed 2-hour weather predictions with map markers
-3. **📊 Pollutant & Exposure Indexes**: UV Index trends, WBGT heat stress, and comprehensive PSI pollutant data
-4. **🚌 Transport Info**: Taxi availability, traffic cameras, and ERP gantry locations
+   - **WBGT Readings**: Heat stress measurements with average value display
+   - **View Sensor Location Tab**: Toggle visibility of Flood and WBGT sensor locations
+3. **📊 Health Related Hazard Clusters & Indexes**: UV Index trends, comprehensive PSI pollutant data, Zika clusters, and Dengue clusters
+   - **PSI Display Modes**: Toggle between map text boxes and detailed metrics table
+   - **Zika/Dengue Clusters**: Toggle visibility of cluster polygons on map
+4. **🚌 Transport Info**: Taxi availability, traffic cameras, ERP gantry locations, and PUB CCTV locations
 
 ## Key Features
 
 ### Performance Optimizations
 - **Async API Fetching**: Uses ThreadPoolExecutor for parallel API calls, reducing load times
+  - Zika and Dengue cluster data fetched asynchronously
+  - Parallel coordinate processing for large cluster datasets (>10 features)
 - **Data Caching**: 
   - PSI data cached for 60 seconds to minimize redundant API requests
   - ERP gantry data cached for 24 hours (static dataset)
+  - Dataset caches for initiate-download API endpoints
 - **Efficient Map Rendering**: Automatic map resize handling when switching between tabs and toggling sections
 - **Conditional Data Fetching**: 2H weather forecast only fetches data when section is visible
+- **Startup Data Downloads**: 
+  - HDB carpark information downloaded on startup (only if file doesn't exist)
+  - Speed camera locations downloaded on startup (only if file doesn't exist)
+  - Data stored in `data/` directory as CSV files
 
 ### Interactive Maps
-- **Multi-layer Support**: Toggle visibility of different data layers (weather markers, transport facilities, taxis, cameras, ERP gantries)
-- **Location Search**: Search for any address in Singapore with autocomplete
+- **Multi-layer Support**: Toggle visibility of different data layers (weather markers, transport facilities, taxis, cameras, ERP gantries, health clusters)
+- **Standardized Configuration**: Consistent zoom levels, center coordinates, and boundaries across all pages
+- **Location Search**: Search for any address in Singapore with autocomplete (white text on dark background)
 - **Real-time Updates**: Auto-refresh every 30-60 seconds for live data
 - **Custom Markers**: Color-coded markers and polylines for different data types
+- **Polygon Visualization**: Zika and Dengue clusters displayed as colored polygons on map
 
 ### Data Visualization
 - **UV Index Trends**: Line graph showing hourly UV index throughout the day
-- **Regional PSI Display**: Text boxes on map showing pollutant readings for each region
-  - Region title includes average PSI value and category
-  - Pollutant values color-coded based on WHO/EPA air quality standards
-  - Two-column layout: PM values (left) and other pollutants (right)
+- **Regional PSI Display**: 
+  - **Map View**: Text boxes on map showing pollutant readings for each region
+    - Region title includes average PSI value and category
+    - Pollutant values color-coded based on WHO/EPA air quality standards
+    - Two-column layout: PM values (left) and other pollutants (right)
+  - **Table View**: Comprehensive metrics table with grid lines showing all PSI values
+    - Reduced padding (2rem) for compact display
+    - All values displayed in organized grid format
+- **Health Cluster Visualization**: 
+  - Zika clusters displayed as polygons with cluster information
+  - Dengue clusters displayed as polygons with cluster counts
+  - Cluster data extracted from GeoJSON properties via HTML parsing
 - **Color-coded Risk Levels**: Visual indicators for air quality, heat stress, and environmental alerts
   - PSI categories: Good (green), Moderate (yellow), Unhealthy (orange), Very Unhealthy (red), Hazardous (purple)
   - Pollutant thresholds: Color-coded values for PM2.5, PM10, SO₂, CO, O₃, NO₂
 - **Comprehensive Legends**: 
   - PSI color categories legend with source attribution
   - Pollutant color categories table with thresholds and source attribution
+  - Legends fill vertical space of parent containers using flexbox
 - **Live Camera Feeds**: Embedded traffic camera images in map popups
+- **Responsive Styling**: All measurements use `rem` units for scalability across different screen sizes
+- **Modern UI Design**:
+  - Glossy navigation tabs with black-to-silver linear gradient (top to bottom)
+  - Active tabs feature vibrant gradient colors (purple-blue gradient)
+  - Consistent styling across all interactive elements
+  - White text on dark backgrounds for improved readability
 
 ## Screenshots of app
 
@@ -108,9 +168,9 @@ The dashboard consists of 4 main pages accessible via tabs:
 ![Main Page](assets/img/main_page.jpg)
 *The main dashboard showing real-time weather metrics with interactive map markers, indicators for lightning and flood alerts, average PSI reading, and nearby transportation information.*
 
-### Pollutant & Exposure Indexes Page
-![Pollutant & Exposure Indexes](assets/img/pollutant_exp_index.jpg)
-*Displays UV Index hourly trends, WBGT heat stress measurements, and regional PSI values with color-coded risk levels across Singapore's five regions (North, South, East, West, Central).*
+### Health Related Hazard Clusters & Indexes Page
+![Health Related Hazard Clusters & Indexes](assets/img/pollutant_exp_index.jpg)
+*Displays UV Index hourly trends, regional PSI values with color-coded risk levels across Singapore's five regions (North, South, East, West, Central), Zika cluster polygons, and Dengue cluster polygons. Features toggle controls for PSI display mode (map vs. table), Zika clusters, and Dengue clusters positioned above the map.*
 
 ## Built with following:
 * [Dash](https://dash.plot.ly/) - Main server and interactive components 
@@ -127,15 +187,22 @@ Please refer to the provided link for more information
   - Environmental alerts: Lightning observations, flood alerts
   - Exposure indexes: UV Index, WBGT, PSI with pollutants
   - Transport data: Taxi availability, traffic camera images
+  - Health clusters: Zika and Dengue cluster information via poll-download API
 * [LTA DataMall API Access](https://datamall.lta.gov.sg/content/datamall/en.html) - Transportation related data
+  - Carpark availability: CarParkAvailabilityv2 API endpoint
+  - Requires LTA DataMall API key
 * [OneMap API](https://www.onemap.gov.sg/apidocs/) - Geospatial services:
   - Location search and geocoding
   - Nearby transport facilities (bus stops, MRT stations)
-  - Map tiles for visualization
-* [HDB Carpark Availability API](https://data.gov.sg/datasets?query=carpark) - Real-time carpark lot availability
-* [LTA Gantry GeoJSON Dataset](https://data.gov.sg/datasets/d_753090823cc9920ac41efaa6530c5893/view) - ERP gantry locations
-  - Accessed via Data.gov.sg initiate-download API endpoint
-  - Dataset ID: `d_753090823cc9920ac41efaa6530c5893`
+  - Map tiles for visualization (Night theme)
+* [Data.gov.sg Initiate-Download API](https://api-open.data.gov.sg/v1/public/api/datasets/) - Dataset downloads:
+  - HDB Carpark Information: Dataset ID `d_23f946fa557947f93a8043bbef41dd09`
+  - Speed Camera Locations: Dataset ID `d_983804de2bc016f53e44031d85d1ec8a`
+  - ERP Gantry Locations: Dataset ID `d_753090823cc9920ac41efaa6530c5893`
+  - PUB CCTV Locations: Dataset ID `d_1de1c45043183bec57e762d01c636eee`
+* [Data.gov.sg Poll-Download API](https://api-open.data.gov.sg/v1/public/api/datasets/) - Health cluster data:
+  - Zika Clusters: Dataset ID `d_a3c783f11d79ff7feb8856f762ccf2c5`
+  - Dengue Clusters: Dataset ID `d_dbfabf16158d1b0e1c420627c0819168`
 
 ## Requirements
 
@@ -175,11 +242,14 @@ All required packages will be installed, and the app will be able to run.
 Create a `.env` file in the root directory with the following API keys:
 
 ```env
-# Data.gov.sg API key (required for weather, PSI, taxi, and traffic camera data)
+# Data.gov.sg API key (required for weather, PSI, taxi, traffic camera, and health cluster data)
 DATA_GOV_API=your_data_gov_api_key_here
 
 # OneMap API key (required for location search and nearby facilities)
 ONEMAP_API_KEY=your_onemap_api_key_here
+
+# LTA DataMall API key (required for carpark availability)
+LTA_API_KEY=your_lta_api_key_here
 ```
 
 ### Getting API Keys
@@ -187,12 +257,17 @@ ONEMAP_API_KEY=your_onemap_api_key_here
 1. **Data.gov.sg API Key**: 
    - Sign up at [Data.gov.sg](https://beta.data.gov.sg/)
    - Navigate to your account settings to generate an API key
-   - Required for: Weather data, PSI, UV Index, WBGT, taxi availability, traffic cameras
+   - Required for: Weather data, PSI, UV Index, WBGT, taxi availability, traffic cameras, Zika/Dengue clusters
 
 2. **OneMap API Key**:
    - Register at [OneMap](https://www.onemap.gov.sg/)
    - Generate an API key from your account dashboard
    - Required for: Location search, nearby bus stops, MRT stations
+
+3. **LTA DataMall API Key**:
+   - Register at [LTA DataMall](https://datamall.lta.gov.sg/content/datamall/en.html)
+   - Generate an API key from your account dashboard
+   - Required for: Real-time carpark availability (CarParkAvailabilityv2 API)
 
 ## Using this application
 
@@ -203,12 +278,16 @@ python app.py
 Open http://0.0.0.0:8050/ in your browser, you will see an interactive dashboard.
 
 The application will automatically:
+- Download HDB carpark information on startup (if `data/HDBCarparkInformation.csv` doesn't exist)
+- Download speed camera locations on startup (if `data/speed_camera.csv` doesn't exist)
 - Initialize OneMap API authentication on startup
 - Fetch and cache data from various APIs
 - Update displays every 30-60 seconds
 - Handle map resizing when switching tabs and toggling sections
 - Apply color coding to pollutant values based on air quality standards
 - Display comprehensive legends for PSI and pollutant categories with source attribution
+- Fetch Zika and Dengue cluster data asynchronously for optimal performance
+- Process cluster coordinates in parallel for large datasets
 
 ## Other miscellaneous information
 
