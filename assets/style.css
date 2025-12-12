@@ -254,77 +254,77 @@ html, body, #root {
   line-height: 1.25rem;
 }
 
-/* Input search dropdown: white background with black text */
+/* Input search dropdown: dark background with white text */
 #input_search .Select-control,
 #input_search .is-open .Select-control,
 #input_search .Select-menu-outer,
 #input_search .Select-option,
 #input_search .Select-placeholder,
 #input_search .Select-value-label {
-  background-color: #ffffff !important;
-  color: #000000 !important;
+  background-color: #2a3a4a !important;
+  color: #ffffff !important;
 }
 
 #input_search .Select-input input {
-  color: #000000 !important;
+  color: #ffffff !important;
 }
 
 #input_search .Select-option.is-focused,
 #input_search .Select-option.is-selected {
-  background-color: #f0f0f0 !important;
-  color: #000000 !important;
+  background-color: #3a4a5a !important;
+  color: #ffffff !important;
 }
 
 #input_search .Select-control {
-  border: 1px solid #cccccc !important;
+  border: 0.0625rem solid #5a6a7a !important;
 }
 
-/* Force white background and black text for search input in all states */
+/* Force dark background and white text for search input in all states */
 #input_search .Select-control,
 #input_search.is-open .Select-control,
 #input_search .is-focused .Select-control,
 #input_search.has-value .Select-control {
-  background-color: #ffffff !important;
-  color: #000000 !important;
+  background-color: #2a3a4a !important;
+  color: #ffffff !important;
 }
 
 /* Input typing area */
 #input_search .Select-input > input,
 #input_search .Select-input input[type="text"] {
-  background-color: #ffffff !important;
-  color: #000000 !important;
+  background-color: #2a3a4a !important;
+  color: #ffffff !important;
 }
 
 /* Placeholder and selected value label */
 #input_search .Select-placeholder,
 #input_search .Select-value-label {
-  background-color: #ffffff !important;
-  color: #000000 !important;
+  background-color: #2a3a4a !important;
+  color: #ffffff !important;
 }
 
 /* Dropdown menu and options */
 #input_search .Select-menu-outer,
 #input_search .Select-option {
-  background-color: #ffffff !important;
-  color: #000000 !important;
+  background-color: #2a3a4a !important;
+  color: #ffffff !important;
 }
 
 #input_search .Select-option.is-focused,
 #input_search .Select-option.is-selected {
-  background-color: #f0f0f0 !important;
-  color: #000000 !important;
+  background-color: #3a4a5a !important;
+  color: #ffffff !important;
 }
 
 /* Control border and arrow */
 #input_search .Select-control {
-  border: 1px solid #cccccc !important;
+  border: 0.0625rem solid #5a6a7a !important;
 }
 #input_search .Select-arrow,
 #input_search .Select-arrow-zone {
-  color: #000000 !important;
+  color: #ffffff !important;
 }
 
-/* Comprehensive white background overrides for search dropdown in ALL states */
+/* Comprehensive dark background overrides for search dropdown in ALL states */
 #input_search,
 #input_search .Select,
 #input_search .Select-control,
@@ -347,36 +347,36 @@ html, body, #root {
 #input_search.has-value.is-pseudo-focused.Select--single > .Select-control .Select-value,
 #input_search.has-value.Select--single > .Select-control .Select-value .Select-value-label,
 #input_search.has-value.is-pseudo-focused.Select--single > .Select-control .Select-value .Select-value-label {
-  background-color: #ffffff !important;
-  color: #000000 !important;
+  background-color: #2a3a4a !important;
+  color: #ffffff !important;
 }
 
 #input_search .Select-control,
 #input_search.has-value .Select-control,
 #input_search.is-focused .Select-control,
 #input_search.is-open .Select-control {
-  border: 1px solid #cccccc !important;
+  border: 0.0625rem solid #5a6a7a !important;
   box-shadow: none !important;
-  background-color: #ffffff !important;
+  background-color: #2a3a4a !important;
 }
 
 #input_search .Select-menu-outer {
-  border: 1px solid #cccccc !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important;
-  background-color: #ffffff !important;
+  border: 0.0625rem solid #5a6a7a !important;
+  box-shadow: 0 0.125rem 0.375rem rgba(0,0,0,0.3) !important;
+  background-color: #2a3a4a !important;
 }
 
 #input_search .Select-option.is-focused,
 #input_search .Select-option.is-selected {
-  background-color: #f2f2f2 !important;
-  color: #000000 !important;
+  background-color: #3a4a5a !important;
+  color: #ffffff !important;
 }
 
 #input_search .Select-value-icon,
 #input_search .Select-clear-zone,
 #input_search .Select-arrow {
   background-color: transparent !important;
-  color: #000000 !important;
+  color: #ffffff !important;
 }
 
 /* ============================================
