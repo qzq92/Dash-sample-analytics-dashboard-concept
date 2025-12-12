@@ -24,6 +24,41 @@ from callbacks.carpark_callback import register_carpark_callbacks
 from callbacks.tab_navigation_callback import register_tab_navigation_callback
 from callbacks.transport_callback import register_transport_callbacks
 from auth.onemap_api import initialize_onemap_token
+from utils.data_download_helper import (
+    download_hdb_carpark_csv,
+    download_speed_camera_csv,
+    clear_csv_files
+)
+from callbacks.carpark_callback import clear_carpark_locations_cache
+from mcp import initialize_mcp_server
+
+# Initialize MCP server for Singapore LTA data
+print("Initializing MCP server for Singapore LTA...")
+mcp_server_process = initialize_mcp_server()
+if mcp_server_process:
+    print("MCP server initialized successfully")
+else:
+    print("Warning: MCP server initialization failed or skipped")
+
+# Clear all CSV files in data directory before downloading
+print("Clearing existing CSV files from data directory...")
+clear_csv_files()
+
+# Download HDB carpark data from initiate-download API on startup
+print("Downloading HDB carpark data from initiate-download API...")
+if download_hdb_carpark_csv():
+    print("HDB carpark data downloaded successfully")
+    # Clear cache so new data will be loaded
+    clear_carpark_locations_cache()
+else:
+    print("Warning: Failed to download HDB carpark data. Using existing CSV file if available.")
+
+# Download speed camera data from initiate-download API on startup
+print("Downloading speed camera data from initiate-download API...")
+if download_speed_camera_csv():
+    print("Speed camera data downloaded successfully")
+else:
+    print("Warning: Failed to download speed camera data. Using existing CSV file if available.")
 
 # Initialize OneMap API token on application startup
 print("Initializing OneMap API authentication...")
