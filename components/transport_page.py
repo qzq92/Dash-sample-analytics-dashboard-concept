@@ -84,7 +84,7 @@ def transport_page():
                                         },
                                         children=[
                                             html.H5(
-                                                "🚕 Taxi Availability",
+                                                "🚕 Taxi Locations",
                                                 style={
                                                     "margin": "0",
                                                     "color": "#fff",
@@ -297,7 +297,7 @@ def transport_page():
                                         },
                                         children=[
                                             html.H5(
-                                                "📹 PUB CCTV",
+                                                "📹 PUB CCTV Locations (no live feed)",
                                                 style={
                                                     "margin": "0",
                                                     "color": "#fff",
