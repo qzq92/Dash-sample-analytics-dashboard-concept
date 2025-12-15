@@ -139,7 +139,7 @@ def format_metadata_text(metadata_dict, camera_id):
         camera_id: Camera ID to get metadata for
 
     Returns:
-        Formatted metadata string
+        Formatted metadata string with camera ID, lat/lon, and datetime
     """
     try:
         if not metadata_dict or camera_id not in metadata_dict:
@@ -147,22 +147,42 @@ def format_metadata_text(metadata_dict, camera_id):
 
         camera_meta = metadata_dict[camera_id]
         timestamp = camera_meta.get('timestamp', 'N/A')
+        lat = camera_meta.get('lat')
+        lon = camera_meta.get('lon')
 
         location = "Causeway" if camera_id=="2701" else "Second Link"
 
         # Format timestamp (assuming ISO format like "2024-01-01T12:00:00+08:00")
-        try:
-            from datetime import datetime
-            if isinstance(timestamp, str):
-                # Try to parse and format the timestamp
-                dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
-            else:
-                formatted_time = str(timestamp)
-        except (ValueError, AttributeError):
-            formatted_time = str(timestamp)
+        formatted_time = ""
+        if timestamp and timestamp != 'N/A':
+            try:
+                if isinstance(timestamp, str):
+                    # Try to parse and format the timestamp
+                    parsed_datetime = dt_module.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    formatted_time = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    formatted_time = str(timestamp)
+            except (ValueError, AttributeError):
+                formatted_time = str(timestamp) if timestamp else ""
 
-        return f"Time: {formatted_time} {location}"
+        # Build metadata text
+        metadata_parts = []
+        
+        # Add camera ID as title
+        metadata_parts.append(f"Camera {camera_id}")
+        
+        # Add lat/lon if available
+        if lat is not None and lon is not None:
+            metadata_parts.append(f"(lat: {lat:.6f}, lon: {lon:.6f})")
+        
+        # Add datetime if available
+        if formatted_time:
+            metadata_parts.append(f"Time: {formatted_time}")
+        
+        # Add location
+        metadata_parts.append(location)
+
+        return " | ".join(metadata_parts)
     except (KeyError, AttributeError, TypeError, ValueError) as error:
         print(f"Error formatting metadata: {error}")
         return "Metadata unavailable"
