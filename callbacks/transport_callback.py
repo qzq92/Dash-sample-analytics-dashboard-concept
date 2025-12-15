@@ -7,6 +7,7 @@ References:
 - PUB CCTV: https://data.gov.sg/datasets/d_1de1c45043183bec57e762d01c636eee/view
 """
 import re
+from datetime import datetime as dt_module
 from dash import Input, Output, State, html
 import dash_leaflet as dl
 from utils.async_fetcher import fetch_url
@@ -122,9 +123,8 @@ def format_taxi_count_display(data):
     if timestamp:
         # Parse and format timestamp (e.g., "2025-12-10T20:58:46+08:00")
         try:
-            from datetime import datetime
-            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+            parsed_datetime = dt_module.fromisoformat(timestamp.replace('Z', '+00:00'))
+            formatted_time = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
         except (ValueError, TypeError):
             formatted_time = timestamp
     else:
@@ -250,9 +250,62 @@ def create_cctv_markers(camera_data):
         lat = info.get('lat')
         lon = info.get('lon')
         image_url = info.get('image_url', '')
+        timestamp = info.get('timestamp', '')
         
         if lat is None or lon is None:
             continue
+
+        # Format timestamp if available
+        datetime_text = ""
+        if timestamp:
+            try:
+                if isinstance(timestamp, str):
+                    # Try to parse and format the timestamp
+                    parsed_datetime = dt_module.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    datetime_text = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    datetime_text = str(timestamp)
+            except (ValueError, AttributeError):
+                datetime_text = str(timestamp) if timestamp else ""
+
+        # Create popup content
+        popup_children = [
+            html.Strong(
+                f"Camera {camera_id}",
+                style={"fontSize": "14px"}
+            ),
+            html.Br(),
+        ]
+        
+        # Add lat/lon on next line
+        if lat is not None and lon is not None:
+            popup_children.append(
+                html.Div(
+                    f"(lat: {lat:.6f}, lon: {lon:.6f})",
+                    style={"fontSize": "12px", "color": "#888", "marginTop": "4px"}
+                )
+            )
+        
+        # Add datetime if available
+        if datetime_text:
+            popup_children.append(
+                html.Div(
+                    f"Time: {datetime_text}",
+                    style={"fontSize": "12px", "color": "#888", "marginTop": "4px"}
+                )
+            )
+        
+        popup_children.append(
+            html.Img(
+                src=image_url,
+                style={
+                    "width": "280px",
+                    "height": "auto",
+                    "marginTop": "8px",
+                    "borderRadius": "4px",
+                }
+            )
+        )
 
         markers.append(
             dl.Marker(
@@ -261,22 +314,7 @@ def create_cctv_markers(camera_data):
                     dl.Tooltip(f"Camera {camera_id}"),
                     dl.Popup(
                         children=html.Div(
-                            [
-                                html.Strong(
-                                    f"Camera {camera_id}",
-                                    style={"fontSize": "14px"}
-                                ),
-                                html.Br(),
-                                html.Img(
-                                    src=image_url,
-                                    style={
-                                        "width": "280px",
-                                        "height": "auto",
-                                        "marginTop": "8px",
-                                        "borderRadius": "4px",
-                                    }
-                                ),
-                            ],
+                            popup_children,
                             style={"textAlign": "center"}
                         ),
                         maxWidth=320,
@@ -328,9 +366,8 @@ def format_cctv_count_display(camera_data):
     
     if timestamp:
         try:
-            from datetime import datetime
-            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+            parsed_datetime = dt_module.fromisoformat(timestamp.replace('Z', '+00:00'))
+            formatted_time = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
         except (ValueError, TypeError):
             formatted_time = timestamp
     else:
