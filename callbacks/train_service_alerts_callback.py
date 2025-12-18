@@ -1,0 +1,366 @@
+"""
+Callback functions for handling train service alerts from LTA DataMall API.
+Reference: https://datamall2.mytransport.sg/ltaodataservice/TrainServiceAlerts
+"""
+import os
+from dash import Input, Output, html
+from utils.async_fetcher import fetch_url, fetch_async
+
+
+TRAIN_SERVICE_ALERTS_URL = "https://datamall2.mytransport.sg/ltaodataservice/TrainServiceAlerts"
+
+
+def fetch_train_service_alerts():
+    """
+    Fetch train service alerts from LTA DataMall API.
+    
+    Returns:
+        Dictionary containing train service alerts data or None if error
+    """
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    return fetch_url(TRAIN_SERVICE_ALERTS_URL, headers)
+
+
+def fetch_train_service_alerts_async():
+    """
+    Fetch train service alerts asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    return fetch_async(TRAIN_SERVICE_ALERTS_URL, headers)
+
+
+def format_train_service_alerts(data):
+    """
+    Format train service alerts data for display.
+    
+    Args:
+        data: Dictionary containing train service alerts response from LTA API
+        
+    Returns:
+        HTML elements for displaying the alerts
+    """
+    if not data:
+        return html.P("Unable to fetch train service alerts", style={
+            "color": "#999",
+            "fontSize": "0.75rem"
+        })
+    
+    # Check status attribute - could be at top level or in value array
+    status = None
+    
+    # First check if status is at top level
+    if "Status" in data:
+        status = data.get("Status")
+    elif "status" in data:
+        status = data.get("status")
+    # Otherwise check in value array
+    elif "value" in data:
+        alerts = data.get("value", [])
+        if alerts and isinstance(alerts, list) and len(alerts) > 0:
+            # Check first alert for status
+            first_alert = alerts[0]
+            if isinstance(first_alert, dict):
+                status = first_alert.get("Status", first_alert.get("status"))
+    
+    # If status is 1, all services are operational
+    if status == 1:
+        return html.P("All train services are operational", style={
+            "color": "#4CAF50",
+            "fontSize": "0.75rem",
+            "fontWeight": "600"
+        })
+    
+    # If status is 2, extract line, direction, and stations
+    if status == 2:
+        # Extract from top level or from value array
+        line = data.get("Line", data.get("line", ""))
+        direction = data.get("Direction", data.get("direction", ""))
+        stations = data.get("Stations", data.get("stations", ""))
+        
+        # If not at top level, check value array
+        if not line and "value" in data:
+            alerts = data.get("value", [])
+            if alerts and isinstance(alerts, list) and len(alerts) > 0:
+                first_alert = alerts[0]
+                if isinstance(first_alert, dict):
+                    line = first_alert.get("Line", first_alert.get("line", ""))
+                    direction = first_alert.get("Direction", first_alert.get("direction", ""))
+                    stations = first_alert.get("Stations", first_alert.get("stations", ""))
+        
+        # Format the alert
+        alert_text_parts = []
+        if line:
+            alert_text_parts.append(f"Line: {line}")
+        if direction:
+            alert_text_parts.append(f"Direction: {direction}")
+        if stations:
+            alert_text_parts.append(f"Stations: {stations}")
+        
+        if alert_text_parts:
+            alert_text = " | ".join(alert_text_parts)
+            return html.Div(
+                style={
+                    "padding": "0.5rem",
+                    "backgroundColor": "#3a4a5a",
+                    "borderRadius": "4px",
+                    "borderLeft": "3px solid #ff4444"
+                },
+                children=[
+                    html.P(
+                        alert_text,
+                        style={
+                            "color": "#ff6666",
+                            "fontSize": "0.75rem",
+                            "margin": "0",
+                            "fontWeight": "500"
+                        }
+                    )
+                ]
+            )
+    
+    # Default: show operational if status not found or unexpected
+    return html.P("All train services are operational", style={
+        "color": "#4CAF50",
+        "fontSize": "0.75rem",
+        "fontWeight": "600"
+    })
+
+
+def format_mrt_line_operational_details(data):
+    """
+    Format MRT line operational details for display on transport page.
+    Shows status for each MRT line.
+    
+    Args:
+        data: Dictionary containing train service alerts response from LTA API
+        
+    Returns:
+        HTML elements displaying operational status for each MRT line
+    """
+    # Singapore MRT lines with official colors
+    mrt_lines = [
+        {"code": "NSL", "name": "North South Line", "color": "#E31937"},
+        {"code": "EWL", "name": "East West Line", "color": "#009645"},
+        {"code": "CCL", "name": "Circle Line", "color": "#FAE800"},
+        {"code": "DTL", "name": "Downtown Line", "color": "#005EC4"},
+        {"code": "NEL", "name": "North East Line", "color": "#9900AA"},
+        {"code": "TEL", "name": "Thomson-East Coast Line", "color": "#9D5B25"},
+    ]
+    
+    # LRT lines (all share grey color)
+    lrt_lines = [
+        {"code": "PGL", "name": "Punggol LRT", "color": "#808080"},
+        {"code": "SKL", "name": "Sengkang LRT", "color": "#808080"},
+        {"code": "BPL", "name": "Bukit Panjang LRT", "color": "#808080"},
+    ]
+    
+    # Extract alerts from API response
+    alerts = []
+    if data and isinstance(data, dict):
+        if "value" in data:
+            alerts = data.get("value", [])
+        elif isinstance(data, list):
+            alerts = data
+    
+    # Create a mapping of affected lines
+    affected_lines = {}
+    for alert in alerts:
+        if isinstance(alert, dict):
+            line = alert.get("Line", alert.get("line", ""))
+            status = alert.get("Status", alert.get("status", 1))
+            if line and status == 2:  # Status 2 means disruption
+                affected_lines[line.upper()] = {
+                    "direction": alert.get("Direction", alert.get("direction", "")),
+                    "stations": alert.get("Stations", alert.get("stations", ""))
+                }
+    
+    # Helper function to create line status display
+    def create_line_status_display(line_info, affected_lines_dict):
+        line_code = line_info["code"]
+        line_name = line_info["name"]
+        line_color = line_info["color"]
+        
+        # Check if this line has disruptions
+        is_disrupted = line_code in affected_lines_dict or any(
+            line_code in line.upper() for line in affected_lines_dict.keys()
+        )
+        
+        if is_disrupted:
+            disruption_info = affected_lines_dict.get(line_code, {})
+            direction = disruption_info.get("direction", "")
+            stations = disruption_info.get("stations", "")
+            
+            status_text = "⚠️ Disruption"
+            status_color = "#ff4444"
+            border_color = "#ff4444"
+            
+            details = []
+            if direction:
+                details.append(f"Direction: {direction}")
+            if stations:
+                details.append(f"Stations: {stations}")
+            
+            detail_text = " | ".join(details) if details else "Service disruption"
+        else:
+            status_text = "✓ Operational"
+            status_color = "#4CAF50"
+            border_color = line_color  # Use line color for border when operational
+            detail_text = "Normal service"
+        
+        return html.Div(
+            style={
+                "padding": "0.75rem",
+                "backgroundColor": "#3a4a5a",
+                "borderRadius": "0.375rem",
+                "borderLeft": f"4px solid {border_color}",
+                "marginBottom": "0.625rem",
+            },
+            children=[
+                html.Div(
+                    style={
+                        "display": "flex",
+                        "justifyContent": "space-between",
+                        "alignItems": "center",
+                        "marginBottom": "0.375rem",
+                    },
+                    children=[
+                        html.Span(
+                            line_name,
+                            style={
+                                "color": line_color,  # Use line color for text
+                                "fontWeight": "600",
+                                "fontSize": "0.8125rem",
+                            }
+                        ),
+                        html.Span(
+                            status_text,
+                            style={
+                                "color": status_color,
+                                "fontWeight": "600",
+                                "fontSize": "0.75rem",
+                            }
+                        ),
+                    ]
+                ),
+                html.P(
+                    detail_text,
+                    style={
+                        "color": "#ccc",
+                        "fontSize": "0.6875rem",
+                        "margin": "0",
+                        "lineHeight": "1.4",
+                    }
+                ),
+            ]
+        )
+    
+    # Create display for each MRT line
+    line_elements = []
+    for line_info in mrt_lines:
+        line_elements.append(create_line_status_display(line_info, affected_lines))
+    
+    # Create display for each LRT line
+    for line_info in lrt_lines:
+        line_elements.append(create_line_status_display(line_info, affected_lines))
+    
+    if not line_elements:
+        return html.P(
+            "Unable to load MRT line status",
+            style={
+                "color": "#999",
+                "fontSize": "0.75rem",
+                "textAlign": "center",
+            }
+        )
+    
+    return html.Div(children=line_elements)
+
+
+def register_train_service_alerts_callbacks(app):
+    """
+    Register callbacks for train service alerts.
+    
+    Args:
+        app: Dash app instance
+    """
+    @app.callback(
+        Output('train-service-alerts-status', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_train_service_alerts(n_intervals):
+        """
+        Update train service alerts periodically.
+        
+        Args:
+            n_intervals: Number of intervals (from dcc.Interval component)
+            
+        Returns:
+            Formatted HTML elements displaying train service alerts
+        """
+        try:
+            # Fetch train service alerts
+            data = fetch_train_service_alerts()
+            
+            # Format and return the alerts
+            return format_train_service_alerts(data)
+        except Exception as error:
+            print(f"Error updating train service alerts: {error}")
+            return html.P("Error loading train service alerts", style={
+                "color": "#ff4444",
+                "fontSize": "0.75rem"
+            })
+    
+    @app.callback(
+        Output('mrt-line-status-display', 'children'),
+        Input('transport-interval', 'n_intervals')
+    )
+    def update_mrt_line_operational_details(n_intervals):
+        """
+        Update MRT line operational details on transport page periodically.
+        
+        Args:
+            n_intervals: Number of intervals (from dcc.Interval component)
+            
+        Returns:
+            Formatted HTML elements displaying operational status for each MRT line
+        """
+        try:
+            # Fetch train service alerts
+            data = fetch_train_service_alerts()
+            
+            # Format and return the line details
+            return format_mrt_line_operational_details(data)
+        except Exception as error:
+            print(f"Error updating MRT line operational details: {error}")
+            return html.P(
+                "Error loading MRT line status",
+                style={
+                    "color": "#ff4444",
+                    "fontSize": "0.75rem",
+                    "textAlign": "center",
+                }
+            )
+
