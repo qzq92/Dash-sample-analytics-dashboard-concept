@@ -1832,7 +1832,7 @@ def register_weather_indices_callbacks(app):
         State('psi-locations-toggle-state', 'data')
     )
     def update_psi_locations_toggle_state(n_clicks, current_state):
-        """Update PSI locations toggle state in store."""
+        """Update Regional PSI Info toggle state in store."""
         if n_clicks is None or n_clicks == 0:
             return False
         return not current_state if current_state else True
@@ -1844,7 +1844,7 @@ def register_weather_indices_callbacks(app):
     )
     def toggle_psi_locations_button(n_clicks, current_state):
         """
-        Toggle PSI locations button label.
+        Toggle Regional PSI Info button label.
 
         Args:
             n_clicks: Number of button clicks
@@ -1855,14 +1855,14 @@ def register_weather_indices_callbacks(app):
         """
         if n_clicks is None or n_clicks == 0:
             # Default state: hidden
-            return "📍 PSI Locations"
+            return "📍 Regional PSI Info"
 
         # Toggle state
         is_visible = not current_state if current_state else True
 
         if is_visible:
-            return "📍 Hide PSI Locations"
-        return "📍 PSI Locations"
+            return "📍 Hide Regional PSI Info"
+        return "📍 Regional PSI Info"
 
 
 
