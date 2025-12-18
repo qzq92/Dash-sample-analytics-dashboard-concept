@@ -20,7 +20,6 @@ def train_service_alerts_component():
             "display": "flex",
             "flexDirection": "column",
             "gap": "8px",
-            "marginTop": "0.625rem",
         },
         children=[
             html.Div(
