@@ -13,6 +13,7 @@ from components.realtime_weather_page import realtime_weather_page
 from components.weather_indices_page import weather_indices_page
 from components.transport_page import transport_page
 from components.nearby_transport_page import nearby_transport_page
+from components.train_service_alerts_component import train_service_alerts_component
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
 from callbacks.weather_callback import register_weather_callbacks
@@ -23,6 +24,7 @@ from callbacks.busstop_callbacks import register_busstop_callbacks
 from callbacks.carpark_callback import register_carpark_callbacks
 from callbacks.tab_navigation_callback import register_tab_navigation_callback
 from callbacks.transport_callback import register_transport_callbacks
+from callbacks.train_service_alerts_callback import register_train_service_alerts_callbacks
 from auth.onemap_api import initialize_onemap_token
 from utils.data_download_helper import (
     download_hdb_carpark_csv,
@@ -50,6 +52,7 @@ register_mrt_callbacks(app)
 register_busstop_callbacks(app)
 register_carpark_callbacks(app)
 register_transport_callbacks(app)
+register_train_service_alerts_callbacks(app)
 register_tab_navigation_callback(app)
 
 # Dashboard app layout ------------------------------------------------------#
@@ -249,7 +252,7 @@ app.layout = html.Div(
                                     },
                                     children=[
                                         html.Button(
-                                            "📍 PSI Locations",
+                                            "📍 Regional PSI Info",
                                             id="toggle-psi-locations",
                                             n_clicks=0,
                                             style={
@@ -313,92 +316,180 @@ app.layout = html.Div(
                                         "marginBottom": "0.625rem",
                                     },
                                     children=[
-                                        # Lightning and Flood side by side
+                                        # Flood alert (as separate sibling container)
                                         html.Div(
+                                            id="main-flood-indicator-container",
                                             style={
+                                                "backgroundColor": "#4a5a6a",
+                                                "borderRadius": "8px",
+                                                "padding": "10px",
                                                 "display": "flex",
-                                                "flexDirection": "row",
-                                                "gap": "0.625rem",
-                                                "marginBottom": "0.625rem",
+                                                "flexDirection": "column",
+                                                "gap": "8px",
+                                                "flexShrink": "0",
+                                                "marginTop": "0.625rem",
                                             },
                                             children=[
-                                                # Lightning indicator
                                                 html.Div(
-                                                    id="main-lightning-indicator-container",
                                                     style={
-                                                        "backgroundColor": "#4a5a6a",
-                                                        "borderRadius": "0.5rem",
-                                                        "padding": "0.625rem",
                                                         "display": "flex",
-                                                        "flexDirection": "column",
-                                                        "overflow": "hidden",
-                                                        "flex": "1",
+                                                        "flexDirection": "row",
+                                                        "alignItems": "center",
+                                                        "justifyContent": "space-between",
                                                     },
                                                     children=[
-                                                        html.H5(
-                                                            "⚡ Lightning Alerts Reported Location(s) in last 5 minute",
+                                                        html.Span(
+                                                            "🌊 Number of latest flood alerts",
                                                             style={
-                                                                "color": "#FFD700",
-                                                                "margin": "0 0 0.3125rem 0",
+                                                                "color": "#fff",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "0.8125rem"
+                                                                "fontSize": "13px"
                                                             }
                                                         ),
                                                         html.Div(
-                                                            id="main-lightning-indicator",
-                                                            style={
-                                                                "flex": "1",
-                                                                "overflowY": "auto",
-                                                                "overflowX": "hidden",
-                                                                "minHeight": "0",
-                                                            },
+                                                            id="main-flood-indicator-summary",
                                                             children=[
-                                                                html.P("Loading...", style={
+                                                                html.Span("Loading...", style={
                                                                     "color": "#999",
-                                                                    "fontSize": "0.75rem"
+                                                                    "fontSize": "12px"
                                                                 })
-                                                            ]
-                                                        )
+                                                            ],
+                                                        ),
                                                     ]
                                                 ),
-                                                # Flood indicator
                                                 html.Div(
-                                                    id="main-flood-indicator-container",
+                                                    id="main-flood-indicator",
                                                     style={
-                                                        "backgroundColor": "#4a5a6a",
-                                                        "borderRadius": "0.5rem",
-                                                        "padding": "0.625rem",
-                                                        "display": "flex",
-                                                        "flexDirection": "column",
-                                                        "overflow": "hidden",
-                                                        "flex": "1",
+                                                        "display": "none",
+                                                        "backgroundColor": "#3a4a5a",
+                                                        "borderRadius": "5px",
+                                                        "padding": "10px",
+                                                        "maxHeight": "200px",
+                                                        "overflowY": "auto",
                                                     },
                                                     children=[
-                                                        html.H5(
-                                                            "🌊 Flood Alerts",
+                                                        html.Div(id="main-flood-indicator-content", children=[
+                                                            html.P("No flooding notice at the moment", style={
+                                                                "color": "#999",
+                                                                "fontSize": "12px",
+                                                                "textAlign": "center"
+                                                            })
+                                                        ])
+                                                    ]
+                                                )
+                                            ]
+                                        ),
+                                        # Lightning observations (as separate sibling container)
+                                        html.Div(
+                                            id="main-lightning-indicator-container",
+                                            style={
+                                                "backgroundColor": "#4a5a6a",
+                                                "borderRadius": "8px",
+                                                "padding": "10px",
+                                                "display": "flex",
+                                                "flexDirection": "column",
+                                                "gap": "8px",
+                                                "flexShrink": "0",
+                                                "marginTop": "0.625rem",
+                                            },
+                                            children=[
+                                                html.Div(
+                                                    style={
+                                                        "display": "flex",
+                                                        "flexDirection": "row",
+                                                        "alignItems": "center",
+                                                        "justifyContent": "space-between",
+                                                    },
+                                                    children=[
+                                                        html.Span(
+                                                            "⚡ Lightning observations (past 5 mins)",
                                                             style={
-                                                                "color": "#ff6b6b",
-                                                                "margin": "0 0 0.3125rem 0",
+                                                                "color": "#fff",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "0.8125rem"
+                                                                "fontSize": "13px"
                                                             }
                                                         ),
                                                         html.Div(
-                                                            id="main-flood-indicator",
-                                                            style={
-                                                                "flex": "1",
-                                                                "overflowY": "auto",
-                                                                "overflowX": "hidden",
-                                                                "minHeight": "0",
-                                                            },
+                                                            id="main-lightning-indicator-summary",
                                                             children=[
-                                                                html.P("No flooding notice at the moment", style={
+                                                                html.Span("Loading...", style={
                                                                     "color": "#999",
-                                                                    "fontSize": "0.75rem"
+                                                                    "fontSize": "12px"
                                                                 })
-                                                            ]
-                                                        )
+                                                            ],
+                                                        ),
                                                     ]
+                                                ),
+                                                html.Div(
+                                                    id="main-lightning-indicator",
+                                                    style={
+                                                        "display": "none",
+                                                        "backgroundColor": "#3a4a5a",
+                                                        "borderRadius": "5px",
+                                                        "padding": "10px",
+                                                        "maxHeight": "200px",
+                                                        "overflowY": "auto",
+                                                    },
+                                                    children=[
+                                                        html.Div(id="main-lightning-indicator-content", children=[
+                                                            html.P("Loading...", style={
+                                                                "color": "#999",
+                                                                "fontSize": "12px",
+                                                                "textAlign": "center"
+                                                            })
+                                                        ])
+                                                    ]
+                                                )
+                                            ]
+                                        ),
+                                        # 24-hour Weather forecast section (as separate sibling container)
+                                        html.Div(
+                                            id="weather-forecast-24h-section",
+                                            style={
+                                                "backgroundColor": "#4a5a6a",
+                                                "borderRadius": "8px",
+                                                "padding": "10px",
+                                                "display": "flex",
+                                                "flexDirection": "column",
+                                                "gap": "8px",
+                                                "flexShrink": "0",
+                                                "marginTop": "0.625rem",
+                                            },
+                                            children=[
+                                                html.Div(
+                                                    style={
+                                                        "display": "flex",
+                                                        "flexDirection": "row",
+                                                        "alignItems": "center",
+                                                        "justifyContent": "space-between",
+                                                        "flexShrink": "0",
+                                                    },
+                                                    children=[
+                                                        html.Span(
+                                                            "🌤️ Next 24-Hour Forecast",
+                                                            style={
+                                                                "color": "#fff",
+                                                                "fontWeight": "600",
+                                                                "fontSize": "13px"
+                                                            }
+                                                        ),
+                                                        html.Div(style={"flex": "1"}),  # Spacer
+                                                    ]
+                                                ),
+                                                html.Div(
+                                                    id="weather-24h-content",
+                                                    children=[
+                                                        html.P("Loading...", style={"textAlign": "center",  "color": "#999"})
+                                                    ],
+                                                    style={
+                                                        "flex": "1",
+                                                        "display": "flex",
+                                                        "alignItems": "center",
+                                                        "justifyContent": "center",
+                                                        "overflow": "hidden",
+                                                        "minHeight": "0",
+                                                        "minWidth": "0",
+                                                    }
                                                 ),
                                             ]
                                         ),
@@ -407,21 +498,32 @@ app.layout = html.Div(
                                             id="main-traffic-incidents-container",
                                             style={
                                                 "backgroundColor": "#4a5a6a",
-                                                "borderRadius": "0.5rem",
-                                                "padding": "0.625rem",
+                                                "borderRadius": "8px",
+                                                "padding": "10px",
                                                 "display": "flex",
                                                 "flexDirection": "column",
+                                                "gap": "8px",
                                                 "overflow": "hidden",
                                             },
                                             children=[
-                                                html.H5(
-                                                    "🚦 Traffic Incidents",
+                                                html.Div(
                                                     style={
-                                                        "color": "#FF9800",
-                                                        "margin": "0 0 0.3125rem 0",
-                                                        "fontWeight": "600",
-                                                        "fontSize": "0.8125rem"
-                                                    }
+                                                        "display": "flex",
+                                                        "flexDirection": "row",
+                                                        "alignItems": "center",
+                                                        "justifyContent": "space-between",
+                                                    },
+                                                    children=[
+                                                        html.Span(
+                                                            "🚦 Traffic incident/ traffic light issues",
+                                                            style={
+                                                                "color": "#fff",
+                                                                "fontWeight": "600",
+                                                                "fontSize": "13px"
+                                                            }
+                                                        ),
+                                                        html.Div(style={"flex": "1"}),  # Spacer
+                                                    ]
                                                 ),
                                                 html.Div(
                                                     id="main-traffic-incidents-indicator",
@@ -440,56 +542,42 @@ app.layout = html.Div(
                                                 )
                                             ]
                                         ),
-                                    ]
-                                ),
-                                # Taxi count section
-                                html.Div(
-                                    id="taxi-count-section",
-                                    style={
-                                        "backgroundColor": "#2c3e50",
-                                        "borderRadius": "0.3125rem",
-                                        "padding": "0.5rem 0.625rem",
-                                        "flexShrink": "0",
-                                    },
-                                    children=[
-                                        html.H5(
-                                            "Registered Taxis on Ground",
-                                            style={
-                                                "textAlign": "center",
-                                                "margin": "0 0 0.5rem 0",
-                                                "color": "#fff",
-                                                "fontWeight": "700",
-                                                "fontSize": "0.875rem",
-                                            }
-                                        ),
-                                        html.Div(
-                                            id="taxi-count-content",
-                                            children=[
-                                                html.P("Loading...", style={"textAlign": "center", "color": "#999", "fontSize": "0.75rem"})
-                                            ],
-                                        ),
+                                        # Train service alerts section (as child container)
+                                        train_service_alerts_component(),
                                     ]
                                 ),
                                 # Disease clusters count section (Dengue and Zika)
                                 html.Div(
                                     id="disease-clusters-section",
                                     style={
-                                        "backgroundColor": "#2c3e50",
-                                        "borderRadius": "0.3125rem",
-                                        "padding": "0.5rem 0.625rem",
+                                        "backgroundColor": "#4a5a6a",
+                                        "borderRadius": "8px",
+                                        "padding": "10px",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "gap": "8px",
                                         "flexShrink": "0",
                                         "marginTop": "0.625rem",
                                     },
                                     children=[
-                                        html.H5(
-                                            "Active Disease Clusters",
+                                        html.Div(
                                             style={
-                                                "textAlign": "center",
-                                                "margin": "0 0 0.5rem 0",
-                                                "color": "#fff",
-                                                "fontWeight": "700",
-                                                "fontSize": "0.875rem",
-                                            }
+                                                "display": "flex",
+                                                "flexDirection": "row",
+                                                "alignItems": "center",
+                                                "justifyContent": "space-between",
+                                            },
+                                            children=[
+                                                html.Span(
+                                                    "🦠 Active Disease Clusters",
+                                                    style={
+                                                        "color": "#fff",
+                                                        "fontWeight": "600",
+                                                        "fontSize": "13px"
+                                                    }
+                                                ),
+                                                html.Div(style={"flex": "1"}),  # Spacer
+                                            ]
                                         ),
                                         # Dengue and Zika cluster counts side by side
                                         html.Div(
@@ -499,10 +587,15 @@ app.layout = html.Div(
                                                 "gap": "0.625rem",
                                             },
                                             children=[
-                                                # Dengue cluster count (left)
+                                                # Dengue cluster count (left container)
                                                 html.Div(
+                                                    id="dengue-container",
                                                     style={
                                                         "flex": "1",
+                                                        "backgroundColor": "#4a1a1a",
+                                                        "borderRadius": "0.25rem",
+                                                        "padding": "0.5rem",
+                                                        "border": "0.125rem solid #cc3333",
                                                     },
                                                     children=[
                                                         html.P(
@@ -510,7 +603,7 @@ app.layout = html.Div(
                                                             style={
                                                                 "textAlign": "center",
                                                                 "margin": "0 0 0.25rem 0",
-                                                                "color": "#ff8800",
+                                                                "color": "#ff6666",
                                                                 "fontWeight": "600",
                                                                 "fontSize": "0.75rem",
                                                             }
@@ -518,15 +611,20 @@ app.layout = html.Div(
                                                         html.Div(
                                                             id="dengue-count-content",
                                                             children=[
-                                                                html.P("Loading...", style={"textAlign": "center", "color": "#999", "fontSize": "0.75rem"})
+                                                                html.P("Loading...", style={"textAlign": "center", "color": "#ccc", "fontSize": "0.75rem"})
                                                             ],
                                                         ),
                                                     ]
                                                 ),
-                                                # Zika cluster count (right)
+                                                # Zika cluster count (right container)
                                                 html.Div(
+                                                    id="zika-container",
                                                     style={
                                                         "flex": "1",
+                                                        "backgroundColor": "#5a1a1a",
+                                                        "borderRadius": "0.25rem",
+                                                        "padding": "0.5rem",
+                                                        "border": "0.125rem solid #ff3333",
                                                     },
                                                     children=[
                                                         html.P(
@@ -542,54 +640,12 @@ app.layout = html.Div(
                                                         html.Div(
                                                             id="zika-count-content",
                                                             children=[
-                                                                html.P("Loading...", style={"textAlign": "center", "color": "#999", "fontSize": "0.75rem"})
+                                                                html.P("Loading...", style={"textAlign": "center", "color": "#ccc", "fontSize": "0.75rem"})
                                                             ],
                                                         ),
                                                     ]
                                                 ),
                                             ]
-                                        ),
-                                    ]
-                                ),
-                                # 24-hour Weather forecast section (bottom)
-                                html.Div(
-                                    id="weather-forecast-24h-section",
-                                    style={
-                                        "flex": "1",
-                                        "backgroundColor": "#4a5a6a",
-                                        "borderRadius": "0.3125rem",
-                                        "padding": "0.375rem",
-                                        "display": "flex",
-                                        "flexDirection": "column",
-                                        "overflow": "hidden",
-                                        "minHeight": "0",
-                                    },
-                                    children=[
-                                        html.H5(
-                                            "Next 24-Hour Forecast",
-                                            style={
-                                                "textAlign": "center",
-                                                "margin": "0 0 0.5rem 0",
-                                                "color": "#fff",
-                                                "fontWeight": "700",
-                                                "flexShrink": "0",
-                                                "fontSize": "0.875rem",
-                                            }
-                                        ),
-                                        html.Div(
-                                            id="weather-24h-content",
-                                            children=[
-                                                html.P("Loading...", style={"textAlign": "center",  "color": "#999"})
-                                            ],
-                                            style={
-                                                "flex": "1",
-                                                "display": "flex",
-                                                "alignItems": "center",
-                                                "justifyContent": "center",
-                                                "overflow": "hidden",
-                                                "minHeight": "0",
-                                                "minWidth": "0",
-                                            }
                                         ),
                                     ]
                                 ),
@@ -621,7 +677,7 @@ app.layout = html.Div(
         ),
                 # Store for 2H forecast toggle state
                 dcc.Store(id="2h-forecast-toggle-state", data=False),
-                # Store for PSI locations toggle state
+                # Store for Regional PSI Info toggle state
                 dcc.Store(id="psi-locations-toggle-state", data=False),
                 # Interval component to update images and weather periodically
                 dcc.Interval(
@@ -633,6 +689,9 @@ app.layout = html.Div(
         ),
     ]
 )
+
+# Expose server for Plotly Cloud deployment (gunicorn expects app:server)
+server = app.server
 
 if __name__ == '__main__':
     logging.info(sys.version)
