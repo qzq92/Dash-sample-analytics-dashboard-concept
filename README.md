@@ -19,7 +19,10 @@ All data are retrieved via API calls to data.gov.sg accessible [here](https://be
    - Taxi availability (Data.gov.sg Taxi Availability API)
    - Traffic cameras (Data.gov.sg Traffic Images API)
    - ERP gantry locations (LTA Gantry GeoJSON dataset via Data.gov.sg initiate-download API)
-   - PUB CCTV locations (Data.gov.sg initiate-download API)
+   - Traffic speed bands (LTA DataMall TrafficSpeedBands v4 API)
+   - Taxi stands (LTA DataMall TaxiStands API)
+   - MRT/LRT service alerts (LTA DataMall TrainServiceAlerts API)
+   - Faulty traffic lights (LTA DataMall FaultyTrafficLights API)
 6. **Traffic**: Live traffic camera feeds at key locations
 
 For developers, please refer to the link [here](https://guide.data.gov.sg/developers) on possible deprecation and updates on API and other information.
@@ -33,16 +36,22 @@ This analytics dashboard provides real-time information on:
 
 ### Main Dashboard
 - **Average PSI Reading**: 24-hour average Pollutant Standards Index across all regions (calculated from regional averages)
-- **24-Hour Weather Forecast**: Temperature, humidity, wind, and rain forecast
-- **Health Cluster Metrics**: Active Zika and Dengue cluster counts displayed side-by-side
-- **Transport Metrics**: Registered taxis on ground, CCTV cameras, ERP gantries, and PUB CCTV locations
+- **Meteorological Alerts Section**: 
+  - **Number of latest flood alerts**: Flood alert count and detailed information
+  - **Lightning observations (past 5 mins)**: Lightning detection count and location details
+  - **Next 24-Hour Forecast**: Temperature, humidity, wind, and rain forecast
+- **Traffic incident/ traffic light issues**: Traffic incidents and faulty traffic lights displayed in a grid format
+- **MRT/LRT service alerts**: Real-time train service status and disruptions
+- **Active Disease Clusters**: 
+  - **Dengue clusters**: Count displayed in red-themed container
+  - **Zika clusters**: Count displayed in red-themed container
 - **Interactive Map**: Search locations and view nearby facilities (search bar positioned above map)
 - **Map Toggle Controls**: 
-  - **📍 PSI Locations**: Toggle visibility of PSI markers on map
+  - **📍 Regional PSI Info**: Toggle visibility of PSI markers on map
   - **🌦️ Show 2H Forecast**: Toggle 2-hour weather forecast markers on map
 - **Nearby Facilities**: Top 5 nearest MRT stations, bus stops, and HDB carparks with availability
 - **Traffic Cameras**: Live CCTV feeds from land checkpoints
-- **Environmental Indicators**: Lightning detection and flood alert status with color-coded alerts
+- **Standardized Card Design**: All right panel containers use consistent card-like design with headers and collapsible content
 - **Layout**: Optimized 3:5:2 column ratio (left panel : map : right panel) with minimal gaps
 
 ### Realtime Weather Metrics Page
@@ -83,30 +92,39 @@ This analytics dashboard provides real-time information on:
 - **Toggle Controls**: All toggle buttons (PSI display mode, Zika clusters, Dengue clusters) positioned above map
 - **Layout**: Optimized 2:6:2 ratio (indices panel : map : legend)
 
-### Transport Info Page
+### Details on Transport Related Info Page
 - **Taxi Availability**: Real-time taxi locations (4,500+ taxis) displayed as yellow markers on map
 - **Traffic Cameras**: CCTV camera locations with live feed popups showing traffic conditions
 - **ERP Gantries**: Electronic Road Pricing gantry locations displayed as red polylines on map
-- **PUB CCTV Locations**: Public Utilities Board CCTV camera locations
+- **Traffic Speed Bands**: Real-time traffic speed data displayed as color-coded polylines on map
+  - Speed bands range from 1 (0-9 km/h, red) to 8 (70+ km/h, green)
+  - Speed band definitions displayed in information panel
+- **Taxi Stands**: Taxi stand locations with detailed information (name, barrier-free access, ownership, type)
+- **MRT/LRT Line Operational Status**: Real-time status for all MRT and LRT lines
+  - MRT lines displayed with official colors (NSL-red, EWL-green, CCL-yellow, DTL-blue, NEL-purple, TEL-brown)
+  - LRT lines (Punggol, Sengkang, Bukit Panjang) displayed in grey
+  - Operational status and disruption details for each line
 - **Toggle Controls**: Show/hide each transport layer independently
-- **Metrics Display**: Count displays for taxis, CCTV cameras, ERP gantries, and PUB CCTV locations
-  - All metrics use responsive `rem` units for scalability
-  - Count displays fit within parent containers without overflow
+- **Metrics Display**: Count displays and information panels for all transport metrics
+- **Zoomable Map**: Map supports zoom levels 10-19 for detailed exploration
 
 ## Application Structure
 
-The dashboard consists of 4 main pages accessible via tabs with glossy black-to-silver gradient styling:
+The dashboard consists of 5 main pages accessible via tabs with glossy black-to-silver gradient styling:
 
-1. **🏠 Main Dashboard**: Overview with average PSI, weather forecast, health cluster metrics, transport metrics, nearby facilities, and interactive map
+1. **🏠 Main Dashboard**: Overview with average PSI, meteorological alerts, traffic incidents, MRT/LRT service alerts, disease clusters, nearby facilities, and interactive map
    - **2-Hour Weather Forecast**: Toggle button on main page to show/hide 2-hour weather predictions with map markers
-   - **PSI Locations**: Toggle button to show/hide PSI markers on map
+   - **Regional PSI Info**: Toggle button to show/hide PSI markers on map
+   - **Standardized Card Design**: All right panel sections use consistent card-like design
 2. **📡 Realtime Weather Metrics**: Live temperature, rainfall, humidity, and wind speed readings across Singapore
    - **WBGT Readings**: Heat stress measurements with average value display
    - **View Sensor Location Tab**: Toggle visibility of Flood and WBGT sensor locations
 3. **📊 Health Related Hazard Clusters & Indexes**: UV Index trends, comprehensive PSI pollutant data, Zika clusters, and Dengue clusters
    - **PSI Display Modes**: Toggle between map text boxes and detailed metrics table
    - **Zika/Dengue Clusters**: Toggle visibility of cluster polygons on map
-4. **🚌 Transport Info**: Taxi availability, traffic cameras, ERP gantry locations, and PUB CCTV locations
+4. **Details on Transport Related Info**: Taxi availability, traffic cameras, ERP gantries, traffic speed bands, taxi stands, and MRT/LRT operational status
+   - **Zoomable Map**: Supports zoom levels 10-19 for detailed exploration
+5. **📍 Nearby Transportation & Parking**: Nearby bus stops, MRT/LRT stations, taxi stands, carparks, and bicycle parking
 
 ## Key Features
 
@@ -190,6 +208,10 @@ Please refer to the provided link for more information
   - Health clusters: Zika and Dengue cluster information via poll-download API
 * [LTA DataMall API Access](https://datamall.lta.gov.sg/content/datamall/en.html) - Transportation related data
   - Carpark availability: CarParkAvailabilityv2 API endpoint
+  - Traffic speed bands: TrafficSpeedBands v4 API endpoint
+  - Taxi stands: TaxiStands API endpoint
+  - Train service alerts: TrainServiceAlerts API endpoint
+  - Faulty traffic lights: FaultyTrafficLights API endpoint
   - Requires LTA DataMall API key
 * [OneMap API](https://www.onemap.gov.sg/apidocs/) - Geospatial services:
   - Location search and geocoding
@@ -199,7 +221,6 @@ Please refer to the provided link for more information
   - HDB Carpark Information: Dataset ID `d_23f946fa557947f93a8043bbef41dd09`
   - Speed Camera Locations: Dataset ID `d_983804de2bc016f53e44031d85d1ec8a`
   - ERP Gantry Locations: Dataset ID `d_753090823cc9920ac41efaa6530c5893`
-  - PUB CCTV Locations: Dataset ID `d_1de1c45043183bec57e762d01c636eee`
 * [Data.gov.sg Poll-Download API](https://api-open.data.gov.sg/v1/public/api/datasets/) - Health cluster data:
   - Zika Clusters: Dataset ID `d_a3c783f11d79ff7feb8856f762ccf2c5`
   - Dengue Clusters: Dataset ID `d_dbfabf16158d1b0e1c420627c0819168`
@@ -233,6 +254,7 @@ pip install -r requirements.txt
 - **pandas**: Data manipulation for carpark locations
 - **numpy**: Numerical operations for UV Index graphing
 - **concurrent.futures**: ThreadPoolExecutor for async API fetching
+- **gunicorn**: WSGI HTTP server for Plotly Cloud deployment
 
 All required packages will be installed, and the app will be able to run.
 
@@ -271,11 +293,21 @@ LTA_API_KEY=your_lta_api_key_here
 
 ## Using this application
 
+### Local Development
+
 Run this app locally by:
 ```
 python app.py
 ```
 Open http://0.0.0.0:8050/ in your browser, you will see an interactive dashboard.
+
+### Plotly Cloud Deployment
+
+The application is configured for Plotly Cloud deployment:
+- `gunicorn` is included in `requirements.txt`
+- `server = app.server` is exposed for WSGI compatibility
+- `app.run()` is conditional and only executes in local development mode
+- For deployment, use: `gunicorn app:server`
 
 The application will automatically:
 - Download HDB carpark information on startup (if `data/HDBCarparkInformation.csv` doesn't exist)
