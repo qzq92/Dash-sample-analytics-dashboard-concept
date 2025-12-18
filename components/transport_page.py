@@ -273,8 +273,9 @@ def transport_page():
                                     ),
                                 ]
                             ),
-                            # PUB CCTV section
+                            # Traffic Speed Band card
                             html.Div(
+                                id="speed-band-card",
                                 style={
                                     "flex": "1",
                                     "backgroundColor": "#2c3e50",
@@ -297,7 +298,7 @@ def transport_page():
                                         },
                                         children=[
                                             html.H5(
-                                                "📹 PUB CCTV Locations (no live feed)",
+                                                "🏎️ Traffic Speed Bands",
                                                 style={
                                                     "margin": "0",
                                                     "color": "#fff",
@@ -306,7 +307,7 @@ def transport_page():
                                             ),
                                             html.Button(
                                                 "Show on Map",
-                                                id="pub-cctv-toggle-btn",
+                                                id="speed-band-toggle-btn",
                                                 n_clicks=0,
                                                 style={
                                                     "backgroundColor": "#00BCD4",
@@ -321,9 +322,9 @@ def transport_page():
                                             ),
                                         ]
                                     ),
-                                    # PUB CCTV count display
+                                    # Speed band info/count display
                                     html.Div(
-                                        id="pub-cctv-count-display",
+                                        id="speed-band-display",
                                         style={
                                             "width": "100%",
                                             "boxSizing": "border-box",
@@ -331,7 +332,79 @@ def transport_page():
                                         },
                                         children=[
                                             html.P(
-                                                "Click 'Show on Map' to load CCTV locations",
+                                                "Click 'Show on Map' to load speed band information",
+                                                style={
+                                                    "color": "#999",
+                                                    "textAlign": "center",
+                                                    "padding": "1.25rem",
+                                                    "fontStyle": "italic",
+                                                    "fontSize": "0.75rem",
+                                                }
+                                            )
+                                        ]
+                                    ),
+                                ]
+                            ),
+                            # Taxi Stands card
+                            html.Div(
+                                id="taxi-stands-card",
+                                style={
+                                    "flex": "1",
+                                    "backgroundColor": "#2c3e50",
+                                    "borderRadius": "0.5rem",
+                                    "padding": "0.9375rem",
+                                    "minHeight": "6.25rem",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "overflow": "hidden",
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "justifyContent": "space-between",
+                                            "alignItems": "center",
+                                            "borderBottom": "0.0625rem solid #5a6a7a",
+                                            "paddingBottom": "0.625rem",
+                                            "marginBottom": "0.9375rem",
+                                        },
+                                        children=[
+                                            html.H5(
+                                                "🚕 Taxi Stands",
+                                                style={
+                                                    "margin": "0",
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                }
+                                            ),
+                                            html.Button(
+                                                "Show on Map",
+                                                id="taxi-stands-toggle-btn",
+                                                n_clicks=0,
+                                                style={
+                                                    "backgroundColor": "#FFD700",
+                                                    "border": "none",
+                                                    "borderRadius": "4px",
+                                                    "color": "#000",
+                                                    "cursor": "pointer",
+                                                    "padding": "6px 12px",
+                                                    "fontSize": "12px",
+                                                    "fontWeight": "600",
+                                                },
+                                            ),
+                                        ]
+                                    ),
+                                    # Taxi stands count display
+                                    html.Div(
+                                        id="taxi-stands-count-display",
+                                        style={
+                                            "width": "100%",
+                                            "boxSizing": "border-box",
+                                            "overflow": "hidden",
+                                        },
+                                        children=[
+                                            html.P(
+                                                "Click 'Show on Map' to load taxi stand locations",
                                                 style={
                                                     "color": "#999",
                                                     "textAlign": "center",
@@ -346,7 +419,7 @@ def transport_page():
                             ),
                         ]
                     ),
-                    # Right side: Map
+                    # Middle: Map
                     html.Div(
                         id="transport-map-panel",
                         style={
@@ -361,8 +434,8 @@ def transport_page():
                                 id="transport-map",
                                 center=sg_center,
                                 zoom=fixed_zoom,
-                                minZoom=fixed_zoom,
-                                maxZoom=fixed_zoom,
+                                minZoom=10,
+                                maxZoom=19,
                                 maxBounds=sg_bounds,
                                 maxBoundsViscosity=1.0,
                                 style={
@@ -380,11 +453,65 @@ def transport_page():
                                     dl.LayerGroup(id="taxi-markers"),
                                     dl.LayerGroup(id="cctv-markers"),
                                     dl.LayerGroup(id="erp-markers"),
-                                    dl.LayerGroup(id="pub-cctv-markers"),
+                                    dl.LayerGroup(id="speed-band-markers"),
+                                    dl.LayerGroup(id="taxi-stands-markers"),
                                 ],
                                 zoomControl=True,
                                 dragging=True,
                                 scrollWheelZoom=True,
+                            ),
+                        ]
+                    ),
+                    # Right side: MRT Line Operational Details
+                    html.Div(
+                        id="mrt-operational-details-panel",
+                        style={
+                            "flex": "1",
+                            "minWidth": "18.75rem",
+                            "maxWidth": "25rem",
+                            "backgroundColor": "#4a5a6a",
+                            "borderRadius": "0.5rem",
+                            "padding": "0.9375rem",
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "gap": "0.9375rem",
+                            "overflowY": "auto",
+                        },
+                        children=[
+                            html.Div(
+                                style={
+                                    "borderBottom": "0.0625rem solid #5a6a7a",
+                                    "paddingBottom": "0.625rem",
+                                    "marginBottom": "0.625rem",
+                                },
+                                children=[
+                                    html.H5(
+                                        "🚇 LRT/MRT Line Operational Status",
+                                        style={
+                                            "margin": "0",
+                                            "color": "#fff",
+                                            "fontWeight": "600",
+                                        }
+                                    ),
+                                ]
+                            ),
+                            html.Div(
+                                id="mrt-line-status-display",
+                                style={
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "0.625rem",
+                                },
+                                children=[
+                                    html.P(
+                                        "Loading MRT line status...",
+                                        style={
+                                            "color": "#999",
+                                            "textAlign": "center",
+                                            "fontSize": "0.75rem",
+                                        }
+                                    )
+                                ]
                             ),
                         ]
                     ),
@@ -394,7 +521,8 @@ def transport_page():
             dcc.Store(id="taxi-toggle-state", data=False),
             dcc.Store(id="cctv-toggle-state", data=False),
             dcc.Store(id="erp-toggle-state", data=False),
-            dcc.Store(id="pub-cctv-toggle-state", data=False),
+            dcc.Store(id="speed-band-toggle-state", data=False),
+            dcc.Store(id="taxi-stands-toggle-state", data=False),
             # Interval for auto-refresh
             dcc.Interval(
                 id='transport-interval',
