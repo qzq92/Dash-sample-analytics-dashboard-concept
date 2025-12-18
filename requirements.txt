@@ -10,3 +10,4 @@ pandas>=2.2.2
 pyproj>=3.6.0
 daal>=2021.4.0
 mcp>=1.23.0
+gunicorn>=21.2.0
