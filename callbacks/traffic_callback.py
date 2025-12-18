@@ -4,6 +4,7 @@ from typing import Union, Dict
 import base64
 import requests
 import numpy as np
+from datetime import datetime
 def api_query(api_link: str,  agent_id: str) -> Union[Dict,None]:
     """Function which executes query via an api link using a provided agent_id as an identifier to avoid rejection of query request
 
@@ -158,7 +159,7 @@ def format_metadata_text(metadata_dict, camera_id):
             try:
                 if isinstance(timestamp, str):
                     # Try to parse and format the timestamp
-                    parsed_datetime = dt_module.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    parsed_datetime = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                     formatted_time = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
                 else:
                     formatted_time = str(timestamp)
