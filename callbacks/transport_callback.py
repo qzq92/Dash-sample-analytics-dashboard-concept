@@ -7,11 +7,12 @@ References:
 - PUB CCTV: https://data.gov.sg/datasets/d_1de1c45043183bec57e762d01c636eee/view
 """
 import re
-from datetime import datetime as dt_module
+import os
+from datetime import datetime
 from dash import Input, Output, State, html
 import dash_leaflet as dl
 from utils.async_fetcher import fetch_url
-from utils.data_download_helper import fetch_erp_gantry_data, fetch_pub_cctv_data
+from utils.data_download_helper import fetch_erp_gantry_data
 
 # API URLs
 TAXI_API_URL = "https://api.data.gov.sg/v1/transport/taxi-availability"
@@ -123,7 +124,7 @@ def format_taxi_count_display(data):
     if timestamp:
         # Parse and format timestamp (e.g., "2025-12-10T20:58:46+08:00")
         try:
-            parsed_datetime = dt_module.fromisoformat(timestamp.replace('Z', '+00:00'))
+            parsed_datetime = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
             formatted_time = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
         except (ValueError, TypeError):
             formatted_time = timestamp
@@ -261,7 +262,7 @@ def create_cctv_markers(camera_data):
             try:
                 if isinstance(timestamp, str):
                     # Try to parse and format the timestamp
-                    parsed_datetime = dt_module.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    parsed_datetime = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                     datetime_text = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
                 else:
                     datetime_text = str(timestamp)
@@ -366,7 +367,7 @@ def format_cctv_count_display(camera_data):
     
     if timestamp:
         try:
-            parsed_datetime = dt_module.fromisoformat(timestamp.replace('Z', '+00:00'))
+            parsed_datetime = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
             formatted_time = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
         except (ValueError, TypeError):
             formatted_time = timestamp
@@ -556,165 +557,110 @@ def create_erp_gantry_markers(gantry_data):
 # fetch_pub_cctv_data is now imported from utils.data_download_helper
 
 
-def extract_cctv_info(description_html):
+def fetch_taxi_stands_data():
     """
-    Extract CCTV information from HTML description field.
-    
-    Args:
-        description_html: HTML string containing CCTV attributes
+    Fetch Taxi Stands data from LTA DataMall API asynchronously.
     
     Returns:
-        Dictionary with CCTV information (cctv_id, catchment, ref_name, hyperlink)
+        Dictionary containing taxi stands data or None if error
     """
-    if not description_html:
-        return {
-            'cctv_id': 'Unknown',
-            'catchment': 'Unknown',
-            'ref_name': 'Unknown',
-            'hyperlink': None
-        }
-
-    info = {
-        'cctv_id': 'Unknown',
-        'catchment': 'Unknown',
-        'ref_name': 'Unknown',
-        'hyperlink': None
+    taxi_stands_url = "https://datamall2.mytransport.sg/ltaodataservice/TaxiStands"
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
     }
-
-    # Extract CCTVID
-    match = re.search(r'<th>CCTVID</th>\s*<td>([^<]*)</td>', description_html)
-    if match:
-        info['cctv_id'] = match.group(1).strip()
-
-    # Extract CATCHMENT
-    match = re.search(r'<th>CATCHMENT</th>\s*<td>([^<]*)</td>', description_html)
-    if match:
-        info['catchment'] = match.group(1).strip()
-
-    # Extract REF_NAME
-    match = re.search(r'<th>REF_NAME</th>\s*<td>([^<]*)</td>', description_html)
-    if match:
-        info['ref_name'] = match.group(1).strip()
-
-    # Extract HYPERLINK
-    match = re.search(r'<th>HYPERLINK</th>\s*<td>([^<]*)</td>', description_html)
-    if match:
-        info['hyperlink'] = match.group(1).strip()
-
-    return info
+    
+    return fetch_url(taxi_stands_url, headers)
 
 
-def parse_pub_cctv_data(geojson_data):
+def create_taxi_stands_markers(taxi_stands_data):
     """
-    Parse PUB CCTV GeoJSON data.
+    Create map markers for Taxi Stand locations.
     
     Args:
-        geojson_data: GeoJSON FeatureCollection
-    
-    Returns:
-        List of dictionaries with CCTV information
-    """
-    cctvs = []
-
-    if not geojson_data or 'features' not in geojson_data:
-        return cctvs
-
-    features = geojson_data.get('features', [])
-
-    for feature in features:
-        properties = feature.get('properties', {})
-        geometry = feature.get('geometry', {})
-
-        if geometry.get('type') != 'Point':
-            continue
-
-        coordinates = geometry.get('coordinates', [])
-        if len(coordinates) < 2:
-            continue
-
-        # Extract CCTV info from description
-        description = properties.get('Description', '')
-        cctv_info = extract_cctv_info(description)
-        unique_id = properties.get('Name', '')
-
-        # Point coordinates are [lon, lat, z] in GeoJSON, convert to [lat, lon] for Leaflet
-        lon, lat = coordinates[0], coordinates[1]
-
-        cctvs.append({
-            'cctv_id': cctv_info['cctv_id'],
-            'catchment': cctv_info['catchment'],
-            'ref_name': cctv_info['ref_name'],
-            'hyperlink': cctv_info['hyperlink'],
-            'unique_id': unique_id,
-            'coordinates': [lat, lon],
-            'description': description,
-        })
-
-    return cctvs
-
-
-def create_pub_cctv_markers(cctv_data):
-    """
-    Create map markers for PUB CCTV locations.
-    
-    Args:
-        cctv_data: List of CCTV dictionaries
+        taxi_stands_data: Dictionary containing taxi stands response from LTA API
     
     Returns:
         List of dl.CircleMarker components
     """
+    if not taxi_stands_data:
+        return []
+
     markers = []
-
-    for cctv in cctv_data:
-        coords = cctv.get('coordinates', [])
-        cctv_id = cctv.get('cctv_id', 'Unknown')
-        ref_name = cctv.get('ref_name', 'Unknown')
-        catchment = cctv.get('catchment', 'Unknown')
-
-        if not coords or len(coords) < 2:
-            continue
-
-        # Create tooltip text
-        tooltip_text = f"PUB CCTV {cctv_id}"
-        if ref_name and ref_name != 'Unknown':
-            tooltip_text += f"\n{ref_name}"
-        if catchment and catchment != 'Unknown':
-            tooltip_text += f"\nCatchment: {catchment}"
-
-        # Create circle marker for CCTV location
-        markers.append(
-            dl.CircleMarker(
-                center=coords,
-                radius=6,
-                color="#00BCD4",
-                fill=True,
-                fillColor="#00BCD4",
-                fillOpacity=0.7,
-                weight=2,
-                children=[
-                    dl.Tooltip(tooltip_text),
-                ]
+    
+    # Extract taxi stands from response
+    stands = []
+    if isinstance(taxi_stands_data, dict):
+        if "value" in taxi_stands_data:
+            stands = taxi_stands_data.get("value", [])
+        elif isinstance(taxi_stands_data, list):
+            stands = taxi_stands_data
+    elif isinstance(taxi_stands_data, list):
+        stands = taxi_stands_data
+    
+    for stand in stands:
+        try:
+            latitude = float(stand.get('Latitude', 0))
+            longitude = float(stand.get('Longitude', 0))
+            taxi_code = stand.get('TaxiCode', 'N/A')
+            name = stand.get('Name', 'N/A')
+            bfa = stand.get('Bfa', 'N/A')
+            ownership = stand.get('Ownership', 'N/A')
+            stand_type = stand.get('Type', 'N/A')
+            
+            if latitude == 0 or longitude == 0:
+                continue
+            
+            # Create tooltip with bulleted points
+            tooltip_text = (
+                f"• Name: {taxi_code}({name})\n"
+                f"• Barrier Free: {bfa}\n"
+                f"• Owner: {ownership}\n"
+                f"• Type: {stand_type}"
             )
-        )
-
+            
+            markers.append(
+                dl.CircleMarker(
+                    center=[latitude, longitude],
+                    radius=6,
+                    color="#FFD700",
+                    fill=True,
+                    fillColor="#FFD700",
+                    fillOpacity=0.7,
+                    weight=2,
+                    children=[
+                        dl.Tooltip(tooltip_text),
+                    ]
+                )
+            )
+        except (ValueError, TypeError, KeyError):
+            continue
+            
     return markers
 
 
-def format_pub_cctv_count_display(cctv_data):
+def format_taxi_stands_count_display(taxi_stands_data):
     """
-    Format the PUB CCTV count display.
+    Format the Taxi Stands count display.
     
     Args:
-        cctv_data: List of CCTV dictionaries
+        taxi_stands_data: Dictionary containing taxi stands response from LTA API
     
     Returns:
-        HTML Div with CCTV count information
+        HTML Div with taxi stands count information
     """
-    if not cctv_data:
+    if not taxi_stands_data:
         return html.Div(
             [
                 html.P(
-                    "Error loading PUB CCTV data",
+                    "Error loading taxi stands data",
                     style={
                         "color": "#ff6b6b",
                         "textAlign": "center",
@@ -724,12 +670,22 @@ def format_pub_cctv_count_display(cctv_data):
                 )
             ]
         )
-
-    count = len(cctv_data)
+    
+    # Extract count from response
+    stands = []
+    if isinstance(taxi_stands_data, dict):
+        if "value" in taxi_stands_data:
+            stands = taxi_stands_data.get("value", [])
+        elif isinstance(taxi_stands_data, list):
+            stands = taxi_stands_data
+    elif isinstance(taxi_stands_data, list):
+        stands = taxi_stands_data
+    
+    count = len(stands)
     return html.Div(
         [
             html.P(
-                f"Total CCTV locations: {count}",
+                f"Total taxi stands: {count}",
                 style={
                     "color": "#fff",
                     "textAlign": "center",
@@ -741,6 +697,147 @@ def format_pub_cctv_count_display(cctv_data):
             )
         ]
     )
+
+
+def fetch_speed_band_data():
+    """
+    Fetch Traffic Speed Band data from LTA DataMall API.
+    
+    Returns:
+        Dictionary containing speed band data or None if error
+    """
+    speed_band_url = "https://datamall2.mytransport.sg/ltaodataservice/v4/TrafficSpeedBands"
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    return fetch_url(speed_band_url, headers)
+
+
+def create_speed_band_markers(speed_data):
+    """
+    Create map polylines for Traffic Speed Band locations.
+    
+    Args:
+        speed_data: List of speed band dictionaries
+    
+    Returns:
+        List of dl.Polyline components
+    """
+    if not speed_data:
+        return []
+
+    markers = []
+    
+    # Speed band colors based on range
+    band_colors = {
+        '1': "#FF0000", # 0-9 km/h (Red)
+        '2': "#FF4500", # 10-19 km/h (Orange Red)
+        '3': "#FFA500", # 20-29 km/h (Orange)
+        '4': "#FFD700", # 30-39 km/h (Gold)
+        '5': "#FFFF00", # 40-49 km/h (Yellow)
+        '6': "#ADFF2F", # 50-59 km/h (Green Yellow)
+        '7': "#32CD32", # 60-69 km/h (Lime Green)
+        '8': "#008000", # 70+ km/h (Green)
+    }
+
+    # Handle both list and dict with 'value' key
+    items = speed_data.get('value', []) if isinstance(speed_data, dict) else speed_data
+    
+    for item in items:
+        try:
+            start_lat = float(item.get('StartLat', 0))
+            start_lon = float(item.get('StartLon', 0))
+            end_lat = float(item.get('EndLat', 0))
+            end_lon = float(item.get('EndLon', 0))
+            road_name = item.get('RoadName', 'Unknown Road')
+            band = str(item.get('SpeedBand', '0'))
+            
+            if start_lat == 0 or end_lat == 0:
+                continue
+                
+            color = band_colors.get(band, "#888888")
+            
+            tooltip_text = f"Road: {road_name}\nSpeed Band: {band}"
+            
+            markers.append(
+                dl.Polyline(
+                    positions=[[start_lat, start_lon], [end_lat, end_lon]],
+                    color=color,
+                    weight=5,
+                    opacity=0.8,
+                    children=[
+                        dl.Tooltip(tooltip_text),
+                    ]
+                )
+            )
+        except (ValueError, TypeError):
+            continue
+            
+    return markers
+
+
+def format_speed_band_display():
+    """
+    Format the Traffic Speed Band information display.
+    
+    Returns:
+        HTML elements with speed band definitions
+    """
+    definitions = [
+        ("1", "0 < 9 km/h"),
+        ("2", "10 < 19 km/h"),
+        ("3", "20 < 29 km/h"),
+        ("4", "30 < 39 km/h"),
+        ("5", "40 < 49 km/h"),
+        ("6", "50 < 59 km/h"),
+        ("7", "60 < 69 km/h"),
+        ("8", "70+ km/h"),
+    ]
+    
+    # Create colored dots for the legend
+    band_colors = {
+        '1': "#FF0000", '2': "#FF4500", '3': "#FFA500", '4': "#FFD700",
+        '5': "#FFFF00", '6': "#ADFF2F", '7': "#32CD32", '8': "#008000"
+    }
+    
+    return html.Div([
+        html.Div([
+            html.P("Speed Band Definitions:", style={
+                "color": "#fff",
+                "fontSize": "0.8125rem",
+                "fontWeight": "600",
+                "marginBottom": "0.5rem"
+            }),
+            html.Div([
+                html.Div([
+                    html.Div(style={
+                        "width": "10px",
+                        "height": "10px",
+                        "borderRadius": "50%",
+                        "backgroundColor": band_colors[code],
+                        "marginRight": "8px"
+                    }),
+                    html.Span(f"{code} – {desc}", style={
+                        "color": "#ccc",
+                        "fontSize": "0.75rem"
+                    })
+                ], style={
+                    "display": "flex",
+                    "alignItems": "center",
+                    "marginBottom": "4px"
+                }) for code, desc in definitions
+            ])
+        ], style={"padding": "0.625rem"})
+    ])
 
 
 def format_erp_count_display(gantry_data):
@@ -1057,15 +1154,15 @@ def register_transport_callbacks(app):
         return markers, count_display
 
     @app.callback(
-        [Output('pub-cctv-toggle-state', 'data'),
-         Output('pub-cctv-toggle-btn', 'style'),
-         Output('pub-cctv-toggle-btn', 'children')],
-        Input('pub-cctv-toggle-btn', 'n_clicks'),
-        State('pub-cctv-toggle-state', 'data'),
+        [Output('speed-band-toggle-state', 'data'),
+         Output('speed-band-toggle-btn', 'style'),
+         Output('speed-band-toggle-btn', 'children')],
+        Input('speed-band-toggle-btn', 'n_clicks'),
+        State('speed-band-toggle-state', 'data'),
         prevent_initial_call=True
     )
-    def toggle_pub_cctv_display(_n_clicks, current_state):
-        """Toggle PUB CCTV markers display on/off."""
+    def toggle_speed_band_display(_n_clicks, current_state):
+        """Toggle Speed Band display on/off."""
         new_state = not current_state
 
         if new_state:
@@ -1098,19 +1195,19 @@ def register_transport_callbacks(app):
         return new_state, style, text
 
     @app.callback(
-        [Output('pub-cctv-markers', 'children'),
-         Output('pub-cctv-count-display', 'children')],
-        [Input('pub-cctv-toggle-state', 'data'),
+        [Output('speed-band-markers', 'children'),
+         Output('speed-band-display', 'children')],
+        [Input('speed-band-toggle-state', 'data'),
          Input('transport-interval', 'n_intervals')]
     )
-    def update_pub_cctv_display(show_pub_cctv, n_intervals):
-        """Update PUB CCTV markers and count display."""
+    def update_speed_band_display(show_speed_band, n_intervals):
+        """Update Speed Band markers and information display."""
         _ = n_intervals  # Used for periodic refresh
 
-        if not show_pub_cctv:
+        if not show_speed_band:
             # Return empty markers and default message
             return [], html.P(
-                "Click 'Show on Map' to load CCTV locations",
+                "Click 'Show on Map' to load speed band information",
                 style={
                     "color": "#999",
                     "textAlign": "center",
@@ -1120,13 +1217,85 @@ def register_transport_callbacks(app):
                 }
             )
 
-        # Fetch CCTV data
-        geojson_data = fetch_pub_cctv_data()
-        cctv_data = parse_pub_cctv_data(geojson_data)
+        # Fetch speed band data
+        data = fetch_speed_band_data()
+
+        # Create markers and information display
+        markers = create_speed_band_markers(data)
+        info_display = format_speed_band_display()
+
+        return markers, info_display
+
+    @app.callback(
+        [Output('taxi-stands-toggle-state', 'data'),
+         Output('taxi-stands-toggle-btn', 'style'),
+         Output('taxi-stands-toggle-btn', 'children')],
+        Input('taxi-stands-toggle-btn', 'n_clicks'),
+        State('taxi-stands-toggle-state', 'data'),
+        prevent_initial_call=True
+    )
+    def toggle_taxi_stands_display(_n_clicks, current_state):
+        """Toggle Taxi Stands display on/off."""
+        new_state = not current_state
+
+        if new_state:
+            # Active state - gold background
+            style = {
+                "backgroundColor": "#FFD700",
+                "border": "none",
+                "borderRadius": "4px",
+                "color": "#000",
+                "cursor": "pointer",
+                "padding": "6px 12px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Hide from Map"
+        else:
+            # Inactive state - outline
+            style = {
+                "backgroundColor": "transparent",
+                "border": "2px solid #FFD700",
+                "borderRadius": "4px",
+                "color": "#FFD700",
+                "cursor": "pointer",
+                "padding": "4px 10px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Show on Map"
+
+        return new_state, style, text
+
+    @app.callback(
+        [Output('taxi-stands-markers', 'children'),
+         Output('taxi-stands-count-display', 'children')],
+        [Input('taxi-stands-toggle-state', 'data'),
+         Input('transport-interval', 'n_intervals')]
+    )
+    def update_taxi_stands_display(show_taxi_stands, n_intervals):
+        """Update Taxi Stands markers and count display."""
+        _ = n_intervals  # Used for periodic refresh
+
+        if not show_taxi_stands:
+            # Return empty markers and default message
+            return [], html.P(
+                "Click 'Show on Map' to load taxi stand locations",
+                style={
+                    "color": "#999",
+                    "textAlign": "center",
+                    "padding": "20px",
+                    "fontStyle": "italic",
+                    "fontSize": "12px",
+                }
+            )
+
+        # Fetch taxi stands data
+        data = fetch_taxi_stands_data()
 
         # Create markers and count display
-        markers = create_pub_cctv_markers(cctv_data)
-        count_display = format_pub_cctv_count_display(cctv_data)
+        markers = create_taxi_stands_markers(data)
+        count_display = format_taxi_stands_count_display(data)
 
         return markers, count_display
 
