@@ -60,7 +60,7 @@ def build_dashboard_banner():
                             selected_style=TAB_SELECTED_STYLE,
                         ),
                         dcc.Tab(
-                            label="🚌 Transport and infra sensor location and information",
+                            label="Details on transport related info",
                             value="transport",
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
