@@ -115,6 +115,29 @@ def fetch_traffic_incidents():
     return fetch_url(traffic_incidents_url, headers)
 
 
+def fetch_faulty_traffic_lights():
+    """
+    Fetch faulty traffic lights from LTA DataMall API.
+    
+    Returns:
+        Dictionary containing faulty traffic lights data or None if error
+    """
+    faulty_traffic_lights_url = "https://datamall2.mytransport.sg/ltaodataservice/FaultyTrafficLights"
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    return fetch_url(faulty_traffic_lights_url, headers)
+
+
 def build_station_lookup(data):
     """Build a lookup dictionary from station_id to station metadata."""
     if not data or 'data' not in data or 'stations' not in data['data']:
@@ -1199,6 +1222,34 @@ def format_flood_readings(data):
     )
 
 
+def format_lightning_summary(data):
+    """
+    Format lightning summary showing just the count for header.
+    Returns a simple span with the count.
+    """
+    if not data or 'data' not in data:
+        return html.Span("Error", style={"color": "#ff6b6b", "fontSize": "12px"})
+    
+    records = data['data'].get('records', [])
+    if not records:
+        return html.Span("0", style={"color": "#999", "fontSize": "12px"})
+    
+    # Count lightning locations detected within last 5 minutes and within Singapore bounds
+    lightning_count = 0
+    for record in records:
+        item = record.get('item', {})
+        readings = item.get('readings', [])
+        for reading in readings:
+            location = reading.get('location', {})
+            lat = location.get('latitude', '')
+            lon = location.get('longtitude') or location.get('longitude', '')
+            datetime_str = reading.get('datetime', '')
+            if lat and lon and _is_within_singapore_bounds(lat, lon) and _is_within_last_5_minutes(datetime_str):
+                lightning_count += 1
+    
+    return html.Span(str(lightning_count), style={"color": "#FFD700", "fontSize": "12px", "fontWeight": "600"})
+
+
 def format_lightning_indicator(data):
     """
     Format lightning indicator showing only the total count of lightning locations.
@@ -1287,6 +1338,31 @@ def format_lightning_indicator(data):
             )
         ]
     )
+
+
+def format_flood_summary(data):
+    """
+    Format flood summary showing just the count for header.
+    Returns a simple span with the count.
+    """
+    if not data or 'data' not in data:
+        return html.Span("Error", style={"color": "#ff6b6b", "fontSize": "12px"})
+    
+    records = data['data'].get('records', [])
+    if not records:
+        return html.Span("0", style={"color": "#999", "fontSize": "12px"})
+    
+    # Extract first record
+    first_record = records[0]
+    item = first_record.get('item', {})
+    readings = item.get('readings', [])
+    
+    if not readings:
+        return html.Span("0", style={"color": "#999", "fontSize": "12px"})
+    
+    # Count flood alerts
+    flood_count = len(readings)
+    return html.Span(str(flood_count), style={"color": "#ff6b6b", "fontSize": "12px", "fontWeight": "600"})
 
 
 def format_flood_indicator(data):
@@ -1421,9 +1497,99 @@ def format_flood_indicator(data):
     )
 
 
-def format_traffic_incidents_indicator(data):
+def format_faulty_traffic_lights_indicator(data):
+    """
+    Format faulty traffic lights indicator showing count of NodeID instances.
+    Returns HTML content for the faulty traffic lights indicator.
+    """
+    if not data:
+        return html.Div(
+            [
+                html.P(
+                    "Error",
+                    style={
+                        "fontSize": "12px",
+                        "color": "#ff6b6b",
+                        "textAlign": "center",
+                        "margin": "0",
+                    }
+                )
+            ]
+        )
+    
+    # Extract faulty traffic lights - check common response structures
+    faulty_lights = []
+    if isinstance(data, dict):
+        # Try different possible keys
+        if 'value' in data:
+            faulty_lights = data.get('value', [])
+        elif 'data' in data:
+            faulty_lights = data.get('data', [])
+        elif isinstance(data.get('items'), list):
+            faulty_lights = data.get('items', [])
+        else:
+            # If data is a list directly
+            if isinstance(data, list):
+                faulty_lights = data
+            else:
+                # Try to find any list in the response
+                for key, value in data.items():
+                    if isinstance(value, list):
+                        faulty_lights = value
+                        break
+    
+    if not faulty_lights:
+        return html.Div(
+            [
+                html.P(
+                    "0",
+                    style={
+                        "fontSize": "12px",
+                        "color": "#888",
+                        "textAlign": "center",
+                        "margin": "0",
+                    }
+                )
+            ]
+        )
+    
+    # Count unique NodeID instances
+    node_ids = set()
+    for light in faulty_lights:
+        if isinstance(light, dict):
+            # Try different possible keys for NodeID
+            node_id = (
+                light.get('NodeID') or
+                light.get('nodeID') or
+                light.get('node_id') or
+                light.get('NodeId') or
+                light.get('Node')
+            )
+            if node_id:
+                node_ids.add(str(node_id))
+    
+    faulty_count = len(node_ids)
+    
+    return html.Div(
+        [
+            html.P(
+                str(faulty_count),
+                style={
+                    "fontSize": "12px",
+                    "color": "#FF9800",
+                    "textAlign": "center",
+                    "margin": "0",
+                    "fontWeight": "600",
+                }
+            )
+        ]
+    )
+
+
+def format_traffic_incidents_indicator(data, faulty_lights_data=None):
     """
     Format traffic incidents indicator showing count by incident type.
+    Includes faulty traffic lights count in the grid if provided.
     Returns HTML content for the traffic incidents indicator.
     """
     if not data:
@@ -1472,21 +1638,6 @@ def format_traffic_incidents_indicator(data):
                         incidents = value
                         break
 
-    if not incidents:
-        return html.Div(
-            [
-                html.P(
-                    "No incidents",
-                    style={
-                        "fontSize": "12px",
-                        "color": "#888",
-                        "textAlign": "center",
-                        "margin": "0",
-                    }
-                )
-            ]
-        )
-
     # Count incidents by type/name
     incident_counts = {}
     for incident in incidents:
@@ -1504,6 +1655,41 @@ def format_traffic_incidents_indicator(data):
                 'Unknown'
             )
             incident_counts[incident_name] = incident_counts.get(incident_name, 0) + 1
+
+    # Add faulty traffic lights count if data is provided
+    if faulty_lights_data:
+        faulty_lights = []
+        if isinstance(faulty_lights_data, dict):
+            if 'value' in faulty_lights_data:
+                faulty_lights = faulty_lights_data.get('value', [])
+            elif 'data' in faulty_lights_data:
+                faulty_lights = faulty_lights_data.get('data', [])
+            elif isinstance(faulty_lights_data.get('items'), list):
+                faulty_lights = faulty_lights_data.get('items', [])
+            elif isinstance(faulty_lights_data, list):
+                faulty_lights = faulty_lights_data
+            else:
+                for key, value in faulty_lights_data.items():
+                    if isinstance(value, list):
+                        faulty_lights = value
+                        break
+        
+        # Count unique NodeID instances
+        node_ids = set()
+        for light in faulty_lights:
+            if isinstance(light, dict):
+                node_id = (
+                    light.get('NodeID') or
+                    light.get('nodeID') or
+                    light.get('node_id') or
+                    light.get('NodeId') or
+                    light.get('Node')
+                )
+                if node_id:
+                    node_ids.add(str(node_id))
+        
+        if node_ids:
+            incident_counts['Faulty traffic lights'] = len(node_ids)
 
     if not incident_counts:
         return html.Div(
@@ -2228,24 +2414,32 @@ def register_realtime_weather_callbacks(app):
 
     # Main page callbacks for lightning and flood indicators
     @app.callback(
-        Output('main-lightning-indicator', 'children'),
+        [Output('main-lightning-indicator-summary', 'children'),
+         Output('main-lightning-indicator-content', 'children')],
         Input('interval-component', 'n_intervals')
     )
     def update_main_lightning_indicator(n_intervals):
         """Update lightning status indicator on main page periodically."""
         _ = n_intervals
         data = fetch_lightning_data()
-        return format_lightning_indicator(data)
+        summary = format_lightning_summary(data)
+        # For content, show detailed list of locations
+        content = format_lightning_readings(data)
+        return summary, content
 
     @app.callback(
-        Output('main-flood-indicator', 'children'),
+        [Output('main-flood-indicator-summary', 'children'),
+         Output('main-flood-indicator-content', 'children')],
         Input('interval-component', 'n_intervals')
     )
     def update_main_flood_indicator(n_intervals):
         """Update flood status indicator on main page periodically."""
         _ = n_intervals
         data = fetch_flood_alerts()
-        return format_flood_indicator(data)
+        summary = format_flood_summary(data)
+        # For content, show detailed list of alerts
+        content = format_flood_readings(data)
+        return summary, content
 
     @app.callback(
         Output('main-traffic-incidents-indicator', 'children'),
@@ -2254,8 +2448,9 @@ def register_realtime_weather_callbacks(app):
     def update_main_traffic_incidents_indicator(n_intervals):
         """Update traffic incidents indicator on main page periodically."""
         _ = n_intervals
-        data = fetch_traffic_incidents()
-        return format_traffic_incidents_indicator(data)
+        incidents_data = fetch_traffic_incidents()
+        faulty_lights_data = fetch_faulty_traffic_lights()
+        return format_traffic_incidents_indicator(incidents_data, faulty_lights_data)
 
 
 def _get_btn_styles(active_type):
