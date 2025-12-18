@@ -313,7 +313,7 @@ app.layout = html.Div(
                                     style={
                                         "display": "flex",
                                         "flexDirection": "column",
-                                        "marginBottom": "0.625rem",
+                                        "gap": "2rem",
                                     },
                                     children=[
                                         # Flood alert (as separate sibling container)
@@ -327,7 +327,6 @@ app.layout = html.Div(
                                                 "flexDirection": "column",
                                                 "gap": "8px",
                                                 "flexShrink": "0",
-                                                "marginTop": "0.625rem",
                                             },
                                             children=[
                                                 html.Div(
@@ -390,7 +389,6 @@ app.layout = html.Div(
                                                 "flexDirection": "column",
                                                 "gap": "8px",
                                                 "flexShrink": "0",
-                                                "marginTop": "0.625rem",
                                             },
                                             children=[
                                                 html.Div(
@@ -453,7 +451,6 @@ app.layout = html.Div(
                                                 "flexDirection": "column",
                                                 "gap": "8px",
                                                 "flexShrink": "0",
-                                                "marginTop": "0.625rem",
                                             },
                                             children=[
                                                 html.Div(
@@ -544,104 +541,103 @@ app.layout = html.Div(
                                         ),
                                         # Train service alerts section (as child container)
                                         train_service_alerts_component(),
-                                    ]
-                                ),
-                                # Disease clusters count section (Dengue and Zika)
-                                html.Div(
-                                    id="disease-clusters-section",
-                                    style={
-                                        "backgroundColor": "#4a5a6a",
-                                        "borderRadius": "8px",
-                                        "padding": "10px",
-                                        "display": "flex",
-                                        "flexDirection": "column",
-                                        "gap": "8px",
-                                        "flexShrink": "0",
-                                        "marginTop": "0.625rem",
-                                    },
-                                    children=[
+                                        # Disease clusters count section (Dengue and Zika)
                                         html.Div(
+                                            id="disease-clusters-section",
                                             style={
+                                                "backgroundColor": "#4a5a6a",
+                                                "borderRadius": "8px",
+                                                "padding": "10px",
                                                 "display": "flex",
-                                                "flexDirection": "row",
-                                                "alignItems": "center",
-                                                "justifyContent": "space-between",
+                                                "flexDirection": "column",
+                                                "gap": "8px",
+                                                "flexShrink": "0",
                                             },
                                             children=[
-                                                html.Span(
-                                                    "🦠 Active Disease Clusters",
-                                                    style={
-                                                        "color": "#fff",
-                                                        "fontWeight": "600",
-                                                        "fontSize": "13px"
-                                                    }
-                                                ),
-                                                html.Div(style={"flex": "1"}),  # Spacer
-                                            ]
-                                        ),
-                                        # Dengue and Zika cluster counts side by side
-                                        html.Div(
-                                            style={
-                                                "display": "flex",
-                                                "flexDirection": "row",
-                                                "gap": "0.625rem",
-                                            },
-                                            children=[
-                                                # Dengue cluster count (left container)
                                                 html.Div(
-                                                    id="dengue-container",
                                                     style={
-                                                        "flex": "1",
-                                                        "backgroundColor": "#4a1a1a",
-                                                        "borderRadius": "0.25rem",
-                                                        "padding": "0.5rem",
-                                                        "border": "0.125rem solid #cc3333",
+                                                        "display": "flex",
+                                                        "flexDirection": "row",
+                                                        "alignItems": "center",
+                                                        "justifyContent": "space-between",
                                                     },
                                                     children=[
-                                                        html.P(
-                                                            "Dengue",
+                                                        html.Span(
+                                                            "🦠 Active Disease Clusters",
                                                             style={
-                                                                "textAlign": "center",
-                                                                "margin": "0 0 0.25rem 0",
-                                                                "color": "#ff6666",
+                                                                "color": "#fff",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "0.75rem",
+                                                                "fontSize": "13px"
                                                             }
                                                         ),
-                                                        html.Div(
-                                                            id="dengue-count-content",
-                                                            children=[
-                                                                html.P("Loading...", style={"textAlign": "center", "color": "#ccc", "fontSize": "0.75rem"})
-                                                            ],
-                                                        ),
+                                                        html.Div(style={"flex": "1"}),  # Spacer
                                                     ]
                                                 ),
-                                                # Zika cluster count (right container)
+                                                # Dengue and Zika cluster counts side by side
                                                 html.Div(
-                                                    id="zika-container",
                                                     style={
-                                                        "flex": "1",
-                                                        "backgroundColor": "#5a1a1a",
-                                                        "borderRadius": "0.25rem",
-                                                        "padding": "0.5rem",
-                                                        "border": "0.125rem solid #ff3333",
+                                                        "display": "flex",
+                                                        "flexDirection": "row",
+                                                        "gap": "0.625rem",
                                                     },
                                                     children=[
-                                                        html.P(
-                                                            "Zika",
-                                                            style={
-                                                                "textAlign": "center",
-                                                                "margin": "0 0 0.25rem 0",
-                                                                "color": "#ff4444",
-                                                                "fontWeight": "600",
-                                                                "fontSize": "0.75rem",
-                                                            }
-                                                        ),
+                                                        # Dengue cluster count (left container)
                                                         html.Div(
-                                                            id="zika-count-content",
+                                                            id="dengue-container",
+                                                            style={
+                                                                "flex": "1",
+                                                                "backgroundColor": "#4a1a1a",
+                                                                "borderRadius": "0.25rem",
+                                                                "padding": "0.5rem",
+                                                                "border": "0.125rem solid #cc3333",
+                                                            },
                                                             children=[
-                                                                html.P("Loading...", style={"textAlign": "center", "color": "#ccc", "fontSize": "0.75rem"})
-                                                            ],
+                                                                html.P(
+                                                                    "Dengue",
+                                                                    style={
+                                                                        "textAlign": "center",
+                                                                        "margin": "0 0 0.25rem 0",
+                                                                        "color": "#ff6666",
+                                                                        "fontWeight": "600",
+                                                                        "fontSize": "0.75rem",
+                                                                    }
+                                                                ),
+                                                                html.Div(
+                                                                    id="dengue-count-content",
+                                                                    children=[
+                                                                        html.P("Loading...", style={"textAlign": "center", "color": "#ccc", "fontSize": "0.75rem"})
+                                                                    ],
+                                                                ),
+                                                            ]
+                                                        ),
+                                                        # Zika cluster count (right container)
+                                                        html.Div(
+                                                            id="zika-container",
+                                                            style={
+                                                                "flex": "1",
+                                                                "backgroundColor": "#5a1a1a",
+                                                                "borderRadius": "0.25rem",
+                                                                "padding": "0.5rem",
+                                                                "border": "0.125rem solid #ff3333",
+                                                            },
+                                                            children=[
+                                                                html.P(
+                                                                    "Zika",
+                                                                    style={
+                                                                        "textAlign": "center",
+                                                                        "margin": "0 0 0.25rem 0",
+                                                                        "color": "#ff4444",
+                                                                        "fontWeight": "600",
+                                                                        "fontSize": "0.75rem",
+                                                                    }
+                                                                ),
+                                                                html.Div(
+                                                                    id="zika-count-content",
+                                                                    children=[
+                                                                        html.P("Loading...", style={"textAlign": "center", "color": "#ccc", "fontSize": "0.75rem"})
+                                                                    ],
+                                                                ),
+                                                            ]
                                                         ),
                                                     ]
                                                 ),
