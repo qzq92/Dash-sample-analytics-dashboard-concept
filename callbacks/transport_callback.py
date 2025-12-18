@@ -59,12 +59,12 @@ def create_taxi_markers(data):
         if len(coord) >= 2:
             lon, lat = coord[0], coord[1]
             
-            # Create small circle marker for each taxi
+            # Create small circle marker for each taxi (lighter yellow for taxi locations)
             markers.append(
                 dl.CircleMarker(
                     center=[lat, lon],
                     radius=3,
-                    color="#FFD700",
+                    color="#FFD700",  # Lighter yellow (gold)
                     fill=True,
                     fillColor="#FFD700",
                     fillOpacity=0.7,
@@ -618,11 +618,11 @@ def create_taxi_stands_markers(taxi_stands_data):
             if latitude == 0 or longitude == 0:
                 continue
             
-            # Create tooltip with bulleted points
-            tooltip_text = (
-                f"• Name: {taxi_code}({name})\n"
-                f"• Barrier Free: {bfa}\n"
-                f"• Owner: {ownership}\n"
+            # Create tooltip with bulleted points (using HTML for line breaks)
+            tooltip_html = (
+                f"• Name: {taxi_code}({name})<br>"
+                f"• Barrier Free: {bfa}<br>"
+                f"• Owner: {ownership}<br>"
                 f"• Type: {stand_type}"
             )
             
@@ -630,13 +630,13 @@ def create_taxi_stands_markers(taxi_stands_data):
                 dl.CircleMarker(
                     center=[latitude, longitude],
                     radius=6,
-                    color="#FFD700",
+                    color="#FFA500",  # Darker yellow/orange for taxi stands
                     fill=True,
-                    fillColor="#FFD700",
+                    fillColor="#FFA500",
                     fillOpacity=0.7,
                     weight=2,
                     children=[
-                        dl.Tooltip(tooltip_text),
+                        dl.Tooltip(tooltip_html),
                     ]
                 )
             )
@@ -696,6 +696,182 @@ def format_taxi_stands_count_display(taxi_stands_data):
                 }
             )
         ]
+    )
+
+
+def format_combined_taxi_display(taxi_data, taxi_stands_data):
+    """
+    Format the combined taxi locations and stands count display.
+    
+    Args:
+        taxi_data: API response with taxi location data
+        taxi_stands_data: Dictionary containing taxi stands response from LTA API
+    
+    Returns:
+        HTML Div with combined taxi locations and stands count information
+    """
+    # Get taxi count
+    taxi_count = 0
+    timestamp = "Unknown"
+    if taxi_data and 'features' in taxi_data:
+        features = taxi_data.get('features', [])
+        if features:
+            first_feature = features[0]
+            properties = first_feature.get('properties', {})
+            taxi_count = properties.get('taxi_count', 0)
+            timestamp = properties.get('timestamp', '')
+    
+    # Get taxi stands count
+    stands_count = 0
+    if taxi_stands_data:
+        stands = []
+        if isinstance(taxi_stands_data, dict):
+            if "value" in taxi_stands_data:
+                stands = taxi_stands_data.get("value", [])
+            elif isinstance(taxi_stands_data, list):
+                stands = taxi_stands_data
+        elif isinstance(taxi_stands_data, list):
+            stands = taxi_stands_data
+        stands_count = len(stands)
+    
+    # Format timestamp
+    if timestamp and timestamp != "Unknown":
+        try:
+            parsed_datetime = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            formatted_time = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, TypeError):
+            formatted_time = timestamp
+    else:
+        formatted_time = "Unknown"
+    
+    return html.Div(
+        [
+            # Side by side layout for taxi locations and stands
+            html.Div(
+                [
+                    # Left side: Taxi locations
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.Span(
+                                        "🚕",
+                                        style={"fontSize": "1.5rem", "marginRight": "0.5rem", "lineHeight": "1"}
+                                    ),
+                                    html.Span(
+                                        f"{taxi_count:,}",
+                                        style={
+                                            "fontSize": "2rem",
+                                            "fontWeight": "bold",
+                                            "color": "#FFD700",  # Lighter yellow
+                                            "lineHeight": "1",
+                                        }
+                                    ),
+                                ],
+                                style={
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                    "marginBottom": "0.25rem",
+                                }
+                            ),
+                            html.P(
+                                "Available Taxis",
+                                style={
+                                    "color": "#fff",
+                                    "textAlign": "center",
+                                    "fontSize": "0.75rem",
+                                    "fontWeight": "600",
+                                    "margin": "0",
+                                }
+                            ),
+                        ],
+                        style={
+                            "flex": "1",
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "center",
+                            "justifyContent": "center",
+                            "padding": "0.5rem",
+                        }
+                    ),
+                    # Right side: Taxi stands
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.Span(
+                                        "🚕",
+                                        style={"fontSize": "1.5rem", "marginRight": "0.5rem", "lineHeight": "1"}
+                                    ),
+                                    html.Span(
+                                        f"{stands_count}",
+                                        style={
+                                            "fontSize": "2rem",
+                                            "fontWeight": "bold",
+                                            "color": "#FFA500",  # Darker yellow/orange
+                                            "lineHeight": "1",
+                                        }
+                                    ),
+                                ],
+                                style={
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                    "marginBottom": "0.25rem",
+                                }
+                            ),
+                            html.P(
+                                "Taxi Stands",
+                                style={
+                                    "color": "#fff",
+                                    "textAlign": "center",
+                                    "fontSize": "0.75rem",
+                                    "fontWeight": "600",
+                                    "margin": "0",
+                                }
+                            ),
+                        ],
+                        style={
+                            "flex": "1",
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "center",
+                            "justifyContent": "center",
+                            "padding": "0.5rem",
+                            "borderLeft": "0.0625rem solid #5a6a7a",
+                        }
+                    ),
+                ],
+                style={
+                    "display": "flex",
+                    "flexDirection": "row",
+                    "width": "100%",
+                    "marginBottom": "0.5rem",
+                }
+            ),
+            html.P(
+                f"Last updated: {formatted_time}",
+                style={
+                    "color": "#888",
+                    "textAlign": "center",
+                    "fontSize": "0.6875rem",
+                    "fontStyle": "italic",
+                    "margin": "0",
+                }
+            ),
+        ],
+        style={
+            "padding": "0.9375rem",
+            "backgroundColor": "#2c3e50",
+            "borderRadius": "0.5rem",
+            "width": "100%",
+            "boxSizing": "border-box",
+            "overflow": "hidden",
+            "display": "flex",
+            "flexDirection": "column",
+            "height": "100%",
+        }
     )
 
 
@@ -980,13 +1156,13 @@ def register_transport_callbacks(app):
          Input('transport-interval', 'n_intervals')]
     )
     def update_taxi_display(show_taxis, n_intervals):
-        """Update taxi markers and count display."""
+        """Update taxi locations and stands markers and count display."""
         _ = n_intervals  # Used for periodic refresh
         
         if not show_taxis:
             # Return empty markers and default message
             return [], html.P(
-                "Click 'Show on Map' to load taxi locations",
+                "Click 'Show on Map' to load taxi locations and stands",
                 style={
                     "color": "#999",
                     "textAlign": "center",
@@ -996,14 +1172,21 @@ def register_transport_callbacks(app):
                 }
             )
         
-        # Fetch taxi data
-        data = fetch_taxi_availability()
+        # Fetch both taxi locations and taxi stands data
+        taxi_data = fetch_taxi_availability()
+        taxi_stands_data = fetch_taxi_stands_data()
         
-        # Create markers and count display
-        markers = create_taxi_markers(data)
-        count_display = format_taxi_count_display(data)
+        # Create markers for both
+        taxi_markers = create_taxi_markers(taxi_data)
+        taxi_stands_markers = create_taxi_stands_markers(taxi_stands_data)
         
-        return markers, count_display
+        # Combine all markers
+        all_markers = taxi_markers + taxi_stands_markers
+        
+        # Create combined count display
+        count_display = format_combined_taxi_display(taxi_data, taxi_stands_data)
+        
+        return all_markers, count_display
 
     @app.callback(
         [Output('cctv-toggle-state', 'data'),
@@ -1226,76 +1409,4 @@ def register_transport_callbacks(app):
 
         return markers, info_display
 
-    @app.callback(
-        [Output('taxi-stands-toggle-state', 'data'),
-         Output('taxi-stands-toggle-btn', 'style'),
-         Output('taxi-stands-toggle-btn', 'children')],
-        Input('taxi-stands-toggle-btn', 'n_clicks'),
-        State('taxi-stands-toggle-state', 'data'),
-        prevent_initial_call=True
-    )
-    def toggle_taxi_stands_display(_n_clicks, current_state):
-        """Toggle Taxi Stands display on/off."""
-        new_state = not current_state
-
-        if new_state:
-            # Active state - gold background
-            style = {
-                "backgroundColor": "#FFD700",
-                "border": "none",
-                "borderRadius": "4px",
-                "color": "#000",
-                "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
-                "fontWeight": "600",
-            }
-            text = "Hide from Map"
-        else:
-            # Inactive state - outline
-            style = {
-                "backgroundColor": "transparent",
-                "border": "2px solid #FFD700",
-                "borderRadius": "4px",
-                "color": "#FFD700",
-                "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
-                "fontWeight": "600",
-            }
-            text = "Show on Map"
-
-        return new_state, style, text
-
-    @app.callback(
-        [Output('taxi-stands-markers', 'children'),
-         Output('taxi-stands-count-display', 'children')],
-        [Input('taxi-stands-toggle-state', 'data'),
-         Input('transport-interval', 'n_intervals')]
-    )
-    def update_taxi_stands_display(show_taxi_stands, n_intervals):
-        """Update Taxi Stands markers and count display."""
-        _ = n_intervals  # Used for periodic refresh
-
-        if not show_taxi_stands:
-            # Return empty markers and default message
-            return [], html.P(
-                "Click 'Show on Map' to load taxi stand locations",
-                style={
-                    "color": "#999",
-                    "textAlign": "center",
-                    "padding": "20px",
-                    "fontStyle": "italic",
-                    "fontSize": "12px",
-                }
-            )
-
-        # Fetch taxi stands data
-        data = fetch_taxi_stands_data()
-
-        # Create markers and count display
-        markers = create_taxi_stands_markers(data)
-        count_display = format_taxi_stands_count_display(data)
-
-        return markers, count_display
 
