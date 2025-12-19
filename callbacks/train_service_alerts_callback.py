@@ -164,7 +164,7 @@ def format_mrt_line_operational_details(data):
     mrt_lines = [
         {"code": "NSL", "name": "North South Line", "color": "#E31937"},
         {"code": "EWL", "name": "East West Line", "color": "#009645"},
-        {"code": "CCL", "name": "Circle Line", "color": "#FAE800"},
+        {"code": "CCL", "name": "Circle Line", "color": "#FF8C00"},
         {"code": "DTL", "name": "Downtown Line", "color": "#005EC4"},
         {"code": "NEL", "name": "North East Line", "color": "#9900AA"},
         {"code": "TEL", "name": "Thomson-East Coast Line", "color": "#9D5B25"},
