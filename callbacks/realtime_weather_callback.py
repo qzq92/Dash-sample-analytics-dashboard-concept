@@ -302,24 +302,15 @@ def format_readings_grid(data, unit, color):
     formatted_avg = f"{avg_value:.1f}{unit}" if unit == '°C' else f"{avg_value:.1f} {unit}"
 
     return html.Div(
-        [
-            html.Span(formatted_avg, style={
-                "fontSize": "14px",
-                "fontWeight": "600",
-                "color": color,
-            }),
-            html.Span(" (averaged across sensors)", style={
-                "fontSize": "11px",
-                "color": "#999",
-                "fontWeight": "400",
-                "marginLeft": "4px",
-            }),
-        ],
+        html.Span(formatted_avg, style={
+            "fontSize": "14px",
+            "fontWeight": "600",
+            "color": color,
+        }),
         style={
             "padding": "6px 8px",
             "backgroundColor": "#3a4a5a",
             "borderRadius": "4px",
-            "borderLeft": f"3px solid {color}",
         }
     )
 
@@ -526,24 +517,15 @@ def format_wind_readings(speed_data):
     formatted_avg = f"{icon} {avg_speed:.1f} km/h"
 
     return html.Div(
-        [
-            html.Span(formatted_avg, style={
-                "fontSize": "14px",
-                "fontWeight": "600",
-                "color": "#4CAF50",
-            }),
-            html.Span(" (averaged across sensors)", style={
-                "fontSize": "11px",
-                "color": "#999",
-                "fontWeight": "400",
-                "marginLeft": "4px",
-            }),
-        ],
+        html.Span(formatted_avg, style={
+            "fontSize": "14px",
+            "fontWeight": "600",
+            "color": "#fff",
+        }),
         style={
             "padding": "6px 8px",
             "backgroundColor": "#3a4a5a",
             "borderRadius": "4px",
-            "borderLeft": "3px solid #4CAF50",
         }
     )
 
@@ -1039,7 +1021,7 @@ def format_lightning_readings(data):
             }
         )
 
-    # Count lightning locations detected within last 5 minutes and within Singapore bounds
+    # Count lightning observations within last 5 minutes and within Singapore bounds
     lightning_count = 0
     for record in records:
         item = record.get('item', {})
@@ -1056,13 +1038,12 @@ def format_lightning_readings(data):
     return html.Div(
         html.Span(
             f"{lightning_count} location{'s' if lightning_count != 1 else ''} detected",
-            style={"color": "#FFD700", "fontSize": "14px", "fontWeight": "600"}
+            style={"color": "#fff", "fontSize": "14px", "fontWeight": "600"}
         ),
         style={
             "padding": "6px 8px",
             "backgroundColor": "#3a4a5a",
             "borderRadius": "4px",
-            "borderLeft": "3px solid #FFD700",
         }
     )
 
@@ -1144,24 +1125,15 @@ def format_wbgt_average(data):
     formatted_avg = f"{avg_wbgt:.1f}°C"
 
     return html.Div(
-        [
-            html.Span(formatted_avg, style={
-                "fontSize": "14px",
-                "fontWeight": "600",
-                "color": "#FF9800",
-            }),
-            html.Span(" (averaged across sensors)", style={
-                "fontSize": "11px",
-                "color": "#999",
-                "fontWeight": "400",
-                "marginLeft": "4px",
-            }),
-        ],
+        html.Span(formatted_avg, style={
+            "fontSize": "14px",
+            "fontWeight": "600",
+            "color": "#fff",
+        }),
         style={
             "padding": "6px 8px",
             "backgroundColor": "#3a4a5a",
             "borderRadius": "4px",
-            "borderLeft": "3px solid #FF9800",
         }
     )
 
@@ -1211,7 +1183,7 @@ def format_flood_readings(data):
     return html.Div(
         html.Span(
             f"{alert_count} alert{'s' if alert_count != 1 else ''} active",
-            style={"color": "#ff6b6b", "fontSize": "14px", "fontWeight": "600"}
+            style={"color": "#fff", "fontSize": "14px", "fontWeight": "600"}
         ),
         style={
             "padding": "6px 8px",
@@ -1228,13 +1200,13 @@ def format_lightning_summary(data):
     Returns a simple span with the count.
     """
     if not data or 'data' not in data:
-        return html.Span("Error", style={"color": "#ff6b6b", "fontSize": "12px"})
+        return html.Span("Error", style={"color": "#ff6b6b", "fontSize": "18px", "fontWeight": "600"})
     
     records = data['data'].get('records', [])
     if not records:
-        return html.Span("0", style={"color": "#999", "fontSize": "12px"})
+        return html.Span("0", style={"color": "#999", "fontSize": "18px", "fontWeight": "600"})
     
-    # Count lightning locations detected within last 5 minutes and within Singapore bounds
+    # Count lightning observations within last 5 minutes and within Singapore bounds
     lightning_count = 0
     for record in records:
         item = record.get('item', {})
@@ -1247,7 +1219,7 @@ def format_lightning_summary(data):
             if lat and lon and _is_within_singapore_bounds(lat, lon) and _is_within_last_5_minutes(datetime_str):
                 lightning_count += 1
     
-    return html.Span(str(lightning_count), style={"color": "#FFD700", "fontSize": "12px", "fontWeight": "600"})
+    return html.Span(str(lightning_count), style={"color": "#FFD700", "fontSize": "18px", "fontWeight": "600"})
 
 
 def format_lightning_indicator(data):
@@ -1293,7 +1265,7 @@ def format_lightning_indicator(data):
             ]
         )
 
-    # Count lightning locations detected within last 5 minutes and within Singapore bounds
+    # Count lightning observations within last 5 minutes and within Singapore bounds
     lightning_count = 0
     for record in records:
         item = record.get('item', {})
@@ -1346,11 +1318,11 @@ def format_flood_summary(data):
     Returns a simple span with the count.
     """
     if not data or 'data' not in data:
-        return html.Span("Error", style={"color": "#ff6b6b", "fontSize": "12px"})
+        return html.Span("Error", style={"color": "#ff6b6b", "fontSize": "18px", "fontWeight": "600"})
     
     records = data['data'].get('records', [])
     if not records:
-        return html.Span("0", style={"color": "#999", "fontSize": "12px"})
+        return html.Span("0", style={"color": "#999", "fontSize": "18px", "fontWeight": "600"})
     
     # Extract first record
     first_record = records[0]
@@ -1358,11 +1330,11 @@ def format_flood_summary(data):
     readings = item.get('readings', [])
     
     if not readings:
-        return html.Span("0", style={"color": "#999", "fontSize": "12px"})
+        return html.Span("0", style={"color": "#999", "fontSize": "18px", "fontWeight": "600"})
     
     # Count flood alerts
     flood_count = len(readings)
-    return html.Span(str(flood_count), style={"color": "#ff6b6b", "fontSize": "12px", "fontWeight": "600"})
+    return html.Span(str(flood_count), style={"color": "#ff6b6b", "fontSize": "18px", "fontWeight": "600"})
 
 
 def format_flood_indicator(data):
@@ -1798,7 +1770,7 @@ def register_realtime_weather_callbacks(app):
         """Update temperature readings periodically."""
         _ = n_intervals
         data = fetch_realtime_data('air-temperature')
-        return format_readings_grid(data, '°C', '#FF9800')
+        return format_readings_grid(data, '°C', '#fff')
 
     @app.callback(
         Output('rainfall-readings-content', 'children'),
@@ -1809,7 +1781,7 @@ def register_realtime_weather_callbacks(app):
         _ = n_intervals
         data = fetch_realtime_data('rainfall')
         # Pass default unit, but format_readings_grid will try to extract from API first
-        return format_readings_grid(data, 'mm', '#2196F3')
+        return format_readings_grid(data, 'mm', '#fff')
 
     @app.callback(
         Output('humidity-readings-content', 'children'),
@@ -1819,7 +1791,7 @@ def register_realtime_weather_callbacks(app):
         """Update humidity readings periodically."""
         _ = n_intervals
         data = fetch_realtime_data('relative-humidity')
-        return format_readings_grid(data, '%', '#00BCD4')
+        return format_readings_grid(data, '%', '#fff')
 
     @app.callback(
         Output('wind-readings-content', 'children'),
@@ -1862,77 +1834,107 @@ def register_realtime_weather_callbacks(app):
 
     # Toggle callbacks for sensor values sections
     @app.callback(
-        Output('temp-sensor-values', 'style'),
+        [Output('temp-sensor-values', 'style'),
+         Output('toggle-temp-readings', 'children')],
         Input('toggle-temp-readings', 'n_clicks'),
         prevent_initial_call=True
     )
     def toggle_temp_sensor_values(n_clicks):
         """Toggle temperature sensor values section visibility."""
         if n_clicks and n_clicks % 2 == 1:
-            return {"display": "block", "backgroundColor": "#3a4a5a",
+            style = {"display": "block", "backgroundColor": "#3a4a5a",
                     "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
-        return {"display": "none"}
+            text = "Hide temperature sensor locations"
+            return style, text
+        style = {"display": "none"}
+        text = "Show temperature sensor locations"
+        return style, text
 
     @app.callback(
-        Output('rainfall-sensor-values', 'style'),
+        [Output('rainfall-sensor-values', 'style'),
+         Output('toggle-rainfall-readings', 'children')],
         Input('toggle-rainfall-readings', 'n_clicks'),
         prevent_initial_call=True
     )
     def toggle_rainfall_sensor_values(n_clicks):
         """Toggle rainfall sensor values section visibility."""
         if n_clicks and n_clicks % 2 == 1:
-            return {"display": "block", "backgroundColor": "#3a4a5a",
+            style = {"display": "block", "backgroundColor": "#3a4a5a",
                     "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
-        return {"display": "none"}
+            text = "Hide rainfall sensor locations"
+            return style, text
+        style = {"display": "none"}
+        text = "Show rainfall sensor locations"
+        return style, text
 
     @app.callback(
-        Output('humidity-sensor-values', 'style'),
+        [Output('humidity-sensor-values', 'style'),
+         Output('toggle-humidity-readings', 'children')],
         Input('toggle-humidity-readings', 'n_clicks'),
         prevent_initial_call=True
     )
     def toggle_humidity_sensor_values(n_clicks):
         """Toggle humidity sensor values section visibility."""
         if n_clicks and n_clicks % 2 == 1:
-            return {"display": "block", "backgroundColor": "#3a4a5a",
+            style = {"display": "block", "backgroundColor": "#3a4a5a",
                     "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
-        return {"display": "none"}
+            text = "Hide humidity sensor locations"
+            return style, text
+        style = {"display": "none"}
+        text = "Show humidity sensor locations"
+        return style, text
 
     @app.callback(
-        Output('wind-sensor-values', 'style'),
+        [Output('wind-sensor-values', 'style'),
+         Output('toggle-wind-readings', 'children')],
         Input('toggle-wind-readings', 'n_clicks'),
         prevent_initial_call=True
     )
     def toggle_wind_sensor_values(n_clicks):
         """Toggle wind sensor values section visibility."""
         if n_clicks and n_clicks % 2 == 1:
-            return {"display": "block", "backgroundColor": "#3a4a5a",
+            style = {"display": "block", "backgroundColor": "#3a4a5a",
                     "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
-        return {"display": "none"}
+            text = "Hide wind speed sensor locations"
+            return style, text
+        style = {"display": "none"}
+        text = "Show wind speed sensor locations"
+        return style, text
 
     @app.callback(
-        Output('lightning-sensor-values', 'style'),
+        [Output('lightning-sensor-values', 'style'),
+         Output('toggle-lightning-readings', 'children')],
         Input('toggle-lightning-readings', 'n_clicks'),
         prevent_initial_call=True
     )
     def toggle_lightning_sensor_values(n_clicks):
         """Toggle lightning sensor values section visibility."""
         if n_clicks and n_clicks % 2 == 1:
-            return {"display": "block", "backgroundColor": "#3a4a5a",
+            style = {"display": "block", "backgroundColor": "#3a4a5a",
                     "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
-        return {"display": "none"}
+            text = "Hide lightning sensor locations"
+            return style, text
+        style = {"display": "none"}
+        text = "Show lightning sensor locations"
+        return style, text
 
 
     @app.callback(
-        Output('flood-sensor-values', 'style'),
+        [Output('flood-sensor-values', 'style'),
+         Output('toggle-flood-readings', 'children')],
         Input('toggle-flood-readings', 'n_clicks'),
         prevent_initial_call=True
     )
     def toggle_flood_sensor_values(n_clicks):
         """Toggle flood sensor values section visibility."""
         if n_clicks and n_clicks % 2 == 1:
-            return {"display": "block", "backgroundColor": "#3a4a5a",
+            style = {"display": "block", "backgroundColor": "#3a4a5a",
                     "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
-        return {"display": "none"}
+            text = "Hide flood sensor locations"
+            return style, text
+        style = {"display": "none"}
+        text = "Show flood sensor locations"
+        return style, text
 
     @app.callback(
         Output('sensor-markers', 'children'),
@@ -2013,16 +2015,21 @@ def register_realtime_weather_callbacks(app):
 
     # Toggle callback for WBGT sensor values
     @app.callback(
-        Output('wbgt-sensor-values', 'style'),
+        [Output('wbgt-sensor-values', 'style'),
+         Output('toggle-wbgt-readings', 'children')],
         Input('toggle-wbgt-readings', 'n_clicks'),
         prevent_initial_call=True
     )
     def toggle_wbgt_sensor_values(n_clicks):
         """Toggle WBGT sensor values section visibility."""
         if n_clicks and n_clicks % 2 == 1:
-            return {"display": "block", "backgroundColor": "#3a4a5a",
+            style = {"display": "block", "backgroundColor": "#3a4a5a",
                     "borderRadius": "5px", "padding": "10px", "maxHeight": "200px", "overflowY": "auto"}
-        return {"display": "none"}
+            text = "Hide WBGT sensor locations"
+            return style, text
+        style = {"display": "none"}
+        text = "Show WBGT sensor locations"
+        return style, text
 
     # Callbacks to populate sensor values when sections are visible
     @app.callback(
@@ -2035,7 +2042,7 @@ def register_realtime_weather_callbacks(app):
         if style and style.get('display') == 'none':
             return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
         data = fetch_realtime_data('air-temperature')
-        return format_sensor_values_grid(data, '°C', '#FF9800')
+        return format_sensor_values_grid(data, '°C', '#fff')
 
     @app.callback(
         Output('rainfall-sensor-content', 'children'),
@@ -2047,7 +2054,7 @@ def register_realtime_weather_callbacks(app):
         if style and style.get('display') == 'none':
             return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
         data = fetch_realtime_data('rainfall')
-        return format_sensor_values_grid(data, 'mm', '#2196F3')
+        return format_sensor_values_grid(data, 'mm', '#fff')
 
     @app.callback(
         Output('humidity-sensor-content', 'children'),
@@ -2059,7 +2066,7 @@ def register_realtime_weather_callbacks(app):
         if style and style.get('display') == 'none':
             return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
         data = fetch_realtime_data('relative-humidity')
-        return format_sensor_values_grid(data, '%', '#00BCD4')
+        return format_sensor_values_grid(data, '%', '#fff')
 
     @app.callback(
         Output('wind-sensor-content', 'children'),
@@ -2098,7 +2105,7 @@ def register_realtime_weather_callbacks(app):
         for name, speed_kmh in readings_sorted:
             icon = get_windspeed_icon(speed_kmh)
             display = f"{icon} {speed_kmh} km/h"
-            reading_divs.append(_create_reading_div(name, display, "#4CAF50"))
+            reading_divs.append(_create_reading_div(name, display, "#fff"))
 
         return _build_grid_content(reading_divs, reading_item.get('timestamp', ''))
 
@@ -2186,7 +2193,7 @@ def register_realtime_weather_callbacks(app):
                     name = stations.get(station_id, {}).get('name', station_id)
                     value = reading.get('value', 'N/A')
                     all_readings.append({
-                        'type': '🌡️ Temperature',
+                        'type': '🌡️ Temperature averaged across sensors',
                         'location': name,
                         'value': f"{value}{unit}",
                         'color': '#FF9800'
@@ -2205,7 +2212,7 @@ def register_realtime_weather_callbacks(app):
                     name = stations.get(station_id, {}).get('name', station_id)
                     value = reading.get('value', 'N/A')
                     all_readings.append({
-                        'type': '🌧️ Rainfall',
+                        'type': '🌧️ Rainfall averaged across sensors',
                         'location': name,
                         'value': f"{value} {unit}",
                         'color': '#2196F3'
@@ -2244,7 +2251,7 @@ def register_realtime_weather_callbacks(app):
                     speed_kmh = _convert_to_kmh(reading.get('value', 0), speed_unit)
                     icon = get_windspeed_icon(speed_kmh)
                     all_readings.append({
-                        'type': '💨 Wind',
+                        'type': '💨 Wind Speed average across sensors',
                         'location': name,
                         'value': f"{icon} {speed_kmh} km/h",
                         'color': '#4CAF50'
