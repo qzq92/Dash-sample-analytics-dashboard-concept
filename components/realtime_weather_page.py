@@ -82,9 +82,9 @@ def realtime_weather_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "🌡️ Temperature",
+                                                "🌡️ Temperature averaged across sensors",
                                                 style={
-                                                    "color": "#FF9800",
+                                                    "color": "#fff",
                                                     "fontWeight": "600",
                                                     "fontSize": "13px"
                                                 }
@@ -143,9 +143,9 @@ def realtime_weather_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "🌧️ Rainfall",
+                                                "🌧️ Rainfall averaged across sensors",
                                                 style={
-                                                    "color": "#2196F3",
+                                                    "color": "#fff",
                                                     "fontWeight": "600",
                                                     "fontSize": "13px"
                                                 }
@@ -206,7 +206,7 @@ def realtime_weather_page():
                                             html.Span(
                                                 "💧 Humidity",
                                                 style={
-                                                    "color": "#00BCD4",
+                                                    "color": "#fff",
                                                     "fontWeight": "600",
                                                     "fontSize": "13px"
                                                 }
@@ -265,9 +265,9 @@ def realtime_weather_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "💨 Wind",
+                                                "💨 Wind Speed average across sensors",
                                                 style={
-                                                    "color": "#4CAF50",
+                                                    "color": "#fff",
                                                     "fontWeight": "600",
                                                     "fontSize": "13px"
                                                 }
@@ -326,9 +326,9 @@ def realtime_weather_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "⚡ Lightning (last 5 minutes)",
+                                                "⚡ Lightning observations in last 5 minutes",
                                                 style={
-                                                    "color": "#FFD700",
+                                                    "color": "#fff",
                                                     "fontWeight": "600",
                                                     "fontSize": "13px"
                                                 }
@@ -387,9 +387,9 @@ def realtime_weather_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "🌊 Flood",
+                                                "🌊 Flood Alerts",
                                                 style={
-                                                    "color": "#ff6b6b",
+                                                    "color": "#fff",
                                                     "fontWeight": "600",
                                                     "fontSize": "13px"
                                                 }
@@ -448,9 +448,9 @@ def realtime_weather_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "🌡️ WBGT (Heat Stress)",
+                                                "🌡️ WBGT (Heat Stress) average across sensors",
                                                 style={
-                                                    "color": "#FF9800",
+                                                    "color": "#fff",
                                                     "fontWeight": "600",
                                                     "fontSize": "13px"
                                                 }
@@ -530,7 +530,7 @@ def realtime_weather_page():
                                                 },
                                                 children=[
                                                     html.Button(
-                                                        "🌡️ Temperature",
+                                                        "Show temperature sensor locations",
                                                         id="toggle-temp-readings",
                                                         n_clicks=0,
                                                         style={
@@ -545,7 +545,7 @@ def realtime_weather_page():
                                                         }
                                                     ),
                                                     html.Button(
-                                                        "🌧️ Rainfall",
+                                                        "Show rainfall sensor locations",
                                                         id="toggle-rainfall-readings",
                                                         n_clicks=0,
                                                         style={
@@ -560,7 +560,7 @@ def realtime_weather_page():
                                                         }
                                                     ),
                                                     html.Button(
-                                                        "💧 Humidity",
+                                                        "Show humidity sensor locations",
                                                         id="toggle-humidity-readings",
                                                         n_clicks=0,
                                                         style={
@@ -575,7 +575,7 @@ def realtime_weather_page():
                                                         }
                                                     ),
                                                     html.Button(
-                                                        "💨 Wind",
+                                                        "Show wind speed sensor locations",
                                                         id="toggle-wind-readings",
                                                         n_clicks=0,
                                                         style={
@@ -590,7 +590,7 @@ def realtime_weather_page():
                                                         }
                                                     ),
                                                     html.Button(
-                                                        "⚡ Lightning (last 5 minutes)",
+                                                        "Show lightning sensor locations",
                                                         id="toggle-lightning-readings",
                                                         n_clicks=0,
                                                         style={
@@ -605,7 +605,7 @@ def realtime_weather_page():
                                                         }
                                                     ),
                                                     html.Button(
-                                                        "🌊 Flood",
+                                                        "Show flood sensor locations",
                                                         id="toggle-flood-readings",
                                                         n_clicks=0,
                                                         style={
@@ -620,15 +620,15 @@ def realtime_weather_page():
                                                         }
                                                     ),
                                                     html.Button(
-                                                        "🌡️ WBGT",
+                                                        "Show WBGT sensor locations",
                                                         id="toggle-wbgt-readings",
                                                         n_clicks=0,
                                                         style={
                                                             "padding": "4px 8px",
                                                             "borderRadius": "4px",
-                                                            "border": "2px solid #FF9800",
+                                                            "border": "2px solid #FF8C00",
                                                             "backgroundColor": "transparent",
-                                                            "color": "#FF9800",
+                                                            "color": "#FF8C00",
                                                             "cursor": "pointer",
                                                             "fontSize": "12px",
                                                             "fontWeight": "600",
