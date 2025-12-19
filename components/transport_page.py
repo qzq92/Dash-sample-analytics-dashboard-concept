@@ -65,74 +65,47 @@ def transport_page():
                                 id="taxi-availability-card",
                                 style={
                                     "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "0.5rem",
-                                    "padding": "0.9375rem",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
                                     "display": "flex",
                                     "flexDirection": "column",
-                                    "overflow": "hidden",
-                                    "flex": "1",
-                                    "minHeight": "0",
+                                    "gap": "8px",
                                 },
                                 children=[
-                                    # Header with toggle button
                                     html.Div(
                                         style={
                                             "display": "flex",
-                                            "justifyContent": "space-between",
+                                            "flexDirection": "row",
                                             "alignItems": "center",
-                                            "borderBottom": "0.0625rem solid #5a6a7a",
-                                            "paddingBottom": "0.625rem",
-                                            "marginBottom": "0.9375rem",
+                                            "justifyContent": "space-between",
                                         },
                                         children=[
-                                            html.H5(
-                                                "🚕 Taxi Locations/Stands",
+                                            html.Span(
+                                                "🚕 Taxi Locations & Stands",
                                                 style={
-                                                    "margin": "0",
                                                     "color": "#fff",
                                                     "fontWeight": "600",
+                                                    "fontSize": "13px"
                                                 }
                                             ),
-                                            html.Button(
-                                                "Show on Map",
-                                                id="taxi-toggle-btn",
-                                                n_clicks=0,
+                                            html.Div(
+                                                id="taxi-count-value",
                                                 style={
-                                                    "backgroundColor": "#FFD700",
-                                                    "border": "none",
-                                                    "borderRadius": "0.25rem",
-                                                    "color": "#000",
-                                                    "cursor": "pointer",
-                                                    "padding": "0.375rem 0.75rem",
-                                                    "fontSize": "0.75rem",
-                                                    "fontWeight": "600",
+                                                    "color": "#FFD700",
+                                                    "fontSize": "1.125rem",
+                                                    "fontWeight": "700",
                                                 },
+                                                children=[
+                                                    html.Div(
+                                                        html.Span("--", style={"color": "#999"}),
+                                                        style={
+                                                            "backgroundColor": "rgb(58, 74, 90)",
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                        }
+                                                    )
+                                                ]
                                             ),
-                                        ]
-                                    ),
-                                    # Taxi count display
-                                    html.Div(
-                                        id="taxi-count-display",
-                                        style={
-                                            "width": "100%",
-                                            "boxSizing": "border-box",
-                                            "overflow": "hidden",
-                                            "flex": "1",
-                                            "display": "flex",
-                                            "flexDirection": "column",
-                                            "minHeight": "0",
-                                        },
-                                        children=[
-                                            html.P(
-                                                "Click 'Show on Map' to load taxi locations and stands",
-                                                style={
-                                                    "color": "#999",
-                                                    "textAlign": "center",
-                                                    "padding": "1.25rem",
-                                                    "fontStyle": "italic",
-                                                    "fontSize": "0.75rem",
-                                                }
-                                            )
                                         ]
                                     ),
                                 ]
@@ -142,70 +115,47 @@ def transport_page():
                                 id="cctv-card",
                                 style={
                                     "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "0.5rem",
-                                    "padding": "0.9375rem",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
                                     "display": "flex",
                                     "flexDirection": "column",
-                                    "overflow": "hidden",
-                                    "flex": "1",
-                                    "minHeight": "0",
+                                    "gap": "8px",
                                 },
                                 children=[
-                                    # Header with toggle button
                                     html.Div(
                                         style={
                                             "display": "flex",
-                                            "justifyContent": "space-between",
+                                            "flexDirection": "row",
                                             "alignItems": "center",
-                                            "borderBottom": "0.0625rem solid #5a6a7a",
-                                            "paddingBottom": "0.625rem",
-                                            "marginBottom": "0.9375rem",
+                                            "justifyContent": "space-between",
                                         },
                                         children=[
-                                            html.H5(
+                                            html.Span(
                                                 "📹 Traffic Cameras",
                                                 style={
-                                                    "margin": "0",
                                                     "color": "#fff",
                                                     "fontWeight": "600",
+                                                    "fontSize": "13px"
                                                 }
                                             ),
-                                            html.Button(
-                                                "Show on Map",
-                                                id="cctv-toggle-btn",
-                                                n_clicks=0,
+                                            html.Div(
+                                                id="cctv-count-value",
                                                 style={
-                                                    "backgroundColor": "#4CAF50",
-                                                    "border": "none",
-                                                    "borderRadius": "4px",
-                                                    "color": "#fff",
-                                                    "cursor": "pointer",
-                                                    "padding": "6px 12px",
-                                                    "fontSize": "12px",
-                                                    "fontWeight": "600",
+                                                    "color": "#4CAF50",
+                                                    "fontSize": "1.125rem",
+                                                    "fontWeight": "700",
                                                 },
+                                                children=[
+                                                    html.Div(
+                                                        html.Span("--", style={"color": "#999"}),
+                                                        style={
+                                                            "backgroundColor": "rgb(58, 74, 90)",
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                        }
+                                                    )
+                                                ]
                                             ),
-                                        ]
-                                    ),
-                                    # CCTV count display
-                                    html.Div(
-                                        id="cctv-count-display",
-                                        style={
-                                            "width": "100%",
-                                            "boxSizing": "border-box",
-                                            "overflow": "hidden",
-                                        },
-                                        children=[
-                                            html.P(
-                                                "Click 'Show on Map' to load camera locations",
-                                                style={
-                                                    "color": "#999",
-                                                    "textAlign": "center",
-                                                    "padding": "1.25rem",
-                                                    "fontStyle": "italic",
-                                                    "fontSize": "0.75rem",
-                                                }
-                                            )
                                         ]
                                     ),
                                 ]
@@ -215,70 +165,97 @@ def transport_page():
                                 id="erp-card",
                                 style={
                                     "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "0.5rem",
-                                    "padding": "0.9375rem",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
                                     "display": "flex",
                                     "flexDirection": "column",
-                                    "overflow": "hidden",
-                                    "flex": "1",
-                                    "minHeight": "0",
+                                    "gap": "8px",
                                 },
                                 children=[
-                                    # Header with toggle button
                                     html.Div(
                                         style={
                                             "display": "flex",
-                                            "justifyContent": "space-between",
+                                            "flexDirection": "row",
                                             "alignItems": "center",
-                                            "borderBottom": "0.0625rem solid #5a6a7a",
-                                            "paddingBottom": "0.625rem",
-                                            "marginBottom": "0.9375rem",
+                                            "justifyContent": "space-between",
                                         },
                                         children=[
-                                            html.H5(
+                                            html.Span(
                                                 "🚧 ERP Gantries",
                                                 style={
-                                                    "margin": "0",
                                                     "color": "#fff",
                                                     "fontWeight": "600",
+                                                    "fontSize": "13px"
                                                 }
                                             ),
-                                            html.Button(
-                                                "Show on Map",
-                                                id="erp-toggle-btn",
-                                                n_clicks=0,
+                                            html.Div(
+                                                id="erp-count-value",
                                                 style={
-                                                    "backgroundColor": "#FF6B6B",
-                                                    "border": "none",
-                                                    "borderRadius": "4px",
-                                                    "color": "#fff",
-                                                    "cursor": "pointer",
-                                                    "padding": "6px 12px",
-                                                    "fontSize": "12px",
-                                                    "fontWeight": "600",
+                                                    "color": "#FF6B6B",
+                                                    "fontSize": "1.125rem",
+                                                    "fontWeight": "700",
                                                 },
+                                                children=[
+                                                    html.Div(
+                                                        html.Span("--", style={"color": "#999"}),
+                                                        style={
+                                                            "backgroundColor": "rgb(58, 74, 90)",
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                        }
+                                                    )
+                                                ]
                                             ),
                                         ]
                                     ),
-                                    # ERP count display
+                                ]
+                            ),
+                            # Traffic Incidents card
+                            html.Div(
+                                id="traffic-incidents-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "8px",
+                                },
+                                children=[
                                     html.Div(
-                                        id="erp-count-display",
                                         style={
-                                            "width": "100%",
-                                            "boxSizing": "border-box",
-                                            "overflow": "hidden",
+                                            "display": "flex",
+                                            "flexDirection": "row",
+                                            "alignItems": "center",
+                                            "justifyContent": "space-between",
                                         },
                                         children=[
-                                            html.P(
-                                                "Click 'Show on Map' to load gantry locations",
+                                            html.Span(
+                                                "🚦 Traffic Incidents",
                                                 style={
-                                                    "color": "#999",
-                                                    "textAlign": "center",
-                                                    "padding": "1.25rem",
-                                                    "fontStyle": "italic",
-                                                    "fontSize": "0.75rem",
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                    "fontSize": "13px"
                                                 }
-                                            )
+                                            ),
+                                            html.Div(
+                                                id="traffic-incidents-count-value",
+                                                style={
+                                                    "color": "#FF6B6B",
+                                                    "fontSize": "1.125rem",
+                                                    "fontWeight": "700",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        html.Span("--", style={"color": "#999"}),
+                                                        style={
+                                                            "backgroundColor": "rgb(58, 74, 90)",
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                        }
+                                                    )
+                                                ]
+                                            ),
                                         ]
                                     ),
                                 ]
@@ -287,70 +264,98 @@ def transport_page():
                             html.Div(
                                 id="speed-band-card",
                                 style={
-                                    "flex": "1",
-                                    "backgroundColor": "#2c3e50",
-                                    "borderRadius": "0.5rem",
-                                    "padding": "0.9375rem",
-                                    "minHeight": "0",
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
                                     "display": "flex",
                                     "flexDirection": "column",
-                                    "overflow": "hidden",
+                                    "gap": "8px",
                                 },
                                 children=[
                                     html.Div(
                                         style={
                                             "display": "flex",
-                                            "justifyContent": "space-between",
+                                            "flexDirection": "row",
                                             "alignItems": "center",
-                                            "borderBottom": "0.0625rem solid #5a6a7a",
-                                            "paddingBottom": "0.625rem",
-                                            "marginBottom": "0.9375rem",
+                                            "justifyContent": "space-between",
                                         },
                                         children=[
-                                            html.H5(
-                                                "🏎️ Traffic Speed Bands",
+                                            html.Span(
+                                                "🏎️ Average Traffic Speed Bands",
                                                 style={
-                                                    "margin": "0",
                                                     "color": "#fff",
                                                     "fontWeight": "600",
+                                                    "fontSize": "13px"
                                                 }
                                             ),
-                                            html.Button(
-                                                "Show on Map",
-                                                id="speed-band-toggle-btn",
-                                                n_clicks=0,
+                                            html.Div(
+                                                id="speed-band-count-value",
                                                 style={
-                                                    "backgroundColor": "#00BCD4",
-                                                    "border": "none",
-                                                    "borderRadius": "4px",
-                                                    "color": "#fff",
-                                                    "cursor": "pointer",
-                                                    "padding": "6px 12px",
-                                                    "fontSize": "12px",
-                                                    "fontWeight": "600",
+                                                    "color": "#00BCD4",
+                                                    "fontSize": "1.125rem",
+                                                    "fontWeight": "700",
                                                 },
+                                                children=[
+                                                    html.Div(
+                                                        html.Span("--", style={"color": "#999"}),
+                                                        style={
+                                                            "backgroundColor": "rgb(58, 74, 90)",
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                        }
+                                                    )
+                                                ]
                                             ),
                                         ]
                                     ),
-                                    # Speed band info/count display
+                                ]
+                            ),
+                            # Bicycle Parking card
+                            html.Div(
+                                id="bicycle-parking-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "8px",
+                                },
+                                children=[
                                     html.Div(
-                                        id="speed-band-display",
                                         style={
-                                            "width": "100%",
-                                            "boxSizing": "border-box",
-                                            "overflow": "hidden",
+                                            "display": "flex",
+                                            "flexDirection": "row",
+                                            "alignItems": "center",
+                                            "justifyContent": "space-between",
                                         },
                                         children=[
-                                            html.P(
-                                                "Click 'Show on Map' to load speed band information",
+                                            html.Span(
+                                                "🚴 Bicycle Parking (Sheltered/Unsheltered)",
                                                 style={
-                                                    "color": "#999",
-                                                    "textAlign": "center",
-                                                    "padding": "1.25rem",
-                                                    "fontStyle": "italic",
-                                                    "fontSize": "0.75rem",
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                    "fontSize": "13px"
                                                 }
-                                            )
+                                            ),
+                                            html.Div(
+                                                id="bicycle-parking-count-value",
+                                                style={
+                                                    "color": "#4CAF50",
+                                                    "fontSize": "1.125rem",
+                                                    "fontWeight": "700",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        html.Span("--/--", style={"color": "#999"}),
+                                                        style={
+                                                            "backgroundColor": "rgb(58, 74, 90)",
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                        }
+                                                    )
+                                                ]
+                                            ),
                                         ]
                                     ),
                                 ]
@@ -366,36 +371,235 @@ def transport_page():
                             "backgroundColor": "#1a2a3a",
                             "borderRadius": "0.5rem",
                             "overflow": "hidden",
+                            "display": "flex",
+                            "flexDirection": "column",
                         },
                         children=[
-                            dl.Map(
-                                id="transport-map",
-                                center=sg_center,
-                                zoom=fixed_zoom,
-                                minZoom=10,
-                                maxZoom=19,
-                                maxBounds=sg_bounds,
-                                maxBoundsViscosity=1.0,
+                            # Toggle buttons container above map
+                            html.Div(
+                                id="transport-toggle-buttons-container",
                                 style={
-                                    "width": "100%",
-                                    "height": "100%",
-                                    "minHeight": "25rem",
-                                    "backgroundColor": "#1a2a3a",
+                                    "display": "flex",
+                                    "flexDirection": "row",
+                                    "gap": "0.625rem",
+                                    "padding": "0.9375rem",
+                                    "backgroundColor": "#2c3e50",
+                                    "borderRadius": "0.5rem 0.5rem 0 0",
+                                    "flexWrap": "wrap",
+                                    "justifyContent": "flex-start",
+                                    "alignItems": "center",
                                 },
                                 children=[
-                                    dl.TileLayer(
-                                        url=onemap_tiles_url,
-                                        attribution=onemap_attribution,
-                                        maxNativeZoom=19,
+                                    html.Button(
+                                        "Show Taxi Location & Stands",
+                                        id="taxi-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "2px solid #FFD700",
+                                            "borderRadius": "4px",
+                                            "color": "#FFD700",
+                                            "cursor": "pointer",
+                                            "padding": "4px 10px",
+                                            "fontSize": "12px",
+                                            "fontWeight": "600",
+                                        },
                                     ),
-                                    dl.LayerGroup(id="taxi-markers"),
-                                    dl.LayerGroup(id="cctv-markers"),
-                                    dl.LayerGroup(id="erp-markers"),
-                                    dl.LayerGroup(id="speed-band-markers"),
-                                ],
-                                zoomControl=True,
-                                dragging=True,
-                                scrollWheelZoom=True,
+                                    html.Button(
+                                        "Show Traffic Cameras Location",
+                                        id="cctv-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "2px solid #4CAF50",
+                                            "borderRadius": "4px",
+                                            "color": "#4CAF50",
+                                            "cursor": "pointer",
+                                            "padding": "4px 10px",
+                                            "fontSize": "12px",
+                                            "fontWeight": "600",
+                                        },
+                                    ),
+                                    html.Button(
+                                        "Show ERP Gantries Location",
+                                        id="erp-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "2px solid #FF6B6B",
+                                            "borderRadius": "4px",
+                                            "color": "#FF6B6B",
+                                            "cursor": "pointer",
+                                            "padding": "4px 10px",
+                                            "fontSize": "12px",
+                                            "fontWeight": "600",
+                                        },
+                                    ),
+                                    html.Button(
+                                        "Show Traffic Incidents",
+                                        id="traffic-incidents-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "2px solid #FF9800",
+                                            "borderRadius": "4px",
+                                            "color": "#FF9800",
+                                            "cursor": "pointer",
+                                            "padding": "4px 10px",
+                                            "fontSize": "12px",
+                                            "fontWeight": "600",
+                                        },
+                                    ),
+                                    html.Button(
+                                        "Show Traffic Speed Bands",
+                                        id="speed-band-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "2px solid #00BCD4",
+                                            "borderRadius": "4px",
+                                            "color": "#00BCD4",
+                                            "cursor": "pointer",
+                                            "padding": "4px 10px",
+                                            "fontSize": "12px",
+                                            "fontWeight": "600",
+                                        },
+                                    ),
+                                    html.Button(
+                                        "Show Bicycle Parking Locations",
+                                        id="bicycle-parking-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "2px solid #9C27B0",
+                                            "borderRadius": "4px",
+                                            "color": "#9C27B0",
+                                            "cursor": "pointer",
+                                            "padding": "4px 10px",
+                                            "fontSize": "12px",
+                                            "fontWeight": "600",
+                                        },
+                                    ),
+                                ]
+                            ),
+                            html.Div(
+                                style={
+                                    "position": "relative",
+                                    "width": "100%",
+                                    "height": "100%",
+                                    "flex": "1",
+                                    "minHeight": "25rem",
+                                },
+                                children=[
+                                    dl.Map(
+                                        id="transport-map",
+                                        center=sg_center,
+                                        zoom=fixed_zoom,
+                                        minZoom=10,
+                                        maxZoom=19,
+                                        maxBounds=sg_bounds,
+                                        maxBoundsViscosity=1.0,
+                                        style={
+                                            "width": "100%",
+                                            "height": "100%",
+                                            "backgroundColor": "#1a2a3a",
+                                        },
+                                        children=[
+                                            dl.TileLayer(
+                                                url=onemap_tiles_url,
+                                                attribution=onemap_attribution,
+                                                maxNativeZoom=19,
+                                            ),
+                                            dl.LayerGroup(id="taxi-markers"),
+                                            dl.LayerGroup(id="cctv-markers"),
+                                            dl.LayerGroup(id="erp-markers"),
+                                            dl.LayerGroup(id="speed-band-markers"),
+                                            dl.LayerGroup(id="traffic-incidents-markers"),
+                                            dl.LayerGroup(id="bicycle-parking-markers"),
+                                        ],
+                                        zoomControl=True,
+                                        dragging=True,
+                                        scrollWheelZoom=True,
+                                    ),
+                                    # Taxi legend overlay
+                                    html.Div(
+                                        id="taxi-legend",
+                                        style={
+                                            "position": "absolute",
+                                            "top": "10px",
+                                            "right": "10px",
+                                            "backgroundColor": "rgba(26, 42, 58, 0.9)",
+                                            "borderRadius": "8px",
+                                            "padding": "10px",
+                                            "zIndex": "1000",
+                                            "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
+                                            "display": "none",  # Hidden by default, shown when taxi toggle is on
+                                        },
+                                        children=[
+                                            html.Div(
+                                                style={
+                                                    "fontSize": "12px",
+                                                    "fontWeight": "600",
+                                                    "color": "#fff",
+                                                    "marginBottom": "8px",
+                                                    "borderBottom": "1px solid #4a5a6a",
+                                                    "paddingBottom": "4px",
+                                                },
+                                                children="Taxi Legend"
+                                            ),
+                                            html.Div(
+                                                style={
+                                                    "display": "flex",
+                                                    "alignItems": "center",
+                                                    "marginBottom": "6px",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        style={
+                                                            "width": "12px",
+                                                            "height": "12px",
+                                                            "borderRadius": "50%",
+                                                            "backgroundColor": "#FFD700",
+                                                            "marginRight": "8px",
+                                                        }
+                                                    ),
+                                                    html.Span(
+                                                        "Taxi Locations",
+                                                        style={
+                                                            "color": "#fff",
+                                                            "fontSize": "11px",
+                                                        }
+                                                    ),
+                                                ]
+                                            ),
+                                            html.Div(
+                                                style={
+                                                    "display": "flex",
+                                                    "alignItems": "center",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        style={
+                                                            "width": "0",
+                                                            "height": "0",
+                                                            "borderLeft": "6px solid transparent",
+                                                            "borderRight": "6px solid transparent",
+                                                            "borderBottom": "12px solid #FFA500",
+                                                            "marginRight": "8px",
+                                                        }
+                                                    ),
+                                                    html.Span(
+                                                        "Taxi Stands",
+                                                        style={
+                                                            "color": "#fff",
+                                                            "fontSize": "11px",
+                                                        }
+                                                    ),
+                                                ]
+                                            ),
+                                        ]
+                                    ),
+                                ]
                             ),
                         ]
                     ),
@@ -459,6 +663,8 @@ def transport_page():
             dcc.Store(id="cctv-toggle-state", data=False),
             dcc.Store(id="erp-toggle-state", data=False),
             dcc.Store(id="speed-band-toggle-state", data=False),
+            dcc.Store(id="traffic-incidents-toggle-state", data=False),
+            dcc.Store(id="bicycle-parking-toggle-state", data=False),
             # Interval for auto-refresh
             dcc.Interval(
                 id='transport-interval',
