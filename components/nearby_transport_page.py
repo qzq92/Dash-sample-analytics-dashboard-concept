@@ -366,8 +366,8 @@ def nearby_transport_page():
                                         id="nearby-transport-map",
                                         center=sg_center,
                                         zoom=fixed_zoom,
-                                        minZoom=fixed_zoom,
-                                        maxZoom=fixed_zoom,
+                                        minZoom=10,
+                                        maxZoom=19,
                                         maxBounds=sg_bounds,
                                         maxBoundsViscosity=1.0,
                                         style={
