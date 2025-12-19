@@ -379,6 +379,40 @@ html, body, #root {
   color: #ffffff !important;
 }
 
+/* Nearby transport search input styling */
+#nearby-transport-search .Select-input > input,
+#nearby-transport-search .Select-input input[type="text"],
+#nearby-transport-search .Select-control,
+#nearby-transport-search .Select-value-label,
+#nearby-transport-search .Select-placeholder,
+#nearby-transport-search .Select-menu-outer,
+#nearby-transport-search .Select-option {
+  background-color: #2a3a4a !important;
+  color: #ffffff !important;
+}
+
+#nearby-transport-search .Select-option.is-focused,
+#nearby-transport-search .Select-option.is-selected {
+  background-color: #3a4a5a !important;
+  color: #ffffff !important;
+}
+
+#nearby-transport-search .Select-control {
+  border: 0.0625rem solid #5a6a7a !important;
+}
+
+/* General input text color - ensure all input fields have white text */
+input[type="text"],
+input[type="search"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+textarea,
+.Select-input > input,
+.Select-input input[type="text"] {
+  color: #ffffff !important;
+}
+
 /* ============================================
    Glossy Navigation Tabs Styling
    ============================================ */
