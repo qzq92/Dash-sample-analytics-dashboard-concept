@@ -241,11 +241,11 @@ app.layout = html.Div(
                                 "height": "100%",
                             },
                             children=[
-                                # Toggle buttons above map (top right corner)
+                                # Toggle buttons above map (top left corner)
                                 html.Div(
                                     style={
                                         "display": "flex",
-                                        "justifyContent": "flex-end",
+                                        "justifyContent": "flex-start",
                                         "gap": "0.5rem",
                                         "marginBottom": "0.5rem",
                                         "padding": "0 0.25rem",
