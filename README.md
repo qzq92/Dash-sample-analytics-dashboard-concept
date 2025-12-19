@@ -66,7 +66,7 @@ This analytics dashboard provides real-time information on:
 - **View Sensor Location Tab**: Toggle visibility of weather sensor locations on map
   - Separate toggles for Flood and WBGT sensor locations
 
-### Health Related Hazard Clusters & Indexes Page
+### Daily Health and Environmental Watch Page
 - **UV Index**: Hourly trend visualization with line graph
 - **Regional PSI Data**: Comprehensive pollutant readings including:
   - 24H Mean PSI, PM2.5, PM10, Sulphur Dioxide
@@ -119,7 +119,7 @@ The dashboard consists of 5 main pages accessible via tabs with glossy black-to-
 2. **📡 Realtime Weather Metrics**: Live temperature, rainfall, humidity, and wind speed readings across Singapore
    - **WBGT Readings**: Heat stress measurements with average value display
    - **View Sensor Location Tab**: Toggle visibility of Flood and WBGT sensor locations
-3. **📊 Health Related Hazard Clusters & Indexes**: UV Index trends, comprehensive PSI pollutant data, Zika clusters, and Dengue clusters
+3. **📊 Daily Health and Environmental Watch**: UV Index trends, comprehensive PSI pollutant data, Zika clusters, and Dengue clusters
    - **PSI Display Modes**: Toggle between map text boxes and detailed metrics table
    - **Zika/Dengue Clusters**: Toggle visibility of cluster polygons on map
 4. **Details on Transport Related Info**: Taxi availability, traffic cameras, ERP gantries, traffic speed bands, taxi stands, and MRT/LRT operational status
@@ -186,8 +186,8 @@ The dashboard consists of 5 main pages accessible via tabs with glossy black-to-
 ![Main Page](assets/img/main_page.jpg)
 *The main dashboard showing real-time weather metrics with interactive map markers, indicators for lightning and flood alerts, average PSI reading, and nearby transportation information.*
 
-### Health Related Hazard Clusters & Indexes Page
-![Health Related Hazard Clusters & Indexes](assets/img/pollutant_exp_index.jpg)
+### Daily Health and Environmental Watch Page
+![Daily Health and Environmental Watch](assets/img/pollutant_exp_index.jpg)
 *Displays UV Index hourly trends, regional PSI values with color-coded risk levels across Singapore's five regions (North, South, East, West, Central), Zika cluster polygons, and Dengue cluster polygons. Features toggle controls for PSI display mode (map vs. table), Zika clusters, and Dengue clusters positioned above the map.*
 
 ## Built with following:
