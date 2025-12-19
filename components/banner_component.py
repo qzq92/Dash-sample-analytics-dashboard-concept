@@ -48,19 +48,19 @@ def build_dashboard_banner():
                             selected_style=TAB_SELECTED_STYLE,
                         ),
                         dcc.Tab(
-                            label="📍 View sensor location for weather related metrics",
+                            label="📍 Weather metrics and sensor locations",
                             value="realtime-weather",
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
                         ),
                         dcc.Tab(
-                            label="📊 Health Related Hazard Clusters & Indexes",
+                            label="📊 Daily Health and Environmental Watch",
                             value="weather-indices",
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
                         ),
                         dcc.Tab(
-                            label="Details on transport related info",
+                            label="Traffic/public transport situation on ground",
                             value="transport",
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
