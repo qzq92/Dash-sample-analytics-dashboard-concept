@@ -242,7 +242,7 @@ def nearby_transport_page():
                                                 },
                                                 children=[
                                                     html.H4(
-                                                        "Nearest Taxi Stands",
+                                                        "Nearby 300m Taxi Stands",
                                                         style={
                                                             "textAlign": "center",
                                                             "marginBottom": "10px",
@@ -285,7 +285,7 @@ def nearby_transport_page():
                                                 },
                                                 children=[
                                                     html.H4(
-                                                        "Nearest Bicycle Parking",
+                                                        "Nearby 100m Bicycle Parking Spots",
                                                         style={
                                                             "textAlign": "center",
                                                             "marginBottom": "10px",
@@ -318,6 +318,49 @@ def nearby_transport_page():
                                             ),
                                         ]
                                     ),
+                                ]
+                            ),
+                            # EV Charging Points column
+                            html.Div(
+                                id="nearby-transport-ev-charging-column",
+                                style={
+                                    "flex": "1",
+                                    "backgroundColor": "#2c3e50",
+                                    "borderRadius": "5px",
+                                    "padding": "15px",
+                                    "minHeight": "150px"
+                                },
+                                children=[
+                                    html.H4(
+                                        "Nearby EV Charging Points",
+                                        style={
+                                            "textAlign": "center",
+                                            "marginBottom": "10px",
+                                            "color": "#fff",
+                                            "fontWeight": "700",
+                                            "fontSize": "14px"
+                                        }
+                                    ),
+                                    html.Div(
+                                        id="nearby-transport-ev-charging-content",
+                                        style={
+                                            "overflowY": "auto",
+                                            "overflowX": "hidden",
+                                            "maxHeight": "calc(100% - 40px)"
+                                        },
+                                        children=[
+                                            html.P(
+                                                "Select a location to view nearby EV charging points",
+                                                style={
+                                                    "textAlign": "center",
+                                                    "color": "#999",
+                                                    "fontSize": "12px",
+                                                    "fontStyle": "italic",
+                                                    "padding": "15px"
+                                                }
+                                            )
+                                        ]
+                                    )
                                 ]
                             ),
                         ]
@@ -388,6 +431,7 @@ def nearby_transport_page():
                                     dl.LayerGroup(id="nearby-taxi-stand-markers"),
                                     dl.LayerGroup(id="nearby-carpark-markers"),
                                     dl.LayerGroup(id="nearby-bicycle-markers"),
+                                    dl.LayerGroup(id="nearby-ev-charging-markers"),
                                         ],
                                         zoomControl=True,
                                         dragging=True,
@@ -404,7 +448,7 @@ def nearby_transport_page():
             # Interval for auto-refresh
             dcc.Interval(
                 id='nearby-transport-interval',
-                interval=60*1000,  # Update every 60 seconds
+                interval=2*60*1000,  # Update every 2 minutes
                 n_intervals=0
             ),
         ]

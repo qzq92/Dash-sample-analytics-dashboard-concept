@@ -678,7 +678,7 @@ app.layout = html.Div(
                 # Interval component to update images and weather periodically
                 dcc.Interval(
                     id='interval-component',
-                    interval=30*1000,  # Update every 30 seconds
+                    interval=2*60*1000,  # Update every 2 minutes
                     n_intervals=0
                 ),
             ],

@@ -12,10 +12,10 @@ import base64
 from datetime import datetime
 from dash import Input, Output, State, html
 import dash_leaflet as dl
-from utils.async_fetcher import fetch_url
+from utils.async_fetcher import fetch_url, fetch_async
 from utils.data_download_helper import fetch_erp_gantry_data
 from utils.map_utils import SG_MAP_CENTER
-from conf.speed_band_config import get_speed_midpoint
+from conf.speed_band_config import get_speed_midpoint, get_speed_range
 from callbacks.map_callback import _haversine_distance_m
 
 # API URLs
@@ -24,6 +24,8 @@ TRAFFIC_IMAGES_API_URL = "https://api.data.gov.sg/v1/transport/traffic-images"
 TRAFFIC_INCIDENTS_URL = "https://datamall2.mytransport.sg/ltaodataservice/TrafficIncidents"
 FAULTY_TRAFFIC_LIGHTS_URL = "https://datamall2.mytransport.sg/ltaodataservice/FaultyTrafficLights"
 BICYCLE_PARKING_URL = "https://datamall2.mytransport.sg/ltaodataservice/BicycleParkingv2"
+VMS_URL = "https://datamall2.mytransport.sg/ltaodataservice/VMS"
+EV_CHARGING_URL = "https://datamall2.mytransport.sg/ltaodataservice/EVChargingPoints"
 
 
 def fetch_taxi_availability():
@@ -959,7 +961,21 @@ def create_speed_band_markers(speed_data):
                 
             color = band_colors.get(band, "#888888")
             
-            tooltip_text = f"Road: {road_name}\nSpeed Band: {band}"
+            # Convert speed band to speed range in km/h
+            try:
+                band_int = int(band)
+                min_speed, max_speed = get_speed_range(band_int)
+                if min_speed == 0 and max_speed == 0:
+                    speed_range_text = f"Speed Band: {band}"
+                elif band_int == 8:
+                    # Speed band 8 is 70+ km/h
+                    speed_range_text = f"Speed Band {band}: {min_speed}+ km/h"
+                else:
+                    speed_range_text = f"Speed Band {band}: {min_speed} km/h to {max_speed} km/h"
+            except (ValueError, TypeError):
+                speed_range_text = f"Speed Band: {band}"
+            
+            tooltip_text = f"Road: {road_name}\n{speed_range_text}"
             
             markers.append(
                 dl.Polyline(
@@ -1055,6 +1071,102 @@ def fetch_traffic_incidents_data():
     return fetch_url(TRAFFIC_INCIDENTS_URL, headers)
 
 
+def fetch_vms_data():
+    """
+    Fetch VMS (Variable Message Signs) data from LTA DataMall API.
+    
+    Returns:
+        Dictionary containing VMS data or None if error
+    """
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    return fetch_url(VMS_URL, headers)
+
+
+def fetch_vms_data_async():
+    """
+    Fetch VMS data asynchronously (returns Future).
+    Call .result() to get the data when needed.
+    """
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    return fetch_async(VMS_URL, headers)
+
+
+def create_vms_markers(vms_data):
+    """
+    Create map markers for VMS (Variable Message Signs) locations.
+    
+    Args:
+        vms_data: Dictionary containing VMS response from LTA API
+    
+    Returns:
+        List of dl.CircleMarker components
+    """
+    markers = []
+    
+    if not vms_data or 'value' not in vms_data:
+        return markers
+    
+    vms_locations = vms_data.get('value', [])
+    
+    for vms in vms_locations:
+        try:
+            latitude = float(vms.get('Latitude', 0))
+            longitude = float(vms.get('Longitude', 0))
+            equipment_id = vms.get('EquipmentID', 'N/A')
+            message = vms.get('Message', 'N/A')
+            
+            if latitude == 0 or longitude == 0:
+                continue
+            
+            # Create tooltip with EquipmentID and Message in specified format
+            tooltip_html = (
+                f"ID: {equipment_id}\n"
+                f"Message: {message}"
+            )
+            
+            # Create circle marker for VMS (using silver color)
+            markers.append(
+                dl.CircleMarker(
+                    center=[latitude, longitude],
+                    radius=6,
+                    color="#C0C0C0",  # Silver for VMS
+                    fill=True,
+                    fillColor="#C0C0C0",
+                    fillOpacity=0.7,
+                    weight=2,
+                    children=[
+                        dl.Tooltip(tooltip_html),
+                    ]
+                )
+            )
+        except (ValueError, TypeError, KeyError):
+            continue
+    
+    return markers
+
+
 def fetch_faulty_traffic_lights_data():
     """
     Fetch faulty traffic lights from LTA DataMall API.
@@ -1075,6 +1187,144 @@ def fetch_faulty_traffic_lights_data():
     }
     
     return fetch_url(FAULTY_TRAFFIC_LIGHTS_URL, headers)
+
+
+def get_postal_code_from_coords(lat: float, lon: float) -> str:
+    """
+    Get postal code from coordinates using OneMap reverse geocoding API.
+    
+    Args:
+        lat: Latitude in degrees
+        lon: Longitude in degrees
+    
+    Returns:
+        Postal code as string, or empty string if not found
+    """
+    import requests
+    try:
+        # OneMap reverse geocoding API
+        url = f"https://www.onemap.gov.sg/api/public/revgeocode?latitude={lat}&longitude={lon}"
+        
+        api_token = os.getenv("ONEMAP_API_KEY")
+        headers = {}
+        if api_token:
+            headers["Authorization"] = api_token
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            results = data.get('results', [])
+            if results:
+                # Get postal code from first result
+                postal_code = results[0].get('POSTAL_CODE', '')
+                return postal_code
+    except Exception as e:
+        print(f"Error getting postal code from coordinates: {e}")
+    return ""
+
+
+def fetch_ev_charging_points(postal_code: str):
+    """
+    Fetch EV charging points data from LTA DataMall API using postal code.
+    
+    Args:
+        postal_code: Postal code as string
+    
+    Returns:
+        Dictionary containing EV charging points data or None if error
+    """
+    import requests
+    if not postal_code:
+        return None
+    
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    params = {
+        "PostalCode": postal_code
+    }
+    
+    try:
+        response = requests.get(EV_CHARGING_URL, headers=headers, params=params, timeout=10)
+        if 200 <= response.status_code < 300:
+            return response.json()
+        print(f"EV charging API request failed: status={response.status_code}")
+    except (requests.exceptions.RequestException, ValueError) as error:
+        print(f"Error fetching EV charging points data: {error}")
+    return None
+
+
+def create_ev_charging_markers(ev_data):
+    """
+    Create map markers for EV charging point locations.
+    
+    Args:
+        ev_data: Dictionary containing EV charging points response from LTA API
+    
+    Returns:
+        List of dl.CircleMarker components
+    """
+    markers = []
+    
+    if not ev_data or 'value' not in ev_data:
+        return markers
+    
+    charging_points = ev_data.get('value', [])
+    
+    for point in charging_points:
+        try:
+            latitude = float(point.get('Latitude', 0))
+            longitude = float(point.get('Longitude', 0))
+            address = point.get('Address', 'N/A')
+            status = point.get('Status', '')
+            
+            if latitude == 0 or longitude == 0:
+                continue
+            
+            # Map status: 0 = occupied, 1 = available, "" = not available
+            if status == "0":
+                status_text = "Occupied"
+            elif status == "1":
+                status_text = "Available"
+            elif status == "":
+                status_text = "Not Available"
+            else:
+                status_text = f"Status: {status}"
+            
+            # Create tooltip with address and status
+            tooltip_html = (
+                f"Address: {address}"
+                f"Status: {status_text}"
+            )
+            
+            # Create circle marker for EV charging point (using electric blue color)
+            markers.append(
+                dl.CircleMarker(
+                    center=[latitude, longitude],
+                    radius=6,
+                    color="#00BFFF",  # Deep sky blue for EV charging
+                    fill=True,
+                    fillColor="#00BFFF",
+                    fillOpacity=0.7,
+                    weight=2,
+                    children=[
+                        dl.Tooltip(tooltip_html),
+                    ]
+                )
+            )
+        except (ValueError, TypeError, KeyError):
+            continue
+    
+    return markers
 
 
 def create_traffic_incidents_markers(incidents_data, faulty_lights_data=None):
@@ -1126,30 +1376,40 @@ def create_traffic_incidents_markers(incidents_data, faulty_lights_data=None):
             if latitude == 0 or longitude == 0:
                 continue
             
-            # Get incident type/message
-            incident_type = (
-                incident.get('Type') or
-                incident.get('type') or
+            # Get incident message - prioritize Message field for full details
+            incident_message = (
                 incident.get('Message') or
                 incident.get('message') or
+                incident.get('Type') or
+                incident.get('type') or
                 incident.get('IncidentType') or
                 incident.get('incidentType') or
                 'Unknown Incident'
             )
             
-            # Create tooltip with incident information
-            tooltip_html = f"🚦 {incident_type}"
+            # Create tooltip with full incident message
+            tooltip_html = f"🚦 {incident_message}"
             
-            # Use red color for incidents
+            # Use triangle marker pointing down (warning sign style) for traffic incidents
+            # This distinguishes them from taxi stands which point up
+            triangle_svg = (
+                '<svg width="20" height="18" viewBox="0 0 20 18" xmlns="http://www.w3.org/2000/svg">'
+                '<path d="M 10 18 L 0 0 L 20 0 Z" fill="#FF9800" stroke="#FF6B6B" stroke-width="1.5"/>'
+                '</svg>'
+            )
+            triangle_svg_base64 = base64.b64encode(triangle_svg.encode()).decode()
+            
+            triangle_icon = {
+                "iconUrl": f"data:image/svg+xml;base64,{triangle_svg_base64}",
+                "iconSize": [20, 18],
+                "iconAnchor": [10, 0],
+                "popupAnchor": [0, 18],
+            }
+            
             markers.append(
-                dl.CircleMarker(
-                    center=[latitude, longitude],
-                    radius=8,
-                    color="#FF0000",  # Red for incidents
-                    fill=True,
-                    fillColor="#FF0000",
-                    fillOpacity=0.7,
-                    weight=2,
+                dl.Marker(
+                    position=[latitude, longitude],
+                    icon=triangle_icon,
                     children=[
                         dl.Tooltip(tooltip_html),
                     ]
@@ -1199,7 +1459,7 @@ def create_traffic_incidents_markers(incidents_data, faulty_lights_data=None):
                     'N/A'
                 )
                 
-                tooltip_html = f"🚦 Faulty Traffic Light<br>Node ID: {node_id}"
+                tooltip_html = f"🚦 Faulty Traffic Light Node ID: {node_id}"
                 
                 # Use orange color for faulty traffic lights
                 markers.append(
@@ -1521,6 +1781,70 @@ def fetch_bicycle_parking_data():
     return None
 
 
+def fetch_nearby_taxi_stands(lat: float, lon: float, radius_m: int = 300) -> list:
+    """
+    Fetch nearby taxi stands data from LTA DataMall API within specified radius.
+    
+    Args:
+        lat: Latitude in degrees
+        lon: Longitude in degrees
+        radius_m: Search radius in meters (default: 300)
+    
+    Returns:
+        List of taxi stand dictionaries with distance information, sorted by distance
+    """
+    # Fetch all taxi stands data
+    taxi_stands_data = fetch_taxi_stands_data()
+    
+    if not taxi_stands_data:
+        return []
+    
+    # Extract taxi stands from response
+    stands = []
+    if isinstance(taxi_stands_data, dict):
+        if "value" in taxi_stands_data:
+            stands = taxi_stands_data.get("value", [])
+        elif isinstance(taxi_stands_data, list):
+            stands = taxi_stands_data
+    elif isinstance(taxi_stands_data, list):
+        stands = taxi_stands_data
+    
+    processed_results = []
+    
+    for stand in stands:
+        try:
+            stand_lat = float(stand.get('Latitude', 0))
+            stand_lon = float(stand.get('Longitude', 0))
+            
+            if stand_lat == 0 or stand_lon == 0:
+                continue
+            
+            # Calculate distance using haversine formula
+            distance_m = _haversine_distance_m(lat, lon, stand_lat, stand_lon)
+            
+            # Only include stands within the specified radius
+            if distance_m <= radius_m:
+                processed_results.append({
+                    'taxi_code': stand.get('TaxiCode', 'N/A'),
+                    'name': stand.get('Name', 'N/A'),
+                    'bfa': stand.get('Bfa', 'N/A'),
+                    'ownership': stand.get('Ownership', 'N/A'),
+                    'stand_type': stand.get('Type', 'N/A'),
+                    'latitude': stand_lat,
+                    'longitude': stand_lon,
+                    'distance_m': distance_m,
+                    'raw_data': stand
+                })
+        except (ValueError, TypeError, KeyError) as e:
+            print(f"Error processing taxi stand data: {e}")
+            continue
+    
+    # Sort by distance (closest first)
+    processed_results.sort(key=lambda x: x['distance_m'])
+    
+    return processed_results
+
+
 def fetch_nearby_bicycle_parking(lat: float, lon: float, radius_m: int = 500) -> list:
     """
     Fetch nearby bicycle parking data from LTA DataMall API within specified radius.
@@ -1615,7 +1939,7 @@ def create_bicycle_parking_markers(bicycle_data):
         bicycle_data: Dictionary containing bicycle parking response from LTA API
     
     Returns:
-        List of dl.CircleMarker components
+        List of dl.Marker components with bicycle rack icons
     """
     markers = []
     
@@ -1639,23 +1963,50 @@ def create_bicycle_parking_markers(bicycle_data):
             # Determine sheltered/unsheltered status
             shelter_status = 'sheltered' if shelter_indicator == 'Y' else 'unsheltered'
             
-            # Create tooltip with formatted information
+            # Create tooltip with formatted information - each field on separate line
             tooltip_html = (
-                f"{description} ({shelter_status})<br>"
-                f"RackType: {rack_type}<br>"
+                f"{description} ({shelter_status})\n"
+                f"RackType: {rack_type}\n"
                 f"RackCount: {rack_count}"
             )
             
-            # Create circle marker for bicycle parking
+            # Create bicycle rack icon SVG - different icons for sheltered vs unsheltered
+            if shelter_indicator == 'Y':
+                # Sheltered: bicycle rack with roof/shelter
+                bicycle_rack_svg = (
+                    '<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+                    '<rect x="2" y="2" width="20" height="20" rx="2" fill="#9C27B0" opacity="0.2" stroke="#9C27B0" stroke-width="1.5"/>'
+                    '<path d="M 3 3 L 3 19 M 7 3 L 7 19 M 11 3 L 11 19 M 15 3 L 15 19 M 19 3 L 19 19" '
+                    'stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '<path d="M 4 19 L 20 19" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '<path d="M 2 3 Q 12 1 22 3" stroke="#9C27B0" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+                    '<path d="M 2 2 L 22 2" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '</svg>'
+                )
+            else:
+                # Unsheltered: simple bicycle rack without roof
+                bicycle_rack_svg = (
+                    '<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+                    '<rect x="2" y="2" width="20" height="20" rx="2" fill="#9C27B0" opacity="0.2" stroke="#9C27B0" stroke-width="1.5"/>'
+                    '<path d="M 6 4 L 6 20 M 10 4 L 10 20 M 14 4 L 14 20 M 18 4 L 18 20" '
+                    'stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '<path d="M 4 20 L 20 20" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '</svg>'
+                )
+            bicycle_rack_svg_base64 = base64.b64encode(bicycle_rack_svg.encode()).decode()
+            
+            bicycle_rack_icon = {
+                "iconUrl": f"data:image/svg+xml;base64,{bicycle_rack_svg_base64}",
+                "iconSize": [24, 24],
+                "iconAnchor": [12, 24],
+                "popupAnchor": [0, -24],
+            }
+            
+            # Create marker with bicycle rack icon
             markers.append(
-                dl.CircleMarker(
-                    center=[latitude, longitude],
-                    radius=5,
-                    color="#4CAF50",  # Green color for bicycle parking
-                    fill=True,
-                    fillColor="#4CAF50",
-                    fillOpacity=0.7,
-                    weight=2,
+                dl.Marker(
+                    position=[latitude, longitude],
+                    icon=bicycle_rack_icon,
                     children=[
                         dl.Tooltip(tooltip_html),
                     ]
@@ -1675,7 +2026,7 @@ def create_nearby_bicycle_parking_markers(bicycle_parking_list):
         bicycle_parking_list: List of processed bicycle parking dictionaries
     
     Returns:
-        List of dl.CircleMarker components
+        List of dl.Marker components with bicycle rack icons
     """
     markers = []
     
@@ -1697,23 +2048,50 @@ def create_nearby_bicycle_parking_markers(bicycle_parking_list):
             # Determine sheltered/unsheltered status
             shelter_status = 'sheltered' if shelter_indicator == 'Y' else 'unsheltered'
             
-            # Create tooltip with formatted information
+            # Create tooltip with formatted information - each field on separate line
             tooltip_html = (
-                f"{description} ({shelter_status})<br>"
-                f"RackType: {rack_type}<br>"
+                f"{description} ({shelter_status})\n"
+                f"RackType: {rack_type}\n"
                 f"RackCount: {rack_count}"
             )
             
-            # Create circle marker for bicycle parking
+            # Create bicycle rack icon SVG - different icons for sheltered vs unsheltered
+            if shelter_indicator == 'Y':
+                # Sheltered: bicycle rack with roof/shelter
+                bicycle_rack_svg = (
+                    '<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+                    '<rect x="2" y="2" width="20" height="20" rx="2" fill="#9C27B0" opacity="0.2" stroke="#9C27B0" stroke-width="1.5"/>'
+                    '<path d="M 3 3 L 3 19 M 7 3 L 7 19 M 11 3 L 11 19 M 15 3 L 15 19 M 19 3 L 19 19" '
+                    'stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '<path d="M 4 19 L 20 19" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '<path d="M 2 3 Q 12 1 22 3" stroke="#9C27B0" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+                    '<path d="M 2 2 L 22 2" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '</svg>'
+                )
+            else:
+                # Unsheltered: simple bicycle rack without roof
+                bicycle_rack_svg = (
+                    '<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+                    '<rect x="2" y="2" width="20" height="20" rx="2" fill="#9C27B0" opacity="0.2" stroke="#9C27B0" stroke-width="1.5"/>'
+                    '<path d="M 6 4 L 6 20 M 10 4 L 10 20 M 14 4 L 14 20 M 18 4 L 18 20" '
+                    'stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '<path d="M 4 20 L 20 20" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+                    '</svg>'
+                )
+            bicycle_rack_svg_base64 = base64.b64encode(bicycle_rack_svg.encode()).decode()
+            
+            bicycle_rack_icon = {
+                "iconUrl": f"data:image/svg+xml;base64,{bicycle_rack_svg_base64}",
+                "iconSize": [24, 24],
+                "iconAnchor": [12, 24],
+                "popupAnchor": [0, -24],
+            }
+            
+            # Create marker with bicycle rack icon
             markers.append(
-                dl.CircleMarker(
-                    center=[latitude, longitude],
-                    radius=5,
-                    color="#4CAF50",  # Green color for bicycle parking
-                    fill=True,
-                    fillColor="#4CAF50",
-                    fillOpacity=0.7,
-                    weight=2,
+                dl.Marker(
+                    position=[latitude, longitude],
+                    icon=bicycle_rack_icon,
                     children=[
                         dl.Tooltip(tooltip_html),
                     ]
@@ -1959,7 +2337,7 @@ def register_transport_callbacks(app):
         
         # Format as "taxi/taxi stands"
         count_value = html.Div(
-            html.Span(f"{taxi_count:,}/{stands_count}", style={"color": "#fff"}),
+            html.Span(f"{taxi_count:,}/{stands_count}", style={"color": "#FFD700"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
                 "padding": "4px 8px",
@@ -2051,7 +2429,7 @@ def register_transport_callbacks(app):
         # Extract count (always calculate)
         camera_count = len(camera_data) if camera_data else 0
         count_value = html.Div(
-            html.Span(f"{camera_count}", style={"color": "#fff"}),
+            html.Span(f"{camera_count}", style={"color": "#4CAF50"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
                 "padding": "4px 8px",
@@ -2126,7 +2504,7 @@ def register_transport_callbacks(app):
         # Extract count (always calculate)
         gantry_count = len(gantry_data) if gantry_data else 0
         count_value = html.Div(
-            html.Span(f"{gantry_count}", style={"color": "#fff"}),
+            html.Span(f"{gantry_count}", style={"color": "#FF6B6B"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
                 "padding": "4px 8px",
@@ -2197,51 +2575,20 @@ def register_transport_callbacks(app):
         # Always fetch data to display counts
         data = fetch_speed_band_data()
         
-        # Calculate average speed band value (always calculate)
+        # Count number of road segments measured (always calculate)
         items = data.get('value', []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-        if items:
-            band_values = []
-            for item in items:
-                try:
-                    band = item.get('SpeedBand', '0')
-                    if band and str(band).isdigit():
-                        band_int = int(band)
-                        if 1 <= band_int <= 8:
-                            band_values.append(band_int)
-                except (ValueError, TypeError):
-                    continue
-            
-            if band_values:
-                # Calculate average speed using midpoint of each range
-                speed_midpoints = []
-                for band in band_values:
-                    midpoint = get_speed_midpoint(band)
-                    if midpoint > 0:  # Only add valid midpoints
-                        speed_midpoints.append(midpoint)
-                
-                if speed_midpoints:
-                    avg_speed = sum(speed_midpoints) / len(speed_midpoints)
-                else:
-                    avg_speed = 0
-                
-                # Display average speed rounded to nearest integer
-                count_value = html.Div(
-                    html.Span(f"{int(round(avg_speed))} km/h", style={"color": "#fff"}),
-                    style={
-                        "backgroundColor": "rgb(58, 74, 90)",
-                        "padding": "4px 8px",
-                        "borderRadius": "4px",
-                    }
-                )
-            else:
-                count_value = html.Div(
-                    html.Span("--", style={"color": "#999"}),
-                    style={
-                        "backgroundColor": "rgb(58, 74, 90)",
-                        "padding": "4px 8px",
-                        "borderRadius": "4px",
-                    }
-                )
+        road_segment_count = len(items) if items else 0
+        
+        if road_segment_count > 0:
+            # Display number of road segments measured
+            count_value = html.Div(
+                html.Span(f"{road_segment_count}", style={"color": "#00BCD4"}),
+                style={
+                    "backgroundColor": "rgb(58, 74, 90)",
+                    "padding": "4px 8px",
+                    "borderRadius": "4px",
+                }
+            )
         else:
             count_value = html.Div(
                 html.Span("--", style={"color": "#999"}),
@@ -2304,7 +2651,9 @@ def register_transport_callbacks(app):
 
     @app.callback(
         [Output('traffic-incidents-markers', 'children'),
-         Output('traffic-incidents-count-value', 'children')],
+         Output('traffic-incidents-count-value', 'children'),
+         Output('traffic-incidents-messages', 'children'),
+         Output('traffic-incidents-messages', 'style')],
         [Input('traffic-incidents-toggle-state', 'data'),
          Input('transport-interval', 'n_intervals')]
     )
@@ -2338,7 +2687,7 @@ def register_transport_callbacks(app):
         
         total_count = len(incidents) + len(faulty_lights)
         count_value = html.Div(
-            html.Span(f"{total_count}", style={"color": "#fff"}),
+            html.Span(f"{total_count}", style={"color": "#FF9800"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
                 "padding": "4px 8px",
@@ -2346,14 +2695,108 @@ def register_transport_callbacks(app):
             }
         )
 
+        # Collect all incident messages
+        message_items = []
+        for incident in incidents:
+            if not isinstance(incident, dict):
+                continue
+            incident_message = (
+                incident.get('Message') or
+                incident.get('message') or
+                incident.get('Type') or
+                incident.get('type') or
+                incident.get('IncidentType') or
+                incident.get('incidentType') or
+                'Unknown Incident'
+            )
+            message_items.append(
+                html.Div(
+                    html.Span(
+                        f"• {incident_message}",
+                        style={
+                            "color": "#ccc",
+                            "fontSize": "11px",
+                            "lineHeight": "1.4",
+                        }
+                    ),
+                    style={
+                        "padding": "4px 0",
+                        "borderBottom": "1px solid rgba(255, 255, 255, 0.1)",
+                    }
+                )
+            )
+        
+        # Add faulty traffic lights messages
+        for light in faulty_lights:
+            if not isinstance(light, dict):
+                continue
+            node_id = (
+                light.get('NodeID') or
+                light.get('nodeID') or
+                light.get('node_id') or
+                'N/A'
+            )
+            message_items.append(
+                html.Div(
+                    html.Span(
+                        f"• Faulty Traffic Light (Node ID: {node_id})",
+                        style={
+                            "color": "#ccc",
+                            "fontSize": "11px",
+                            "lineHeight": "1.4",
+                        }
+                    ),
+                    style={
+                        "padding": "4px 0",
+                        "borderBottom": "1px solid rgba(255, 255, 255, 0.1)",
+                    }
+                )
+            )
+        
+        # Messages container
+        if message_items:
+            messages_display = html.Div(
+                message_items,
+                style={
+                    "padding": "8px",
+                    "backgroundColor": "rgb(58, 74, 90)",
+                    "borderRadius": "4px",
+                }
+            )
+            messages_style = {
+                "maxHeight": "150px",
+                "overflowY": "auto",
+                "display": "block",
+            }
+        else:
+            messages_display = html.Div(
+                html.Span(
+                    "No incidents reported",
+                    style={
+                        "color": "#999",
+                        "fontSize": "11px",
+                        "fontStyle": "italic",
+                    }
+                ),
+                style={
+                    "padding": "8px",
+                    "textAlign": "center",
+                }
+            )
+            messages_style = {
+                "maxHeight": "150px",
+                "overflowY": "auto",
+                "display": "block",
+            }
+
         # Only show markers if toggle is on
         if not show_incidents:
-            return [], count_value
+            return [], count_value, messages_display, messages_style
 
         # Create markers
         markers = create_traffic_incidents_markers(incidents_data, faulty_lights_data)
 
-        return markers, count_value
+        return markers, count_value, messages_display, messages_style
 
     @app.callback(
         [Output('bicycle-parking-toggle-state', 'data'),
@@ -2398,7 +2841,9 @@ def register_transport_callbacks(app):
 
     @app.callback(
         [Output('bicycle-parking-markers', 'children'),
-         Output('bicycle-parking-count-value', 'children')],
+         Output('bicycle-parking-count-value', 'children'),
+         Output('bicycle-parking-legend', 'style'),
+         Output('bicycle-parking-legend-content', 'children')],
         [Input('bicycle-parking-toggle-state', 'data'),
          Input('transport-interval', 'n_intervals')]
     )
@@ -2418,7 +2863,18 @@ def register_transport_callbacks(app):
                     "borderRadius": "4px",
                 }
             )
-            return [], count_value
+            legend_style = {
+                "position": "absolute",
+                "top": "120px",  # Position below taxi legend
+                "right": "10px",
+                "backgroundColor": "rgba(26, 42, 58, 0.9)",
+                "borderRadius": "8px",
+                "padding": "10px",
+                "zIndex": "1000",
+                "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
+                "display": "none",
+            }
+            return [], count_value, legend_style, []
         
         parking_locations = data.get('value', [])
         
@@ -2428,7 +2884,7 @@ def register_transport_callbacks(app):
         
         # Format as "sheltered/unsheltered"
         count_value = html.Div(
-            html.Span(f"{sheltered_count}/{unsheltered_count}", style={"color": "#fff"}),
+            html.Span(f"{sheltered_count}/{unsheltered_count}", style={"color": "#9C27B0"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
                 "padding": "4px 8px",
@@ -2436,14 +2892,100 @@ def register_transport_callbacks(app):
             }
         )
         
+        # Legend style - show when toggle is on
+        legend_style = {
+            "position": "absolute",
+            "top": "120px",  # Position below taxi legend
+            "right": "10px",
+            "backgroundColor": "rgba(26, 42, 58, 0.9)",
+            "borderRadius": "8px",
+            "padding": "10px",
+            "zIndex": "1000",
+            "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
+            "display": "block" if show_bicycle_parking else "none",
+        }
+        
+        # Create legend content with both icon types
+        sheltered_svg = (
+            '<svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+            '<rect x="2" y="2" width="20" height="20" rx="2" fill="#9C27B0" opacity="0.2" stroke="#9C27B0" stroke-width="1.5"/>'
+            '<path d="M 3 3 L 3 19 M 7 3 L 7 19 M 11 3 L 11 19 M 15 3 L 15 19 M 19 3 L 19 19" '
+            'stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+            '<path d="M 4 19 L 20 19" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+            '<path d="M 2 3 Q 12 1 22 3" stroke="#9C27B0" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+            '<path d="M 2 2 L 22 2" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+            '</svg>'
+        )
+        sheltered_svg_base64 = base64.b64encode(sheltered_svg.encode()).decode()
+        
+        unsheltered_svg = (
+            '<svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+            '<rect x="2" y="2" width="20" height="20" rx="2" fill="#9C27B0" opacity="0.2" stroke="#9C27B0" stroke-width="1.5"/>'
+            '<path d="M 6 4 L 6 20 M 10 4 L 10 20 M 14 4 L 14 20 M 18 4 L 18 20" '
+            'stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+            '<path d="M 4 20 L 20 20" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
+            '</svg>'
+        )
+        unsheltered_svg_base64 = base64.b64encode(unsheltered_svg.encode()).decode()
+        
+        legend_content = [
+            html.Div(
+                style={
+                    "display": "flex",
+                    "alignItems": "center",
+                    "marginBottom": "6px",
+                },
+                children=[
+                    html.Img(
+                        src=f"data:image/svg+xml;base64,{sheltered_svg_base64}",
+                        style={
+                            "width": "20px",
+                            "height": "20px",
+                            "marginRight": "8px",
+                        }
+                    ),
+                    html.Span(
+                        "Sheltered",
+                        style={
+                            "color": "#fff",
+                            "fontSize": "11px",
+                        }
+                    ),
+                ]
+            ),
+            html.Div(
+                style={
+                    "display": "flex",
+                    "alignItems": "center",
+                },
+                children=[
+                    html.Img(
+                        src=f"data:image/svg+xml;base64,{unsheltered_svg_base64}",
+                        style={
+                            "width": "20px",
+                            "height": "20px",
+                            "marginRight": "8px",
+                        }
+                    ),
+                    html.Span(
+                        "Unsheltered",
+                        style={
+                            "color": "#fff",
+                            "fontSize": "11px",
+                        }
+                    ),
+                ]
+            ),
+        ]
+        
         # Only show markers if toggle is on
         if not show_bicycle_parking:
-            return [], count_value
+            return [], count_value, legend_style, []
         
         # Create markers
         markers = create_bicycle_parking_markers(data)
         
-        return markers, count_value
+        return markers, count_value, legend_style, legend_content
 
     # Callback for nearby transport page - bicycle parking
     @app.callback(
@@ -2454,7 +2996,7 @@ def register_transport_callbacks(app):
     def update_nearby_transport_bicycle_parking(location_data):
         """
         Update bicycle parking display for nearby transport page based on selected location.
-        Shows bicycle parking within 500m of the selected location.
+        Shows bicycle parking within 100m of the selected location.
         
         Args:
             location_data: Dictionary containing {'lat': float, 'lon': float} of selected location
@@ -2488,14 +3030,14 @@ def register_transport_callbacks(app):
                 }
             ), []
 
-        # Fetch nearby bicycle parking within 500m
+        # Fetch nearby bicycle parking within 100m
         print(f"Searching for bicycle parking near ({center_lat}, {center_lon}) for nearby transport page")
-        nearby_parking = fetch_nearby_bicycle_parking(center_lat, center_lon, radius_m=500)
-        print(f"Found {len(nearby_parking)} bicycle parking locations within 500m")
+        nearby_parking = fetch_nearby_bicycle_parking(center_lat, center_lon, radius_m=100)
+        print(f"Found {len(nearby_parking)} bicycle parking locations within 100m")
 
         if not nearby_parking:
             return html.P(
-                "No bicycle parking found within 500m",
+                "No bicycle parking found within 100m",
                 style={
                     "textAlign": "center",
                     "padding": "15px",
@@ -2573,5 +3115,234 @@ def register_transport_callbacks(app):
 
         # Return all parking items and markers
         return parking_items, markers
+
+    # Callback for nearby transport page - EV charging points
+    @app.callback(
+        [Output('nearby-transport-ev-charging-content', 'children'),
+         Output('nearby-ev-charging-markers', 'children')],
+        Input('nearby-transport-location-store', 'data')
+    )
+    def update_nearby_transport_ev_charging(location_data):
+        """
+        Update EV charging points display for nearby transport page based on selected location.
+        Uses postal code from the selected location to fetch EV charging points.
+        
+        Args:
+            location_data: Dictionary containing {'lat': float, 'lon': float} of selected location
+        
+        Returns:
+            HTML Div containing EV charging points information and markers
+        """
+        if not location_data:
+            return html.P(
+                "Select a location to view nearby EV charging points",
+                style={
+                    "textAlign": "center",
+                    "padding": "15px",
+                    "color": "#999",
+                    "fontSize": "12px",
+                    "fontStyle": "italic"
+                }
+            ), []
+
+        try:
+            center_lat = float(location_data.get('lat'))
+            center_lon = float(location_data.get('lon'))
+        except (ValueError, TypeError, KeyError):
+            return html.Div(
+                "Invalid coordinates",
+                style={
+                    "padding": "10px",
+                    "color": "#ff6b6b",
+                    "fontSize": "12px",
+                    "textAlign": "center"
+                }
+            ), []
+
+        # Get postal code from coordinates
+        postal_code = get_postal_code_from_coords(center_lat, center_lon)
+        
+        if not postal_code:
+            return html.P(
+                "Unable to determine postal code for selected location",
+                style={
+                    "textAlign": "center",
+                    "padding": "15px",
+                    "color": "#999",
+                    "fontSize": "12px",
+                    "fontStyle": "italic"
+                }
+            ), []
+
+        # Fetch EV charging points using postal code
+        print(f"Fetching EV charging points for postal code: {postal_code}")
+        ev_data = fetch_ev_charging_points(postal_code)
+        
+        if not ev_data or 'value' not in ev_data:
+            return html.P(
+                "No EV charging points found for this postal code",
+                style={
+                    "textAlign": "center",
+                    "padding": "15px",
+                    "color": "#999",
+                    "fontSize": "12px",
+                    "fontStyle": "italic"
+                }
+            ), []
+
+        charging_points = ev_data.get('value', [])
+        
+        if not charging_points:
+            return html.P(
+                "No EV charging points found for this postal code",
+                style={
+                    "textAlign": "center",
+                    "padding": "15px",
+                    "color": "#999",
+                    "fontSize": "12px",
+                    "fontStyle": "italic"
+                }
+            ), []
+
+        # Create markers for map
+        markers = create_ev_charging_markers(ev_data)
+
+        # Build display components for each EV charging point
+        charging_items = []
+
+        for point in charging_points:
+            address = point.get('Address', 'N/A')
+            status = point.get('Status', '')
+            
+            # Map status: 0 = occupied, 1 = available, "" = not available
+            if status == "0":
+                status_text = "Occupied"
+                status_color = "#ff6b6b"  # Red
+            elif status == "1":
+                status_text = "Available"
+                status_color = "#4CAF50"  # Green
+            elif status == "":
+                status_text = "Not Available"
+                status_color = "#999"  # Gray
+            else:
+                status_text = f"Status: {status}"
+                status_color = "#999"
+
+            # Create card for each EV charging point
+            charging_items.append(
+                html.Div(
+                    [
+                        html.Div(
+                            address,
+                            style={
+                                "fontSize": "13px",
+                                "color": "#fff",
+                                "fontWeight": "600",
+                                "marginBottom": "4px"
+                            }
+                        ),
+                        html.Div(
+                            html.Span(
+                                status_text,
+                                style={
+                                    "color": status_color,
+                                    "fontSize": "12px",
+                                    "fontWeight": "500"
+                                }
+                            ),
+                        )
+                    ],
+                    style={
+                        "padding": "10px 12px",
+                        "borderBottom": "1px solid #444",
+                        "marginBottom": "6px",
+                        "backgroundColor": "#1a1a1a",
+                        "borderRadius": "4px"
+                    }
+                )
+            )
+
+        # Return all charging items and markers
+        return charging_items, markers
+
+    # VMS (Variable Message Signs) callbacks
+    @app.callback(
+        [Output('vms-toggle-state', 'data'),
+         Output('vms-toggle-btn', 'style'),
+         Output('vms-toggle-btn', 'children')],
+        Input('vms-toggle-btn', 'n_clicks'),
+        State('vms-toggle-state', 'data'),
+        prevent_initial_call=True
+    )
+    def toggle_vms_display(_n_clicks, current_state):
+        """Toggle VMS markers display on/off."""
+        new_state = not current_state
+        
+        if new_state:
+            # Active state - silver background
+            style = {
+                "backgroundColor": "#C0C0C0",
+                "border": "none",
+                "borderRadius": "4px",
+                "color": "#000",
+                "cursor": "pointer",
+                "padding": "6px 12px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Hide VMS Display Locations"
+        else:
+            # Inactive state - outline
+            style = {
+                "backgroundColor": "transparent",
+                "border": "2px solid #C0C0C0",
+                "borderRadius": "4px",
+                "color": "#C0C0C0",
+                "cursor": "pointer",
+                "padding": "4px 10px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Show VMS Display Locations"
+        
+        return new_state, style, text
+
+    @app.callback(
+        [Output('vms-markers', 'children'),
+         Output('vms-count-value', 'children')],
+        [Input('vms-toggle-state', 'data'),
+         Input('transport-interval', 'n_intervals')]
+    )
+    def update_vms_display(show_vms, n_intervals):
+        """Update VMS markers and count display."""
+        _ = n_intervals  # Used for periodic refresh
+
+        # Always fetch data to display counts (using async)
+        future = fetch_vms_data_async()
+        data = future.result() if future else None
+        
+        # Extract count (always calculate)
+        vms_count = 0
+        if data and 'value' in data:
+            vms_locations = data.get('value', [])
+            vms_count = len(vms_locations)
+        
+        count_value = html.Div(
+            html.Span(f"{vms_count}", style={"color": "#C0C0C0"}),
+            style={
+                "backgroundColor": "rgb(58, 74, 90)",
+                "padding": "4px 8px",
+                "borderRadius": "4px",
+            }
+        )
+
+        # Only show markers if toggle is on
+        if not show_vms:
+            return [], count_value
+
+        # Create markers
+        markers = create_vms_markers(data)
+
+        return markers, count_value
 
 

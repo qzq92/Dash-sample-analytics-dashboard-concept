@@ -719,7 +719,7 @@ def realtime_weather_page():
             # Interval for auto-refresh
             dcc.Interval(
                 id='realtime-weather-interval',
-                interval=60*1000,  # Update every 60 seconds
+                interval=2*60*1000,  # Update every 2 minutes
                 n_intervals=0
             ),
         ]
