@@ -1,5 +1,5 @@
 """
-Component for the Health Related Hazard Clusters & Indexes page.
+Component for the Daily Health and Environmental Watch page.
 Displays various exposure indexes across Singapore.
 """
 from dash import html, dcc
@@ -15,11 +15,11 @@ from utils.map_utils import (
 
 def weather_indices_page():
     """
-    Create the Health Related Hazard Clusters & Indexes page layout.
+    Create the Daily Health and Environmental Watch page layout.
     Features: UV Index, WBGT, and other exposure indexes.
 
     Returns:
-        HTML Div containing the Health Related Hazard Clusters & Indexes section
+        HTML Div containing the Daily Health and Environmental Watch section
     """
     # Use standardized map configuration
     sg_center = SG_MAP_CENTER
