@@ -81,7 +81,7 @@ def transport_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "🚕 Taxi Locations & Stands",
+                                                "🚕 Current Taxi Locations/Stands",
                                                 style={
                                                     "color": "#fff",
                                                     "fontWeight": "600",
@@ -131,7 +131,7 @@ def transport_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "📹 Traffic Cameras",
+                                                "📹 LTA Traffic Cameras",
                                                 style={
                                                     "color": "#fff",
                                                     "fontWeight": "600",
@@ -142,6 +142,56 @@ def transport_page():
                                                 id="cctv-count-value",
                                                 style={
                                                     "color": "#4CAF50",
+                                                    "fontSize": "1.125rem",
+                                                    "fontWeight": "700",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        html.Span("--", style={"color": "#999"}),
+                                                        style={
+                                                            "backgroundColor": "rgb(58, 74, 90)",
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                        }
+                                                    )
+                                                ]
+                                            ),
+                                        ]
+                                    ),
+                                ]
+                            ),
+                            # SPF Speed Camera card
+                            html.Div(
+                                id="speed-camera-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "8px",
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "flexDirection": "row",
+                                            "alignItems": "center",
+                                            "justifyContent": "space-between",
+                                        },
+                                        children=[
+                                            html.Span(
+                                                "📸 SPF Speed Camera",
+                                                style={
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                    "fontSize": "13px"
+                                                }
+                                            ),
+                                            html.Div(
+                                                id="speed-camera-count-value",
+                                                style={
+                                                    "color": "#81C784",
                                                     "fontSize": "1.125rem",
                                                     "fontWeight": "700",
                                                 },
@@ -192,114 +242,6 @@ def transport_page():
                                                 id="erp-count-value",
                                                 style={
                                                     "color": "#FF6B6B",
-                                                    "fontSize": "1.125rem",
-                                                    "fontWeight": "700",
-                                                },
-                                                children=[
-                                                    html.Div(
-                                                        html.Span("--", style={"color": "#999"}),
-                                                        style={
-                                                            "backgroundColor": "rgb(58, 74, 90)",
-                                                            "padding": "4px 8px",
-                                                            "borderRadius": "4px",
-                                                        }
-                                                    )
-                                                ]
-                                            ),
-                                        ]
-                                    ),
-                                ]
-                            ),
-                            # Traffic Incidents card
-                            html.Div(
-                                id="traffic-incidents-card",
-                                style={
-                                    "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "8px",
-                                    "padding": "10px",
-                                    "display": "flex",
-                                    "flexDirection": "column",
-                                    "gap": "8px",
-                                },
-                                children=[
-                                    html.Div(
-                                        style={
-                                            "display": "flex",
-                                            "flexDirection": "row",
-                                            "alignItems": "center",
-                                            "justifyContent": "space-between",
-                                        },
-                                        children=[
-                                            html.Span(
-                                                "🚦 Traffic Incidents",
-                                                style={
-                                                    "color": "#fff",
-                                                    "fontWeight": "600",
-                                                    "fontSize": "13px"
-                                                }
-                                            ),
-                                            html.Div(
-                                                id="traffic-incidents-count-value",
-                                                style={
-                                                    "color": "#FF9800",
-                                                    "fontSize": "1.125rem",
-                                                    "fontWeight": "700",
-                                                },
-                                                children=[
-                                                    html.Div(
-                                                        html.Span("--", style={"color": "#999"}),
-                                                        style={
-                                                            "backgroundColor": "rgb(58, 74, 90)",
-                                                            "padding": "4px 8px",
-                                                            "borderRadius": "4px",
-                                                        }
-                                                    )
-                                                ]
-                                            ),
-                                        ]
-                                    ),
-                                    html.Div(
-                                        id="traffic-incidents-messages",
-                                        style={
-                                            "maxHeight": "150px",
-                                            "overflowY": "auto",
-                                            "display": "none",
-                                        }
-                                    ),
-                                ]
-                            ),
-                            # Traffic Speed Band card
-                            html.Div(
-                                id="speed-band-card",
-                                style={
-                                    "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "8px",
-                                    "padding": "10px",
-                                    "display": "flex",
-                                    "flexDirection": "column",
-                                    "gap": "8px",
-                                },
-                                children=[
-                                    html.Div(
-                                        style={
-                                            "display": "flex",
-                                            "flexDirection": "row",
-                                            "alignItems": "center",
-                                            "justifyContent": "space-between",
-                                        },
-                                        children=[
-                                            html.Span(
-                                                "🏎️ Road Segments with Speed Bands Measure",
-                                                style={
-                                                    "color": "#fff",
-                                                    "fontWeight": "600",
-                                                    "fontSize": "13px"
-                                                }
-                                            ),
-                                            html.Div(
-                                                id="speed-band-count-value",
-                                                style={
-                                                    "color": "#00BCD4",
                                                     "fontSize": "1.125rem",
                                                     "fontWeight": "700",
                                                 },
@@ -389,7 +331,7 @@ def transport_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "📺 VMS Display",
+                                                "📺 VMS Display boards",
                                                 style={
                                                     "color": "#fff",
                                                     "fontWeight": "600",
@@ -415,6 +357,114 @@ def transport_page():
                                                 ]
                                             ),
                                         ]
+                                    ),
+                                ]
+                            ),
+                            # Bus Stops card
+                            html.Div(
+                                id="bus-stops-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "8px",
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "flexDirection": "row",
+                                            "alignItems": "center",
+                                            "justifyContent": "space-between",
+                                        },
+                                        children=[
+                                            html.Span(
+                                                "🚌 Bus Stops",
+                                                style={
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                    "fontSize": "13px"
+                                                }
+                                            ),
+                                            html.Div(
+                                                id="bus-stops-count-value",
+                                                style={
+                                                    "color": "#4169E1",
+                                                    "fontSize": "1.125rem",
+                                                    "fontWeight": "700",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        html.Span("--", style={"color": "#999"}),
+                                                        style={
+                                                            "backgroundColor": "rgb(58, 74, 90)",
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                        }
+                                                    )
+                                                ]
+                                            ),
+                                        ]
+                                    ),
+                                ]
+                            ),
+                            # Traffic Incidents card
+                            html.Div(
+                                id="traffic-incidents-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "8px",
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "flexDirection": "row",
+                                            "alignItems": "center",
+                                            "justifyContent": "space-between",
+                                        },
+                                        children=[
+                                            html.Span(
+                                                "🚦 Traffic Incidents",
+                                                style={
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                    "fontSize": "13px"
+                                                }
+                                            ),
+                                            html.Div(
+                                                id="traffic-incidents-count-value",
+                                                style={
+                                                    "color": "#FF9800",
+                                                    "fontSize": "1.125rem",
+                                                    "fontWeight": "700",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        html.Span("--", style={"color": "#999"}),
+                                                        style={
+                                                            "backgroundColor": "rgb(58, 74, 90)",
+                                                            "padding": "4px 8px",
+                                                            "borderRadius": "4px",
+                                                        }
+                                                    )
+                                                ]
+                                            ),
+                                        ]
+                                    ),
+                                    html.Div(
+                                        id="traffic-incidents-messages",
+                                        style={
+                                            "maxHeight": "150px",
+                                            "overflowY": "auto",
+                                            "display": "none",
+                                        }
                                     ),
                                 ]
                             ),
@@ -449,7 +499,7 @@ def transport_page():
                                 },
                                 children=[
                                     html.Button(
-                                        "Show Taxi Location & Stands",
+                                        "Show Current Taxi Locations/Stands",
                                         id="taxi-toggle-btn",
                                         n_clicks=0,
                                         style={
@@ -464,7 +514,7 @@ def transport_page():
                                         },
                                     ),
                                     html.Button(
-                                        "Show Traffic Cameras Location",
+                                        "Show LTA Traffic Cameras Location",
                                         id="cctv-toggle-btn",
                                         n_clicks=0,
                                         style={
@@ -509,21 +559,6 @@ def transport_page():
                                         },
                                     ),
                                     html.Button(
-                                        "Show Traffic Speed Bands",
-                                        id="speed-band-toggle-btn",
-                                        n_clicks=0,
-                                        style={
-                                            "backgroundColor": "transparent",
-                                            "border": "2px solid #00BCD4",
-                                            "borderRadius": "4px",
-                                            "color": "#00BCD4",
-                                            "cursor": "pointer",
-                                            "padding": "4px 10px",
-                                            "fontSize": "12px",
-                                            "fontWeight": "600",
-                                        },
-                                    ),
-                                    html.Button(
                                         "Show Bicycle Parking Locations",
                                         id="bicycle-parking-toggle-btn",
                                         n_clicks=0,
@@ -539,7 +574,7 @@ def transport_page():
                                         },
                                     ),
                                     html.Button(
-                                        "Show VMS Display Locations",
+                                        "Show VMS Display boards Locations",
                                         id="vms-toggle-btn",
                                         n_clicks=0,
                                         style={
@@ -547,6 +582,21 @@ def transport_page():
                                             "border": "2px solid #C0C0C0",
                                             "borderRadius": "4px",
                                             "color": "#C0C0C0",
+                                            "cursor": "pointer",
+                                            "padding": "4px 10px",
+                                            "fontSize": "12px",
+                                            "fontWeight": "600",
+                                        },
+                                    ),
+                                    html.Button(
+                                        "Show SPF Speed Camera Locations",
+                                        id="speed-camera-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "2px solid #81C784",
+                                            "borderRadius": "4px",
+                                            "color": "#81C784",
                                             "cursor": "pointer",
                                             "padding": "4px 10px",
                                             "fontSize": "12px",
@@ -587,9 +637,11 @@ def transport_page():
                                             dl.LayerGroup(id="cctv-markers"),
                                             dl.LayerGroup(id="erp-markers"),
                                             dl.LayerGroup(id="speed-band-markers"),
+                                            dl.LayerGroup(id="speed-camera-markers"),
                                             dl.LayerGroup(id="traffic-incidents-markers"),
                                             dl.LayerGroup(id="bicycle-parking-markers"),
                                             dl.LayerGroup(id="vms-markers"),
+                                            dl.LayerGroup(id="bus-stops-markers"),
                                         ],
                                         zoomControl=True,
                                         dragging=True,
@@ -733,7 +785,7 @@ def transport_page():
                                 },
                                 children=[
                                     html.H5(
-                                        "🚇 LRT/MRT Line Operational Status",
+                                        "🚇 Rail Operational Status",
                                         style={
                                             "margin": "0",
                                             "color": "#fff",
@@ -769,6 +821,7 @@ def transport_page():
             dcc.Store(id="cctv-toggle-state", data=False),
             dcc.Store(id="erp-toggle-state", data=False),
             dcc.Store(id="speed-band-toggle-state", data=False),
+            dcc.Store(id="speed-camera-toggle-state", data=False),
             dcc.Store(id="traffic-incidents-toggle-state", data=False),
             dcc.Store(id="bicycle-parking-toggle-state", data=False),
             dcc.Store(id="vms-toggle-state", data=False),
