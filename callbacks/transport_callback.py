@@ -10,6 +10,8 @@ import re
 import os
 import base64
 from datetime import datetime
+from typing import Optional, Dict, List, Any, Tuple
+from concurrent.futures import Future
 from dash import Input, Output, State, html
 import dash_leaflet as dl
 from utils.async_fetcher import fetch_url, fetch_async
@@ -1071,7 +1073,7 @@ def fetch_traffic_incidents_data():
     return fetch_url(TRAFFIC_INCIDENTS_URL, headers)
 
 
-def fetch_vms_data():
+def fetch_vms_data() -> Optional[Dict[str, Any]]:
     """
     Fetch VMS (Variable Message Signs) data from LTA DataMall API.
     
@@ -1093,10 +1095,13 @@ def fetch_vms_data():
     return fetch_url(VMS_URL, headers)
 
 
-def fetch_vms_data_async():
+def fetch_vms_data_async() -> Optional[Future]:
     """
     Fetch VMS data asynchronously (returns Future).
     Call .result() to get the data when needed.
+    
+    Returns:
+        Future object that will contain the VMS data, or None if error
     """
     api_key = os.getenv("LTA_API_KEY")
     
@@ -1113,7 +1118,7 @@ def fetch_vms_data_async():
     return fetch_async(VMS_URL, headers)
 
 
-def create_vms_markers(vms_data):
+def create_vms_markers(vms_data: Optional[Dict[str, Any]]) -> List[dl.CircleMarker]:
     """
     Create map markers for VMS (Variable Message Signs) locations.
     
@@ -3274,7 +3279,7 @@ def register_transport_callbacks(app):
         State('vms-toggle-state', 'data'),
         prevent_initial_call=True
     )
-    def toggle_vms_display(_n_clicks, current_state):
+    def toggle_vms_display(_n_clicks: Optional[int], current_state: bool) -> Tuple[bool, Dict[str, Any], str]:
         """Toggle VMS markers display on/off."""
         new_state = not current_state
         
@@ -3313,17 +3318,17 @@ def register_transport_callbacks(app):
         [Input('vms-toggle-state', 'data'),
          Input('transport-interval', 'n_intervals')]
     )
-    def update_vms_display(show_vms, n_intervals):
+    def update_vms_display(show_vms: bool, n_intervals: int) -> Tuple[List[dl.CircleMarker], html.Div]:
         """Update VMS markers and count display."""
         _ = n_intervals  # Used for periodic refresh
 
         # Always fetch data to display counts (using async)
         future = fetch_vms_data_async()
-        data = future.result() if future else None
+        data: Optional[Dict[str, Any]] = future.result() if future else None
         
         # Extract count (always calculate)
         vms_count = 0
-        if data and 'value' in data:
+        if isinstance(data, dict):
             vms_locations = data.get('value', [])
             vms_count = len(vms_locations)
         
