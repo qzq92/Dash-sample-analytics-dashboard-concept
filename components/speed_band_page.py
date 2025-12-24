@@ -91,7 +91,7 @@ def speed_band_page():
                                 },
                                 children=[
                                     html.Div(
-                                        html.Span("--", style={"color": "#999"}),
+                                        html.Span("Zoom in to view speed bands", style={"color": "#999"}),
                                         style={
                                             "backgroundColor": "rgb(58, 74, 90)",
                                             "padding": "4px 8px",
@@ -101,21 +101,158 @@ def speed_band_page():
                                 ]
                             ),
                             html.Div(
-                                id="speed-band-info-display",
+                                id="speed-band-center-coords",
+                                style={
+                                    "marginBottom": "0.625rem",
+                                },
+                                children=[
+                                    html.Div(
+                                        [
+                                            html.Span("Viewport Center: ", style={"color": "#ccc", "fontSize": "0.75rem"}),
+                                            html.Span("--", style={"color": "#999", "fontSize": "0.75rem"}),
+                                        ],
+                                        style={
+                                            "backgroundColor": "rgb(58, 74, 90)",
+                                            "padding": "4px 8px",
+                                            "borderRadius": "4px",
+                                        }
+                                    )
+                                ]
+                            ),
+                            html.Div(
+                                id="speed-band-legend",
                                 style={
                                     "display": "flex",
                                     "flexDirection": "column",
                                     "gap": "0.625rem",
+                                    "padding": "0.625rem",
+                                    "backgroundColor": "rgba(42, 54, 66, 0.8)",
+                                    "borderRadius": "8px",
+                                    "border": "2px solid rgba(255, 255, 255, 0.2)",
                                 },
                                 children=[
-                                    html.P(
-                                        "Loading speed band information...",
-                                        style={
-                                            "color": "#999",
-                                            "textAlign": "center",
-                                            "fontSize": "0.75rem",
-                                        }
-                                    )
+                                    html.P("Speed Band Legend", style={
+                                        "color": "#fff",
+                                        "fontSize": "0.875rem",
+                                        "fontWeight": "700",
+                                        "marginBottom": "10px",
+                                        "marginTop": "0",
+                                        "textAlign": "center",
+                                    }),
+                                    html.Div([
+                                        html.Div([
+                                            html.Div(style={
+                                                "width": "30px",
+                                                "height": "4px",
+                                                "backgroundColor": "#FF0000",
+                                                "marginRight": "8px",
+                                                "borderRadius": "2px",
+                                            }),
+                                            html.Span("1: 0-9 km/h", style={
+                                                "color": "#ddd",
+                                                "fontSize": "0.75rem",
+                                                "whiteSpace": "nowrap",
+                                            })
+                                        ], style={"display": "flex", "alignItems": "center", "marginBottom": "6px"}),
+                                        html.Div([
+                                            html.Div(style={
+                                                "width": "30px",
+                                                "height": "4px",
+                                                "backgroundColor": "#FF4500",
+                                                "marginRight": "8px",
+                                                "borderRadius": "2px",
+                                            }),
+                                            html.Span("2: 10-19 km/h", style={
+                                                "color": "#ddd",
+                                                "fontSize": "0.75rem",
+                                                "whiteSpace": "nowrap",
+                                            })
+                                        ], style={"display": "flex", "alignItems": "center", "marginBottom": "6px"}),
+                                        html.Div([
+                                            html.Div(style={
+                                                "width": "30px",
+                                                "height": "4px",
+                                                "backgroundColor": "#FFA500",
+                                                "marginRight": "8px",
+                                                "borderRadius": "2px",
+                                            }),
+                                            html.Span("3: 20-29 km/h", style={
+                                                "color": "#ddd",
+                                                "fontSize": "0.75rem",
+                                                "whiteSpace": "nowrap",
+                                            })
+                                        ], style={"display": "flex", "alignItems": "center", "marginBottom": "6px"}),
+                                        html.Div([
+                                            html.Div(style={
+                                                "width": "30px",
+                                                "height": "4px",
+                                                "backgroundColor": "#FFD700",
+                                                "marginRight": "8px",
+                                                "borderRadius": "2px",
+                                            }),
+                                            html.Span("4: 30-39 km/h", style={
+                                                "color": "#ddd",
+                                                "fontSize": "0.75rem",
+                                                "whiteSpace": "nowrap",
+                                            })
+                                        ], style={"display": "flex", "alignItems": "center", "marginBottom": "6px"}),
+                                        html.Div([
+                                            html.Div(style={
+                                                "width": "30px",
+                                                "height": "4px",
+                                                "backgroundColor": "#FFFF00",
+                                                "marginRight": "8px",
+                                                "borderRadius": "2px",
+                                            }),
+                                            html.Span("5: 40-49 km/h", style={
+                                                "color": "#ddd",
+                                                "fontSize": "0.75rem",
+                                                "whiteSpace": "nowrap",
+                                            })
+                                        ], style={"display": "flex", "alignItems": "center", "marginBottom": "6px"}),
+                                        html.Div([
+                                            html.Div(style={
+                                                "width": "30px",
+                                                "height": "4px",
+                                                "backgroundColor": "#ADFF2F",
+                                                "marginRight": "8px",
+                                                "borderRadius": "2px",
+                                            }),
+                                            html.Span("6: 50-59 km/h", style={
+                                                "color": "#ddd",
+                                                "fontSize": "0.75rem",
+                                                "whiteSpace": "nowrap",
+                                            })
+                                        ], style={"display": "flex", "alignItems": "center", "marginBottom": "6px"}),
+                                        html.Div([
+                                            html.Div(style={
+                                                "width": "30px",
+                                                "height": "4px",
+                                                "backgroundColor": "#32CD32",
+                                                "marginRight": "8px",
+                                                "borderRadius": "2px",
+                                            }),
+                                            html.Span("7: 60-69 km/h", style={
+                                                "color": "#ddd",
+                                                "fontSize": "0.75rem",
+                                                "whiteSpace": "nowrap",
+                                            })
+                                        ], style={"display": "flex", "alignItems": "center", "marginBottom": "6px"}),
+                                        html.Div([
+                                            html.Div(style={
+                                                "width": "30px",
+                                                "height": "4px",
+                                                "backgroundColor": "#008000",
+                                                "marginRight": "8px",
+                                                "borderRadius": "2px",
+                                            }),
+                                            html.Span("8: 70+ km/h", style={
+                                                "color": "#ddd",
+                                                "fontSize": "0.75rem",
+                                                "whiteSpace": "nowrap",
+                                            })
+                                        ], style={"display": "flex", "alignItems": "center"}),
+                                    ])
                                 ]
                             ),
                         ]
