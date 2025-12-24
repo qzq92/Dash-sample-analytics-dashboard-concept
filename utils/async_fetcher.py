@@ -5,6 +5,7 @@ Since Dash callbacks are synchronous, we use concurrent.futures.ThreadPoolExecut
 to parallelize I/O-bound operations (API calls) without blocking.
 """
 import os
+import time
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Callable, Any, Optional, Tuple
@@ -29,14 +30,15 @@ def get_default_headers() -> Dict[str, str]:
     return headers
 
 
-def fetch_url(url: str, headers: Optional[Dict] = None, timeout: int = 10) -> Optional[dict]:
+def fetch_url(url: str, headers: Optional[Dict] = None, timeout: int = 10, max_retries: int = 3) -> Optional[dict]:
     """
-    Fetch data from a URL with error handling.
+    Fetch data from a URL with error handling and exponential backoff retry for 5XX errors.
     
     Args:
         url: The URL to fetch
         headers: Optional headers dict (uses default if not provided)
         timeout: Request timeout in seconds
+        max_retries: Maximum number of retry attempts (default: 3)
     
     Returns:
         JSON response as dict, or None if error
@@ -44,14 +46,37 @@ def fetch_url(url: str, headers: Optional[Dict] = None, timeout: int = 10) -> Op
     if headers is None:
         headers = get_default_headers()
     
-    try:
-        response = requests.get(url, headers=headers, timeout=timeout)
-        # Accept any 2xx status code as success (200 OK, 201 Created, etc.)
-        if 200 <= response.status_code < 300:
-            return response.json()
-        print(f"API request failed: {url} - status={response.status_code}")
-    except (requests.exceptions.RequestException, ValueError) as error:
-        print(f"Error fetching {url}: {error}")
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, headers=headers, timeout=timeout)
+            
+            # Accept any 2xx status code as success (200 OK, 201 Created, etc.)
+            if 200 <= response.status_code < 300:
+                return response.json()
+            
+            # Check for 5XX server errors (500-599)
+            if 500 <= response.status_code < 600:
+                if attempt < max_retries - 1:
+                    # Exponential backoff: 2^attempt seconds (1s, 2s, 4s)
+                    wait_time = 2 ** attempt
+                    print(f"API request failed with {response.status_code}: {url} - retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                print(f"API request failed after {max_retries} attempts: {url} - status={response.status_code}")
+                return None
+            
+            # For non-5XX errors (4XX client errors), don't retry
+            print(f"API request failed: {url} - status={response.status_code}")
+            return None
+                
+        except (requests.exceptions.RequestException, ValueError) as error:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt
+                print(f"Error fetching {url}: {error} - retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+                continue
+            print(f"Error fetching {url} after {max_retries} attempts: {error}")
+    
     return None
 
 
