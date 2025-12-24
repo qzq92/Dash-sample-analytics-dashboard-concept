@@ -60,8 +60,14 @@ def build_dashboard_banner():
                             selected_style=TAB_SELECTED_STYLE,
                         ),
                         dcc.Tab(
-                            label="🚦 Traffic/public transport situation on ground",
+                            label="🚦 Key Road infra metrics and alerts",
                             value="transport",
+                            style=TAB_STYLE,
+                            selected_style=TAB_SELECTED_STYLE,
+                        ),
+                        dcc.Tab(
+                            label="🏎️ Speed band on the roads",
+                            value="speed-band",
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
                         ),
