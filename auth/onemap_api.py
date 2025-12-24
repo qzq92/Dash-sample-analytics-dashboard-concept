@@ -47,6 +47,7 @@ def get_onemap_token() -> Optional[str]:
     _token_lock = True
     
     try:
+        # Define orginal_api_key as global, so we can update to enforce global changes.
         global _original_api_key
         
         # Get email and password from environment variables
