@@ -18,7 +18,6 @@ import dash_leaflet as dl
 from utils.async_fetcher import fetch_url, fetch_async
 from utils.data_download_helper import fetch_erp_gantry_data
 from utils.map_utils import SG_MAP_CENTER
-from conf.speed_band_config import get_speed_midpoint, get_speed_range
 from callbacks.map_callback import _haversine_distance_m
 
 # API URLs
@@ -30,6 +29,62 @@ BICYCLE_PARKING_URL = "https://datamall2.mytransport.sg/ltaodataservice/BicycleP
 VMS_URL = "https://datamall2.mytransport.sg/ltaodataservice/VMS"
 EV_CHARGING_URL = "https://datamall2.mytransport.sg/ltaodataservice/EVChargingPoints"
 BUS_STOPS_URL = "https://datamall2.mytransport.sg/ltaodataservice/BusStops"
+
+# In-memory cache for static road infrastructure data
+# These represent physical infrastructure that rarely changes
+_road_infra_cache: Dict[str, Optional[Any]] = {
+    'bus_stops': None,
+    'vms': None,
+    'taxi_stands': None,
+    'bicycle_parking': None,
+    'speed_camera_df': None,  # DataFrame cache
+    'erp_gantries': None,  # Parsed ERP gantry data
+}
+
+
+def clear_road_infra_cache():
+    """
+    Clear all cached road infrastructure data.
+    Useful for forcing a refresh of static data.
+    """
+    global _road_infra_cache
+    _road_infra_cache = {
+        'bus_stops': None,
+        'vms': None,
+        'taxi_stands': None,
+        'bicycle_parking': None,
+        'speed_camera_df': None,
+        'erp_gantries': None,
+    }
+    print("Road infrastructure cache cleared")
+
+
+def get_erp_gantry_data():
+    """
+    Get ERP gantry data (parsed).
+    Uses in-memory cache since ERP gantries are static infrastructure.
+    
+    Returns:
+        List of dictionaries with gantry information, or empty list if error
+    """
+    global _road_infra_cache
+    
+    # Return cached parsed data if available
+    if _road_infra_cache['erp_gantries'] is not None:
+        return _road_infra_cache['erp_gantries']
+    
+    # Fetch raw GeoJSON data
+    geojson_data = fetch_erp_gantry_data()
+    
+    # Parse the data
+    gantry_data = parse_erp_gantry_data(geojson_data)
+    
+    # Cache the parsed result
+    if gantry_data:
+        _road_infra_cache['erp_gantries'] = gantry_data
+        print("ERP gantries data cached in memory")
+    
+    return gantry_data
 
 
 def fetch_taxi_availability():
@@ -572,11 +627,18 @@ def create_erp_gantry_markers(gantry_data):
 
 def fetch_taxi_stands_data():
     """
-    Fetch Taxi Stands data from LTA DataMall API asynchronously.
+    Fetch Taxi Stands data from LTA DataMall API.
+    Uses in-memory cache since taxi stands are static infrastructure.
     
     Returns:
         Dictionary containing taxi stands data or None if error
     """
+    global _road_infra_cache
+    
+    # Return cached data if available
+    if _road_infra_cache['taxi_stands'] is not None:
+        return _road_infra_cache['taxi_stands']
+    
     taxi_stands_url = "https://datamall2.mytransport.sg/ltaodataservice/TaxiStands"
     api_key = os.getenv("LTA_API_KEY")
     
@@ -590,7 +652,14 @@ def fetch_taxi_stands_data():
         "Content-Type": "application/json"
     }
     
-    return fetch_url(taxi_stands_url, headers)
+    data = fetch_url(taxi_stands_url, headers)
+    
+    # Cache the result
+    if data:
+        _road_infra_cache['taxi_stands'] = data
+        print("Taxi stands data cached in memory")
+    
+    return data
 
 
 def create_taxi_stands_markers(taxi_stands_data):
@@ -898,195 +967,6 @@ def format_combined_taxi_display(taxi_data, taxi_stands_data):
     )
 
 
-SPEED_BAND_URL = "https://datamall2.mytransport.sg/ltaodataservice/v4/TrafficSpeedBands"
-
-
-def fetch_speed_band_data():
-    """
-    Fetch all Traffic Speed Band data from LTA DataMall API with pagination.
-    
-    Returns:
-        Dictionary containing all speed band data with combined 'value' list, or None if error
-    """
-    api_key = os.getenv("LTA_API_KEY")
-    
-    if not api_key:
-        print("Warning: LTA_API_KEY not found in environment variables")
-        return None
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "AccountKey": api_key,
-        "Content-Type": "application/json"
-    }
-    
-    all_speed_bands = []
-    skip = 0
-    page_size = 500
-    
-    while True:
-        # Construct URL with skip parameter
-        url = f"{SPEED_BAND_URL}?$skip={skip}" if skip > 0 else SPEED_BAND_URL
-        
-        # Fetch current page
-        page_data = fetch_url(url, headers)
-        
-        if not page_data or 'value' not in page_data:
-            break
-        
-        speed_bands = page_data.get('value', [])
-        if not speed_bands:
-            break
-        
-        # Add to combined list
-        all_speed_bands.extend(speed_bands)
-        
-        # If we got less than 500 records, we've reached the last page
-        if len(speed_bands) < page_size:
-            break
-        
-        # Move to next page
-        skip += page_size
-        print(f"Fetched {len(speed_bands)} speed bands (skip={skip}), total so far: {len(all_speed_bands)}")
-    
-    print(f"Total speed bands fetched: {len(all_speed_bands)}")
-    
-    # Return in the same format as the API response
-    return {'value': all_speed_bands}
-
-
-def create_speed_band_markers(speed_data):
-    """
-    Create map polylines for Traffic Speed Band locations.
-    
-    Args:
-        speed_data: List of speed band dictionaries
-    
-    Returns:
-        List of dl.Polyline components
-    """
-    if not speed_data:
-        return []
-
-    markers = []
-    
-    # Speed band colors based on range
-    band_colors = {
-        '1': "#FF0000", # 0-9 km/h (Red)
-        '2': "#FF4500", # 10-19 km/h (Orange Red)
-        '3': "#FFA500", # 20-29 km/h (Orange)
-        '4': "#FFD700", # 30-39 km/h (Gold)
-        '5': "#FFFF00", # 40-49 km/h (Yellow)
-        '6': "#ADFF2F", # 50-59 km/h (Green Yellow)
-        '7': "#32CD32", # 60-69 km/h (Lime Green)
-        '8': "#008000", # 70+ km/h (Green)
-    }
-
-    # Handle both list and dict with 'value' key
-    items = speed_data.get('value', []) if isinstance(speed_data, dict) else speed_data
-    
-    for item in items:
-        try:
-            start_lat = float(item.get('StartLat', 0))
-            start_lon = float(item.get('StartLon', 0))
-            end_lat = float(item.get('EndLat', 0))
-            end_lon = float(item.get('EndLon', 0))
-            road_name = item.get('RoadName', 'Unknown Road')
-            band = str(item.get('SpeedBand', '0'))
-            
-            if start_lat == 0 or end_lat == 0:
-                continue
-                
-            color = band_colors.get(band, "#888888")
-            
-            # Convert speed band to speed range in km/h
-            try:
-                band_int = int(band)
-                min_speed, max_speed = get_speed_range(band_int)
-                if min_speed == 0 and max_speed == 0:
-                    speed_range_text = f"Speed Band: {band}"
-                elif band_int == 8:
-                    # Speed band 8 is 70+ km/h
-                    speed_range_text = f"Speed Band {band}: {min_speed}+ km/h"
-                else:
-                    speed_range_text = f"Speed Band {band}: {min_speed} km/h to {max_speed} km/h"
-            except (ValueError, TypeError):
-                speed_range_text = f"Speed Band: {band}"
-            
-            tooltip_text = f"Road: {road_name}\n{speed_range_text}"
-            
-            markers.append(
-                dl.Polyline(
-                    positions=[[start_lat, start_lon], [end_lat, end_lon]],
-                    color=color,
-                    weight=5,
-                    opacity=0.8,
-                    children=[
-                        dl.Tooltip(tooltip_text),
-                    ]
-                )
-            )
-        except (ValueError, TypeError):
-            continue
-            
-    return markers
-
-
-def format_speed_band_display():
-    """
-    Format the Traffic Speed Band information display.
-    
-    Returns:
-        HTML elements with speed band definitions
-    """
-    definitions = [
-        ("1", "0 < 9 km/h"),
-        ("2", "10 < 19 km/h"),
-        ("3", "20 < 29 km/h"),
-        ("4", "30 < 39 km/h"),
-        ("5", "40 < 49 km/h"),
-        ("6", "50 < 59 km/h"),
-        ("7", "60 < 69 km/h"),
-        ("8", "70+ km/h"),
-    ]
-    
-    # Create colored dots for the legend
-    band_colors = {
-        '1': "#FF0000", '2': "#FF4500", '3': "#FFA500", '4': "#FFD700",
-        '5': "#FFFF00", '6': "#ADFF2F", '7': "#32CD32", '8': "#008000"
-    }
-    
-    return html.Div([
-        html.Div([
-            html.P("Speed Band Definitions:", style={
-                "color": "#fff",
-                "fontSize": "0.8125rem",
-                "fontWeight": "600",
-                "marginBottom": "0.5rem"
-            }),
-            html.Div([
-                html.Div([
-                    html.Div(style={
-                        "width": "10px",
-                        "height": "10px",
-                        "borderRadius": "50%",
-                        "backgroundColor": band_colors[code],
-                        "marginRight": "8px"
-                    }),
-                    html.Span(f"{code} – {desc}", style={
-                        "color": "#ccc",
-                        "fontSize": "0.75rem"
-                    })
-                ], style={
-                    "display": "flex",
-                    "alignItems": "center",
-                    "marginBottom": "4px"
-                }) for code, desc in definitions
-            ])
-        ], style={"padding": "0.625rem"})
-    ])
-
-
 def fetch_traffic_incidents_data():
     """
     Fetch traffic incidents from LTA DataMall API.
@@ -1112,10 +992,17 @@ def fetch_traffic_incidents_data():
 def fetch_vms_data() -> Optional[Dict[str, Any]]:
     """
     Fetch VMS (Variable Message Signs) data from LTA DataMall API.
+    Uses in-memory cache since VMS locations are static infrastructure.
     
     Returns:
         Dictionary containing VMS data or None if error
     """
+    global _road_infra_cache
+    
+    # Return cached data if available
+    if _road_infra_cache['vms'] is not None:
+        return _road_infra_cache['vms']
+    
     api_key = os.getenv("LTA_API_KEY")
     
     if not api_key:
@@ -1128,7 +1015,14 @@ def fetch_vms_data() -> Optional[Dict[str, Any]]:
         "Content-Type": "application/json"
     }
     
-    return fetch_url(VMS_URL, headers)
+    data = fetch_url(VMS_URL, headers)
+    
+    # Cache the result
+    if data:
+        _road_infra_cache['vms'] = data
+        print("VMS data cached in memory")
+    
+    return data
 
 
 def fetch_vms_data_async() -> Optional[Future]:
@@ -1156,13 +1050,23 @@ def fetch_vms_data_async() -> Optional[Future]:
 
 def fetch_bus_stops_data() -> Optional[Dict[str, Any]]:
     """
-    Fetch all bus stops data from LTA DataMall API with pagination.
-    The API returns 500 records per page. This function fetches all pages
-    until less than 500 records are returned.
+    Fetch all bus stops data from LTA DataMall API with optimized parallel pagination.
+    Uses in-memory cache since bus stops are static infrastructure.
+    Strategy:
+    1. First fetch 5000 records (10 pages) in parallel (skip=0, 500, 1000, ..., 4500)
+    2. Check if last page returned full 500 records
+    3. If yes, continue fetching subsequent pages in parallel batches
     
     Returns:
         Dictionary containing all bus stops data with combined 'value' list, or None if error
     """
+    global _road_infra_cache
+    
+    # Return cached data if available
+    if _road_infra_cache['bus_stops'] is not None:
+        return _road_infra_cache['bus_stops']
+    
+    # If not cached, proceed with fetching
     api_key = os.getenv("LTA_API_KEY")
     
     if not api_key:
@@ -1175,39 +1079,173 @@ def fetch_bus_stops_data() -> Optional[Dict[str, Any]]:
         "Content-Type": "application/json"
     }
     
-    all_bus_stops = []
-    skip = 0
-    page_size = 500
+    from utils.async_fetcher import _executor
+    from concurrent.futures import as_completed
     
-    while True:
-        # Construct URL with skip parameter
+    all_bus_stops = []
+    page_size = 500
+    initial_batch_size = 5000  # Known minimum: 5000 records
+    
+    # Step 1: Fetch first 5000 records in parallel (10 pages)
+    print("Fetching first 5000 bus stops in parallel...")
+    initial_skip_values = list(range(0, initial_batch_size, page_size))  # [0, 500, 1000, ..., 4500]
+    
+    # Create URLs for initial batch
+    initial_urls = []
+    for skip in initial_skip_values:
         url = f"{BUS_STOPS_URL}?$skip={skip}" if skip > 0 else BUS_STOPS_URL
-        
-        # Fetch current page
-        page_data = fetch_url(url, headers)
-        
-        if not page_data or 'value' not in page_data:
-            break
-        
-        bus_stops = page_data.get('value', [])
-        if not bus_stops:
-            break
-        
-        # Add to combined list
+        initial_urls.append((url, skip))
+    
+    # Submit all initial requests to thread pool
+    futures = {
+        _executor.submit(fetch_url, url, headers): skip
+        for url, skip in initial_urls
+    }
+    
+    # Collect results and sort by skip value
+    initial_results = {}
+    for future in as_completed(futures):
+        skip = futures[future]
+        try:
+            page_data = future.result()
+            if page_data and 'value' in page_data:
+                initial_results[skip] = page_data.get('value', [])
+        except Exception as e:
+            print(f"Error fetching bus stops (skip={skip}): {e}")
+            initial_results[skip] = []
+    
+    # Combine results in order
+    for skip in sorted(initial_results.keys()):
+        bus_stops = initial_results[skip]
         all_bus_stops.extend(bus_stops)
+        print(f"Fetched {len(bus_stops)} bus stops (skip={skip}), total so far: {len(all_bus_stops)}")
+    
+    # Step 2: Check if we need to continue fetching
+    # Check the last page (skip=4500) to see if it returned full 500 records
+    last_page_size = len(initial_results.get(4500, []))
+    current_skip = initial_batch_size
+    
+    # Continue fetching in parallel batches if last page was full
+    while last_page_size == page_size:
+        print(f"Last page was full ({last_page_size} records), fetching next batch starting at skip={current_skip}...")
         
-        # If we got less than 500 records, we've reached the last page
-        if len(bus_stops) < page_size:
+        # Fetch next batch of 10 pages in parallel
+        batch_skip_values = list(range(current_skip, current_skip + initial_batch_size, page_size))
+        
+        # Create URLs for this batch
+        batch_urls = []
+        for skip in batch_skip_values:
+            url = f"{BUS_STOPS_URL}?$skip={skip}"
+            batch_urls.append((url, skip))
+        
+        # Submit all batch requests to thread pool
+        batch_futures = {
+            _executor.submit(fetch_url, url, headers): skip
+            for url, skip in batch_urls
+        }
+        
+        # Collect results
+        batch_results = {}
+        for future in as_completed(batch_futures):
+            skip = batch_futures[future]
+            try:
+                page_data = future.result()
+                if page_data and 'value' in page_data:
+                    batch_results[skip] = page_data.get('value', [])
+                else:
+                    batch_results[skip] = []
+            except Exception as e:
+                print(f"Error fetching bus stops (skip={skip}): {e}")
+                batch_results[skip] = []
+        
+        # Combine results in order
+        for skip in sorted(batch_results.keys()):
+            bus_stops = batch_results[skip]
+            if not bus_stops:
+                # Empty page means we've reached the end
+                last_page_size = 0
+                break
+            
+            all_bus_stops.extend(bus_stops)
+            print(f"Fetched {len(bus_stops)} bus stops (skip={skip}), total so far: {len(all_bus_stops)}")
+            
+            # Update last_page_size for next iteration check
+            last_page_size = len(bus_stops)
+        
+        # If we got less than 500 records, we've reached the end
+        if last_page_size < page_size:
             break
         
-        # Move to next page
-        skip += page_size
-        print(f"Fetched {len(bus_stops)} bus stops (skip={skip}), total so far: {len(all_bus_stops)}")
+        # Move to next batch
+        current_skip += initial_batch_size
     
     print(f"Total bus stops fetched: {len(all_bus_stops)}")
     
     # Return in the same format as the API response
-    return {'value': all_bus_stops}
+    result = {'value': all_bus_stops}
+    
+    # Cache the result
+    if result:
+        _road_infra_cache['bus_stops'] = result
+        print("Bus stops data cached in memory")
+    
+    return result
+
+
+def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[dl.CircleMarker]:
+    """
+    Create map markers for bus stop locations.
+    
+    Args:
+        bus_stops_data: Dictionary containing bus stops response from LTA API
+    
+    Returns:
+        List of dl.CircleMarker components
+    """
+    markers = []
+    
+    if not bus_stops_data or 'value' not in bus_stops_data:
+        return markers
+    
+    bus_stops = bus_stops_data.get('value', [])
+    
+    for bus_stop in bus_stops:
+        try:
+            latitude = float(bus_stop.get('Latitude', 0))
+            longitude = float(bus_stop.get('Longitude', 0))
+            bus_stop_code = bus_stop.get('BusStopCode', 'N/A')
+            road_name = bus_stop.get('RoadName', 'N/A')
+            description = bus_stop.get('Description', 'N/A')
+            
+            if latitude == 0 or longitude == 0:
+                continue
+            
+            # Create tooltip with bus stop information (each field on separate line)
+            tooltip_html = (
+                f"Bus Stop Code: {bus_stop_code}<br>"
+                f"Road: {road_name}<br>"
+                f"Description: {description}"
+            )
+            
+            # Create circle marker for bus stops (royal blue)
+            markers.append(
+                dl.CircleMarker(
+                    center=[latitude, longitude],
+                    radius=5,
+                    color="#4169E1",  # Royal blue
+                    fill=True,
+                    fillColor="#4169E1",
+                    fillOpacity=0.7,
+                    weight=2,
+                    children=[
+                        dl.Tooltip(tooltip_html),
+                    ]
+                )
+            )
+        except (ValueError, TypeError, KeyError):
+            continue
+    
+    return markers
 
 
 def fetch_bus_stops_data_async() -> Optional[Future]:
@@ -1230,14 +1268,24 @@ def fetch_bus_stops_data_async() -> Optional[Future]:
 def load_speed_camera_data() -> pd.DataFrame:
     """
     Load speed camera data from CSV file.
+    Uses in-memory cache since speed camera locations are static infrastructure.
     
     Returns:
         DataFrame with speed camera data
     """
+    global _road_infra_cache
+    
+    # Return cached data if available
+    if _road_infra_cache['speed_camera_df'] is not None:
+        return _road_infra_cache['speed_camera_df']
+    
     csv_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'speed_camera.csv')
     
     try:
         df = pd.read_csv(csv_path)
+        # Cache the result
+        _road_infra_cache['speed_camera_df'] = df
+        print("Speed camera data cached in memory")
         return df
     except Exception as e:
         print(f"Error loading speed camera data: {e}")
@@ -1302,7 +1350,7 @@ def create_fixed_speed_camera_markers() -> List[dl.CircleMarker]:
             )
         except (ValueError, TypeError, KeyError):
             continue
-    
+            
     return markers
 
 
@@ -1963,10 +2011,17 @@ def fetch_bicycle_parking_data():
     """
     Fetch bicycle parking data from LTA DataMall API.
     Uses default map center coordinates and dist=50 to get all bicycle parking lots.
+    Uses in-memory cache since bicycle parking locations are static infrastructure.
     
     Returns:
         Dictionary containing bicycle parking data or None if error
     """
+    global _road_infra_cache
+    
+    # Return cached data if available
+    if _road_infra_cache['bicycle_parking'] is not None:
+        return _road_infra_cache['bicycle_parking']
+    
     import requests
     
     api_key = os.getenv("LTA_API_KEY")
@@ -1994,7 +2049,12 @@ def fetch_bicycle_parking_data():
     try:
         response = requests.get(BICYCLE_PARKING_URL, headers=headers, params=params, timeout=10)
         if 200 <= response.status_code < 300:
-            return response.json()
+            data = response.json()
+            # Cache the result
+            if data:
+                _road_infra_cache['bicycle_parking'] = data
+                print("Bicycle parking data cached in memory")
+            return data
         print(f"Bicycle parking API request failed: status={response.status_code}")
     except (requests.exceptions.RequestException, ValueError) as error:
         print(f"Error fetching bicycle parking data: {error}")
@@ -2067,7 +2127,8 @@ def fetch_nearby_taxi_stands(lat: float, lon: float, radius_m: int = 300) -> lis
 
 def fetch_nearby_bicycle_parking(lat: float, lon: float, radius_m: int = 500) -> list:
     """
-    Fetch nearby bicycle parking data from LTA DataMall API within specified radius.
+    Fetch nearby bicycle parking data within specified radius.
+    Uses cached bicycle parking data and filters by distance to avoid API calls.
     
     Args:
         lat: Latitude in degrees
@@ -2077,78 +2138,46 @@ def fetch_nearby_bicycle_parking(lat: float, lon: float, radius_m: int = 500) ->
     Returns:
         List of bicycle parking dictionaries with distance information, sorted by distance
     """
-    import requests
+    # First ensure we have the full dataset cached
+    full_data = fetch_bicycle_parking_data()
     
-    api_key = os.getenv("LTA_API_KEY")
-    
-    if not api_key:
-        print("Warning: LTA_API_KEY not found in environment variables")
+    if not full_data or 'value' not in full_data:
         return []
     
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "AccountKey": api_key,
-        "Content-Type": "application/json"
-    }
+    parking_locations = full_data.get('value', [])
+    processed_results = []
     
-    # Use dist parameter - API accepts distance in km, so 0.5 for 500m
-    # But we'll also filter by haversine distance to ensure accuracy
-    dist_km = max(0.5, radius_m / 1000.0)  # At least 0.5km, or convert radius_m to km
+    for loc in parking_locations:
+        try:
+            parking_lat = float(loc.get('Latitude', 0))
+            parking_lon = float(loc.get('Longitude', 0))
+            
+            if parking_lat == 0 or parking_lon == 0:
+                continue
+            
+            # Calculate distance using haversine formula
+            distance_m = _haversine_distance_m(lat, lon, parking_lat, parking_lon)
+            
+            # Only include parking within the specified radius
+            if distance_m <= radius_m:
+                processed_results.append({
+                    'description': loc.get('Description', 'N/A'),
+                    'rack_type': loc.get('RackType', 'N/A'),
+                    'rack_count': loc.get('RackCount', 'N/A'),
+                    'shelter_indicator': loc.get('ShelterIndicator', 'N'),
+                    'latitude': parking_lat,
+                    'longitude': parking_lon,
+                    'distance_m': distance_m,
+                    'raw_data': loc
+                })
+        except (ValueError, TypeError, KeyError) as e:
+            print(f"Error processing bicycle parking data: {e}")
+            continue
     
-    params = {
-        "Lat": lat,
-        "Long": lon,
-        "Dist": dist_km
-    }
+    # Sort by distance (closest first)
+    processed_results.sort(key=lambda x: x['distance_m'])
     
-    try:
-        response = requests.get(BICYCLE_PARKING_URL, headers=headers, params=params, timeout=10)
-        if 200 <= response.status_code < 300:
-            data = response.json()
-            
-            if not data or 'value' not in data:
-                return []
-            
-            parking_locations = data.get('value', [])
-            processed_results = []
-            
-            for loc in parking_locations:
-                try:
-                    parking_lat = float(loc.get('Latitude', 0))
-                    parking_lon = float(loc.get('Longitude', 0))
-                    
-                    if parking_lat == 0 or parking_lon == 0:
-                        continue
-                    
-                    # Calculate distance using haversine formula
-                    distance_m = _haversine_distance_m(lat, lon, parking_lat, parking_lon)
-                    
-                    # Only include parking within the specified radius
-                    if distance_m <= radius_m:
-                        processed_results.append({
-                            'description': loc.get('Description', 'N/A'),
-                            'rack_type': loc.get('RackType', 'N/A'),
-                            'rack_count': loc.get('RackCount', 'N/A'),
-                            'shelter_indicator': loc.get('ShelterIndicator', 'N'),
-                            'latitude': parking_lat,
-                            'longitude': parking_lon,
-                            'distance_m': distance_m,
-                            'raw_data': loc
-                        })
-                except (ValueError, TypeError, KeyError) as e:
-                    print(f"Error processing bicycle parking data: {e}")
-                    continue
-            
-            # Sort by distance (closest first)
-            processed_results.sort(key=lambda x: x['distance_m'])
-            
-            return processed_results
-        
-        print(f"Bicycle parking API request failed: status={response.status_code}")
-    except (requests.exceptions.RequestException, ValueError) as error:
-        print(f"Error fetching nearby bicycle parking data: {error}")
-    
-    return []
+    return processed_results
 
 
 def create_bicycle_parking_markers(bicycle_data):
@@ -2558,7 +2587,7 @@ def register_transport_callbacks(app):
         # Format as "taxi/taxi stands"
         count_value = html.Div(
             html.Span(f"{taxi_count:,}/{stands_count}", style={"color": "#FFD700"}),
-            style={
+                style={
                 "backgroundColor": "rgb(58, 74, 90)",
                 "padding": "4px 8px",
                 "borderRadius": "4px",
@@ -2650,7 +2679,7 @@ def register_transport_callbacks(app):
         camera_count = len(camera_data) if camera_data else 0
         count_value = html.Div(
             html.Span(f"{camera_count}", style={"color": "#4CAF50"}),
-            style={
+                style={
                 "backgroundColor": "rgb(58, 74, 90)",
                 "padding": "4px 8px",
                 "borderRadius": "4px",
@@ -2717,15 +2746,14 @@ def register_transport_callbacks(app):
         """Update ERP gantry markers and count display."""
         _ = n_intervals  # Used for periodic refresh
 
-        # Always fetch data to display counts
-        geojson_data = fetch_erp_gantry_data()
-        gantry_data = parse_erp_gantry_data(geojson_data)
+        # Get parsed gantry data (uses cache)
+        gantry_data = get_erp_gantry_data()
         
         # Extract count (always calculate)
         gantry_count = len(gantry_data) if gantry_data else 0
         count_value = html.Div(
             html.Span(f"{gantry_count}", style={"color": "#FF6B6B"}),
-            style={
+                style={
                 "backgroundColor": "rgb(58, 74, 90)",
                 "padding": "4px 8px",
                 "borderRadius": "4px",
@@ -2905,10 +2933,10 @@ def register_transport_callbacks(app):
             messages_display = html.Div(
                 html.Span(
                     "No incidents reported",
-                    style={
-                        "color": "#999",
+                style={
+                    "color": "#999",
                         "fontSize": "11px",
-                        "fontStyle": "italic",
+                    "fontStyle": "italic",
                     }
                 ),
                 style={
@@ -2942,7 +2970,7 @@ def register_transport_callbacks(app):
     def toggle_bicycle_parking_display(_n_clicks, current_state):
         """Toggle bicycle parking markers display on/off."""
         new_state = not current_state
-        
+
         if new_state:
             # Active state - purple background
             style = {
@@ -2969,7 +2997,7 @@ def register_transport_callbacks(app):
                 "fontWeight": "600",
             }
             text = "Show Bicycle Parking Locations"
-        
+
         return new_state, style, text
 
     @app.callback(
@@ -2983,7 +3011,7 @@ def register_transport_callbacks(app):
     def update_bicycle_parking_display(show_bicycle_parking, n_intervals):
         """Update bicycle parking markers and count display."""
         _ = n_intervals  # Used for periodic refresh
-        
+
         # Always fetch data to display counts
         data = fetch_bicycle_parking_data()
         
@@ -3482,11 +3510,19 @@ def register_transport_callbacks(app):
         Output('bus-stops-count-value', 'children'),
         Input('transport-interval', 'n_intervals')
     )
-    def update_bus_stops_count(n_intervals):
-        """Update bus stops count display."""
+    def update_bus_stops_count(n_intervals: int) -> html.Div:
+        """
+        Update bus stops count display using async data fetching.
+        
+        Args:
+            n_intervals: Number of intervals (from dcc.Interval component)
+        
+        Returns:
+            HTML Div with bus stops count
+        """
         _ = n_intervals  # Used for periodic refresh
 
-        # Always fetch data to display counts (using async)
+        # Fetch data asynchronously
         future = fetch_bus_stops_data_async()
         data: Optional[Dict[str, Any]] = future.result() if future else None
         
@@ -3508,60 +3544,64 @@ def register_transport_callbacks(app):
 
         return count_value
 
-    def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[dl.CircleMarker]:
-        """
-        Create map markers for bus stop locations.
+    @app.callback(
+        [Output('bus-stops-toggle-state', 'data'),
+         Output('bus-stops-toggle-btn', 'style'),
+         Output('bus-stops-toggle-btn', 'children')],
+        Input('bus-stops-toggle-btn', 'n_clicks'),
+        State('bus-stops-toggle-state', 'data'),
+        prevent_initial_call=True
+    )
+    def toggle_bus_stops_display(_n_clicks: Optional[int], current_state: bool) -> Tuple[bool, Dict[str, Any], str]:
+        """Toggle Bus Stops markers display on/off."""
+        new_state = not current_state
         
-        Args:
-            bus_stops_data: Dictionary containing bus stops response from LTA API
+        if new_state:
+            # Active state - royal blue background
+            style = {
+                "backgroundColor": "#4169E1",
+                "border": "none",
+                "borderRadius": "4px",
+                "color": "#fff",
+                "cursor": "pointer",
+                "padding": "6px 12px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Hide Bus Stop Locations"
+        else:
+            # Inactive state - outline
+            style = {
+                "backgroundColor": "transparent",
+                "border": "2px solid #4169E1",
+                "borderRadius": "4px",
+                "color": "#4169E1",
+                "cursor": "pointer",
+                "padding": "4px 10px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Show Bus Stop Locations"
         
-        Returns:
-            List of dl.CircleMarker components
-        """
-        markers = []
+        return new_state, style, text
+
+    @app.callback(
+        Output('bus-stops-markers', 'children'),
+        [Input('bus-stops-toggle-state', 'data'),
+         Input('transport-interval', 'n_intervals')]
+    )
+    def update_bus_stops_markers(show_bus_stops: bool, n_intervals: int) -> List[dl.CircleMarker]:
+        """Update Bus Stops markers on the map."""
+        if not show_bus_stops:
+            return []
         
-        if not bus_stops_data or 'value' not in bus_stops_data:
-            return markers
+        _ = n_intervals  # Used for periodic refresh
         
-        bus_stops = bus_stops_data.get('value', [])
+        # Fetch data asynchronously
+        future = fetch_bus_stops_data_async()
+        data: Optional[Dict[str, Any]] = future.result() if future else None
         
-        for bus_stop in bus_stops:
-            try:
-                latitude = float(bus_stop.get('Latitude', 0))
-                longitude = float(bus_stop.get('Longitude', 0))
-                bus_stop_code = bus_stop.get('BusStopCode', 'N/A')
-                road_name = bus_stop.get('RoadName', 'N/A')
-                description = bus_stop.get('Description', 'N/A')
-                
-                if latitude == 0 or longitude == 0:
-                    continue
-                
-                # Create tooltip with bus stop information
-                tooltip_html = (
-                    f"Bus Stop Code: {bus_stop_code}\n"
-                    f"Road: {road_name}\n"
-                    f"Description: {description}"
-                )
-                
-                # Create circle marker for bus stops (royal blue)
-                markers.append(
-                    dl.CircleMarker(
-                        center=[latitude, longitude],
-                        radius=5,
-                        color="#4169E1",  # Royal blue
-                        fill=True,
-                        fillColor="#4169E1",
-                        fillOpacity=0.7,
-                        weight=2,
-                        children=[
-                            dl.Tooltip(tooltip_html),
-                        ]
-                    )
-                )
-            except (ValueError, TypeError, KeyError):
-                continue
-        
-        return markers
+        return create_bus_stops_markers(data)
 
     # SPF Speed Camera callbacks
     @app.callback(
@@ -3635,53 +3675,4 @@ def register_transport_callbacks(app):
         markers = create_fixed_speed_camera_markers()
 
         return markers, count_value
-
-    # Speed Band Page callbacks
-    @app.callback(
-        [Output('speed-band-map-markers', 'children'),
-         Output('speed-band-count-value', 'children'),
-         Output('speed-band-info-display', 'children')],
-        [Input('speed-band-page-toggle-state', 'data'),
-         Input('speed-band-interval', 'n_intervals')]
-    )
-    def update_speed_band_page_display(_show_speed_band: bool, n_intervals: int) -> Tuple[List[dl.Polyline], html.Div, html.Div]:
-        """Update Speed Band page markers, count, and information display."""
-        _ = n_intervals  # Used for periodic refresh
-        _ = _show_speed_band  # Always show on speed band page
-
-        # Always fetch data to display counts
-        data = fetch_speed_band_data()
-        
-        # Count number of road segments measured (always calculate)
-        items = data.get('value', []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-        road_segment_count = len(items) if items else 0
-        
-        if road_segment_count > 0:
-            # Display number of road segments measured
-            count_value = html.Div(
-                html.Span(f"{road_segment_count}", style={"color": "#00BCD4"}),
-                style={
-                    "backgroundColor": "rgb(58, 74, 90)",
-                    "padding": "4px 8px",
-                    "borderRadius": "4px",
-                }
-            )
-        else:
-            count_value = html.Div(
-                html.Span("--", style={"color": "#999"}),
-                style={
-                    "backgroundColor": "rgb(58, 74, 90)",
-                    "padding": "4px 8px",
-                    "borderRadius": "4px",
-                }
-            )
-
-        # Always show markers on speed band page
-        markers = create_speed_band_markers(data)
-        
-        # Format speed band information display
-        info_display = format_speed_band_display()
-
-        return markers, count_value, info_display
-
 
