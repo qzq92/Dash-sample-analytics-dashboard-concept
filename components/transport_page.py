@@ -603,6 +603,21 @@ def transport_page():
                                             "fontWeight": "600",
                                         },
                                     ),
+                                    html.Button(
+                                        "Show Bus Stop Locations",
+                                        id="bus-stops-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "2px solid #4169E1",
+                                            "borderRadius": "4px",
+                                            "color": "#4169E1",
+                                            "cursor": "pointer",
+                                            "padding": "4px 10px",
+                                            "fontSize": "12px",
+                                            "fontWeight": "600",
+                                        },
+                                    ),
                                 ]
                             ),
                             html.Div(
@@ -825,6 +840,7 @@ def transport_page():
             dcc.Store(id="traffic-incidents-toggle-state", data=False),
             dcc.Store(id="bicycle-parking-toggle-state", data=False),
             dcc.Store(id="vms-toggle-state", data=False),
+            dcc.Store(id="bus-stops-toggle-state", data=False),
             # Interval for auto-refresh
             dcc.Interval(
                 id='transport-interval',
