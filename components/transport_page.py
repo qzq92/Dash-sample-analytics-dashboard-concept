@@ -191,7 +191,7 @@ def transport_page():
                                             html.Div(
                                                 id="speed-camera-count-value",
                                                 style={
-                                                    "color": "#81C784",
+                                                    "color": "#A5D6A7",
                                                     "fontSize": "1.125rem",
                                                     "fontWeight": "700",
                                                 },
