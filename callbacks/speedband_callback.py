@@ -2,28 +2,80 @@
 Callback functions for handling speed band information on the "Speed band on the roads" tab.
 """
 import os
+import math
+import time
 from typing import Optional, Dict, List, Any, Tuple
+from concurrent.futures import Future
 from dash import Input, Output, html
 import dash_leaflet as dl
 from utils.async_fetcher import fetch_url
-from concurrent.futures import Future
-from conf.speed_band_config import get_speed_range
 
 # API URL
 SPEED_BAND_URL = "https://datamall2.mytransport.sg/ltaodataservice/v4/TrafficSpeedBands"
+
+# In-memory cache for speed band data with timestamp
+_speed_band_cache: Dict[str, Any] = {
+    'data': None,
+    'last_bucket': 0  # Unix timestamp of the 5-minute bucket
+}
+
+# Zoom level thresholds (max zoom is 19, show at 17-18)
+MIN_ZOOM_FOR_DISPLAY = 17
+MAX_POINTS_TO_DISPLAY = 3000
+
+
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calculate distance between two coordinates using Haversine formula.
+    
+    Args:
+        lat1: Latitude of first point
+        lon1: Longitude of first point
+        lat2: Latitude of second point
+        lon2: Longitude of second point
+    
+    Returns:
+        Distance in kilometers
+    """
+    # Earth's radius in kilometers
+    R = 6371.0
+    
+    # Convert to radians
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+    
+    # Haversine formula
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c
 
 
 def fetch_speed_band_data() -> Optional[Dict[str, Any]]:
     """
     Fetch all Traffic Speed Band data from LTA DataMall API with optimized parallel pagination.
-    Strategy:
-    1. Fetch records in batches of 5000 (10 pages of 500) in parallel.
-    2. After each batch, check if the last page returned full 500 records.
-    3. If yes, continue fetching the next batch of 5000.
+    Caches data for 5 minutes based on system time boundaries (0, 5, 10... mins).
     
     Returns:
         Dictionary containing all speed band data with combined 'value' list, or None if error
     """
+    global _speed_band_cache
+    
+    # Calculate current 5-minute bucket start time (Unix timestamp)
+    current_time = time.time()
+    current_bucket = int(current_time // 300) * 300  # 300 seconds = 5 minutes
+    
+    # Return cached data if we're still in the same 5-minute bucket
+    if (_speed_band_cache['data'] is not None and 
+        _speed_band_cache['last_bucket'] == current_bucket):
+        return _speed_band_cache['data']
+    
+    print(f"Refreshing speed band cache for bucket starting at {time.strftime('%H:%M:%S', time.localtime(current_bucket))}")
+    
     api_key = os.getenv("LTA_API_KEY")
     
     if not api_key:
@@ -41,7 +93,7 @@ def fetch_speed_band_data() -> Optional[Dict[str, Any]]:
     
     all_speed_bands = []
     page_size = 500
-    batch_size = 5000  # 10 pages per batch
+    batch_size = 10000  # 20 pages per batch
     current_skip = 0
     
     while True:
@@ -108,8 +160,16 @@ def fetch_speed_band_data() -> Optional[Dict[str, Any]]:
     
     print(f"Total speed bands fetched: {len(all_speed_bands)}")
     
-    # Return in the same format as the API response
-    return {'value': all_speed_bands}
+    # Prepare result
+    result = {'value': all_speed_bands}
+    
+    # Update cache
+    if all_speed_bands:
+        _speed_band_cache['data'] = result
+        _speed_band_cache['last_bucket'] = current_bucket
+        print(f"Speed band cache updated for 5-minute bucket: {time.strftime('%H:%M:%S', time.localtime(current_bucket))}")
+    
+    return result
 
 
 def fetch_speed_band_data_async() -> Optional[Future]:
@@ -165,7 +225,6 @@ def create_speed_band_markers(speed_data: Optional[Dict[str, Any]]) -> List[dl.P
             start_lon = float(item.get('StartLon', 0))
             end_lat = float(item.get('EndLat', 0))
             end_lon = float(item.get('EndLon', 0))
-            road_name = item.get('RoadName', 'Unknown Road')
             band = str(item.get('SpeedBand', '0'))
             
             if start_lat == 0 or end_lat == 0:
@@ -173,31 +232,12 @@ def create_speed_band_markers(speed_data: Optional[Dict[str, Any]]) -> List[dl.P
                 
             color = band_colors.get(band, "#888888")
             
-            # Convert speed band to speed range in km/h
-            try:
-                band_int = int(band)
-                min_speed, max_speed = get_speed_range(band_int)
-                if min_speed == 0 and max_speed == 0:
-                    speed_range_text = f"Speed Band: {band}"
-                elif band_int == 8:
-                    # Speed band 8 is 70+ km/h
-                    speed_range_text = f"Speed Band {band}: {min_speed}+ km/h"
-                else:
-                    speed_range_text = f"Speed Band {band}: {min_speed} km/h to {max_speed} km/h"
-            except (ValueError, TypeError):
-                speed_range_text = f"Speed Band: {band}"
-            
-            tooltip_text = f"Road: {road_name}\n{speed_range_text}"
-            
             markers.append(
                 dl.Polyline(
                     positions=[[start_lat, start_lon], [end_lat, end_lon]],
                     color=color,
                     weight=5,
                     opacity=0.8,
-                    children=[
-                        dl.Tooltip(tooltip_text),
-                    ]
                 )
             )
         except (ValueError, TypeError):
@@ -261,6 +301,155 @@ def format_speed_band_display() -> html.Div:
     ])
 
 
+def calculate_viewport_bounds(center_lat: float, center_lon: float, zoom: int) -> Dict[str, float]:
+    """
+    Calculate viewport bounds based on center and zoom level.
+    Approximation based on Web Mercator projection.
+    
+    Args:
+        center_lat: Latitude of viewport center
+        center_lon: Longitude of viewport center
+        zoom: Current zoom level
+    
+    Returns:
+        Dictionary with 'north', 'south', 'east', 'west' bounds
+    """
+    # Approximate viewport size in degrees
+    # At zoom level z, the world is 256 * 2^z pixels wide
+    # Assuming viewport is ~800 pixels wide and ~600 pixels tall
+    viewport_width_pixels = 800
+    viewport_height_pixels = 600
+    
+    # Degrees per pixel at this zoom level (at equator)
+    degrees_per_pixel = 360 / (256 * (2 ** zoom))
+    
+    # Calculate lat/lon offsets (rough approximation)
+    # Adjust for latitude (mercator distortion)
+    lat_offset = (viewport_height_pixels / 2) * degrees_per_pixel
+    lon_offset = (viewport_width_pixels / 2) * degrees_per_pixel / math.cos(math.radians(center_lat))
+    
+    bounds = {
+        'north': center_lat + lat_offset,
+        'south': center_lat - lat_offset,
+        'east': center_lon + lon_offset,
+        'west': center_lon - lon_offset
+    }
+    
+    return bounds
+
+
+def is_in_viewport(start_lat: float, start_lon: float, end_lat: float, end_lon: float, bounds: Dict[str, float]) -> bool:
+    """
+    Check if a speed band segment is within viewport bounds.
+    Returns True if either start or end point is within bounds.
+    
+    Args:
+        start_lat: Start latitude
+        start_lon: Start longitude
+        end_lat: End latitude
+        end_lon: End longitude
+        bounds: Dictionary with 'north', 'south', 'east', 'west'
+    
+    Returns:
+        True if segment is within viewport
+    """
+    # Check if start point is in viewport
+    start_in = (bounds['south'] <= start_lat <= bounds['north'] and 
+                bounds['west'] <= start_lon <= bounds['east'])
+    
+    # Check if end point is in viewport
+    end_in = (bounds['south'] <= end_lat <= bounds['north'] and 
+              bounds['west'] <= end_lon <= bounds['east'])
+    
+    # Return True if either point is in viewport
+    return start_in or end_in
+
+
+def filter_speed_bands_by_viewport(speed_data: Optional[Dict[str, Any]], center_lat: float, center_lon: float, zoom: int) -> List[Dict[str, Any]]:
+    """
+    Filter speed band data by viewport bounds.
+    Only returns segments within viewport, up to MAX_POINTS_TO_DISPLAY.
+    
+    Args:
+        speed_data: Dictionary containing speed band data
+        center_lat: Latitude of viewport center
+        center_lon: Longitude of viewport center
+        zoom: Current zoom level
+    
+    Returns:
+        List of filtered speed band items within viewport
+    """
+    if not speed_data:
+        return []
+    
+    items = speed_data.get('value', []) if isinstance(speed_data, dict) else []
+    if not items:
+        return []
+    
+    # Calculate viewport bounds
+    bounds = calculate_viewport_bounds(center_lat, center_lon, zoom)
+    
+    # Print viewport endpoints
+    print(f"Viewport bounds at zoom {zoom}:")
+    print(f"  North: {bounds['north']:.6f}, South: {bounds['south']:.6f}")
+    print(f"  East: {bounds['east']:.6f}, West: {bounds['west']:.6f}")
+    
+    # Filter items that are within viewport
+    filtered_items = []
+    for item in items:
+        try:
+            start_lat = float(item.get('StartLat', 0))
+            start_lon = float(item.get('StartLon', 0))
+            end_lat = float(item.get('EndLat', 0))
+            end_lon = float(item.get('EndLon', 0))
+            
+            if start_lat == 0 or end_lat == 0:
+                continue
+            
+            # Check if segment is within viewport
+            if is_in_viewport(start_lat, start_lon, end_lat, end_lon, bounds):
+                filtered_items.append(item)
+                
+                # Stop if we've reached max points
+                if len(filtered_items) >= MAX_POINTS_TO_DISPLAY:
+                    break
+                    
+        except (ValueError, TypeError):
+            continue
+    
+    print(f"Filtered to {len(filtered_items)} speed bands within viewport (max: {MAX_POINTS_TO_DISPLAY})")
+    return filtered_items
+
+
+def parse_coordinates(coords: Any) -> Tuple[Optional[float], Optional[float]]:
+    """
+    Parse coordinates from various formats (list, tuple, dict).
+    
+    Returns:
+        Tuple of (lat, lon) or (None, None)
+    """
+    if coords is None:
+        return None, None
+    
+    # Handle dict format {'lat': 1.23, 'lng': 103.45} or {'lat': 1.23, 'lon': 103.45}
+    if isinstance(coords, dict):
+        lat = coords.get('lat')
+        lon = coords.get('lng') or coords.get('lon')
+        try:
+            return float(lat) if lat is not None else None, float(lon) if lon is not None else None
+        except (ValueError, TypeError):
+            return None, None
+            
+    # Handle list/tuple format [1.23, 103.45]
+    if isinstance(coords, (list, tuple)) and len(coords) >= 2:
+        try:
+            return float(coords[0]), float(coords[1])
+        except (ValueError, TypeError):
+            return None, None
+            
+    return None, None
+
+
 def register_speedband_callbacks(app):
     """
     Register callbacks for speed band information on the "Speed band on the roads" tab.
@@ -271,63 +460,114 @@ def register_speedband_callbacks(app):
     @app.callback(
         [Output('speed-band-map-markers', 'children'),
          Output('speed-band-count-value', 'children'),
-         Output('speed-band-info-display', 'children')],
+         Output('speed-band-center-coords', 'children')],
         [Input('speed-band-page-toggle-state', 'data'),
          Input('speed-band-interval', 'n_intervals'),
-         Input('navigation-tabs', 'value')]
+         Input('navigation-tabs', 'value'),
+         Input('speed-band-map', 'zoom'),
+         Input('speed-band-map', 'center'),
+         Input('speed-band-map', 'click_lat_lng')]
     )
-    def update_speed_band_page_display(_show_speed_band: bool, n_intervals: int, tab_value: str) -> Tuple[List[dl.Polyline], html.Div, html.Div]:
+    def update_speed_band_page_display(_show_speed_band: bool, n_intervals: int, tab_value: str, 
+                                     zoom: Optional[int], center: Any, click_lat_lng: Any) -> Tuple[List[dl.Polyline], html.Div, html.Div]:
         """
         Update Speed Band page markers, count, and information display.
         Only runs when the speed-band tab is active.
+        Shows markers only when zoomed in close (zoom >= 17).
         """
+        print(f"Callback triggered: tab={tab_value}, zoom={zoom}, center={center}")
+        
+        # Initialize center coordinates display
+        center_coords_display = html.Div(
+            [
+                html.Span("Viewport Center: ", style={"color": "#ccc", "fontSize": "0.75rem"}),
+                html.Span("--", style={"color": "#999", "fontSize": "0.75rem"}),
+            ],
+            style={
+                "backgroundColor": "rgb(58, 74, 90)",
+                "padding": "4px 8px",
+                "borderRadius": "4px",
+            }
+        )
+        
         # Only fetch and display data when speed-band tab is active
         if tab_value != 'speed-band':
             return [], html.Div(
-                html.Span("--", style={"color": "#999"}),
+                html.Span("Zoom in to trigger traffic band display", style={"color": "#999"}),
                 style={
                     "backgroundColor": "rgb(58, 74, 90)",
                     "padding": "4px 8px",
                     "borderRadius": "4px",
                 }
-            ), html.Div()
+            ), center_coords_display
         
         _ = n_intervals  # Used for periodic refresh
         _ = _show_speed_band  # Always show on speed band page
 
-        # Fetch data asynchronously
-        future = fetch_speed_band_data_async()
-        data: Optional[Dict[str, Any]] = future.result() if future else None
+        # Initialize default message (zoom required)
+        count_value = html.Div(
+            html.Span("Zoom in to trigger traffic band display", style={"color": "#999"}),
+            style={
+                "backgroundColor": "rgb(58, 74, 90)",
+                "padding": "4px 8px",
+                "borderRadius": "4px",
+            }
+        )
         
-        # Count number of road segments measured (always calculate)
-        items = data.get('value', []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-        road_segment_count = len(items) if items else 0
+        # Update center coordinates display - prioritize click location, then map center
+        # Use click coordinates if available, otherwise use map center
+        click_lat, click_lon = parse_coordinates(click_lat_lng)
+        center_lat, center_lon = parse_coordinates(center)
         
-        if road_segment_count > 0:
-            # Display number of road segments measured
-            count_value = html.Div(
-                html.Span(f"{road_segment_count}", style={"color": "#00BCD4"}),
+        display_lat, display_lon = (click_lat, click_lon) if click_lat is not None else (center_lat, center_lon)
+        
+        if display_lat is not None and display_lon is not None:
+            center_coords_display = html.Div(
+                [
+                    html.Span("Viewport Center: ", style={"color": "#ccc", "fontSize": "0.75rem"}),
+                    html.Span(f"{display_lat:.6f}, {display_lon:.6f}", style={"color": "#00BCD4", "fontSize": "0.75rem", "fontWeight": "600"}),
+                ],
                 style={
                     "backgroundColor": "rgb(58, 74, 90)",
                     "padding": "4px 8px",
                     "borderRadius": "4px",
                 }
             )
-        else:
-            count_value = html.Div(
-                html.Span("--", style={"color": "#999"}),
-                style={
-                    "backgroundColor": "rgb(58, 74, 90)",
-                    "padding": "4px 8px",
-                    "borderRadius": "4px",
-                }
-            )
-
-        # Always show markers on speed band page
-        markers = create_speed_band_markers(data)
+            # Print center update for debugging
+            source = "click" if click_lat is not None else "center"
+            print(f"Viewport display updated ({source}): {display_lat:.6f}, {display_lon:.6f} (zoom: {zoom})")
         
-        # Format speed band information display
-        info_display = format_speed_band_display()
+        markers = []
+        displayed_count = 0
+        
+        # Only fetch and show markers when zoomed in close (zoom >= MIN_ZOOM_FOR_DISPLAY)
+        if zoom is not None and zoom >= MIN_ZOOM_FOR_DISPLAY and center_lat is not None and center_lon is not None:
+            print(f"Fetching speed band data at zoom {zoom}...")
+            
+            # Fetch data asynchronously (only when zoomed in)
+            future = fetch_speed_band_data_async()
+            data: Optional[Dict[str, Any]] = future.result() if future else None
+            
+            if data:
+                # Filter data by viewport bounds
+                filtered_items = filter_speed_bands_by_viewport(data, center_lat, center_lon, zoom)
+                
+                # Create markers for filtered data
+                if filtered_items:
+                    filtered_data = {'value': filtered_items}
+                    markers = create_speed_band_markers(filtered_data)
+                    displayed_count = len(markers)
+                    print(f"Displaying {displayed_count} speed band markers at zoom {zoom}")
+                
+                # Update count value to show number of speed bands displayed
+                count_value = html.Div(
+                    html.Span(f"{displayed_count}", style={"color": "#00BCD4"}),
+                    style={
+                        "backgroundColor": "rgb(58, 74, 90)",
+                        "padding": "4px 8px",
+                        "borderRadius": "4px",
+                    }
+                )
 
-        return markers, count_value, info_display
+        return markers, count_value, center_coords_display
 
