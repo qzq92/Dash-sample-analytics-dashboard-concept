@@ -4,7 +4,7 @@ Reference: https://datamall2.mytransport.sg/ltaodataservice/TrainServiceAlerts
 """
 import os
 from dash import Input, Output, html
-from utils.async_fetcher import fetch_url, fetch_async
+from utils.async_fetcher import fetch_url_2min_cached, _executor
 
 
 TRAIN_SERVICE_ALERTS_URL = "https://datamall2.mytransport.sg/ltaodataservice/TrainServiceAlerts"
@@ -29,7 +29,7 @@ def fetch_train_service_alerts():
         "Content-Type": "application/json"
     }
     
-    return fetch_url(TRAIN_SERVICE_ALERTS_URL, headers)
+    return fetch_url_2min_cached(TRAIN_SERVICE_ALERTS_URL, headers)
 
 
 def fetch_train_service_alerts_async():
@@ -49,7 +49,7 @@ def fetch_train_service_alerts_async():
         "Content-Type": "application/json"
     }
     
-    return fetch_async(TRAIN_SERVICE_ALERTS_URL, headers)
+    return _executor.submit(fetch_url_2min_cached, TRAIN_SERVICE_ALERTS_URL, headers)
 
 
 def format_train_service_alerts(data):

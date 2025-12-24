@@ -15,7 +15,7 @@ from typing import Optional, Dict, List, Any, Tuple
 from concurrent.futures import Future
 from dash import Input, Output, State, html
 import dash_leaflet as dl
-from utils.async_fetcher import fetch_url, fetch_async
+from utils.async_fetcher import fetch_url, fetch_async, fetch_url_2min_cached
 from utils.data_download_helper import fetch_erp_gantry_data
 from utils.map_utils import SG_MAP_CENTER
 from callbacks.map_callback import _haversine_distance_m
@@ -94,7 +94,7 @@ def fetch_taxi_availability():
     Returns:
         Dictionary containing taxi location data or None if error
     """
-    return fetch_url(TAXI_API_URL)
+    return fetch_url_2min_cached(TAXI_API_URL)
 
 
 def create_taxi_markers(data):
@@ -265,7 +265,7 @@ def fetch_traffic_cameras():
     Returns:
         Dictionary containing camera data or None if error
     """
-    return fetch_url(TRAFFIC_IMAGES_API_URL)
+    return fetch_url_2min_cached(TRAFFIC_IMAGES_API_URL)
 
 
 def parse_traffic_camera_data(data):
@@ -986,7 +986,7 @@ def fetch_traffic_incidents_data():
         "Content-Type": "application/json"
     }
     
-    return fetch_url(TRAFFIC_INCIDENTS_URL, headers)
+    return fetch_url_2min_cached(TRAFFIC_INCIDENTS_URL, headers)
 
 
 def fetch_vms_data() -> Optional[Dict[str, Any]]:
@@ -1427,7 +1427,7 @@ def fetch_faulty_traffic_lights_data():
         "Content-Type": "application/json"
     }
     
-    return fetch_url(FAULTY_TRAFFIC_LIGHTS_URL, headers)
+    return fetch_url_2min_cached(FAULTY_TRAFFIC_LIGHTS_URL, headers)
 
 
 def get_postal_code_from_coords(lat: float = None, lon: float = None, location_data: Optional[Dict[str, Any]] = None) -> str:

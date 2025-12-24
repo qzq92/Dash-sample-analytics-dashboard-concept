@@ -6,7 +6,6 @@ Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
 import math
 import re
-import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
@@ -15,7 +14,7 @@ import plotly.graph_objects as go
 import dash_leaflet as dl
 import requests
 from dash import html, dcc, Input, Output, State
-from utils.async_fetcher import fetch_url, get_default_headers
+from utils.async_fetcher import get_default_headers, fetch_url_2min_cached, _executor
 from callbacks.transport_callback import fetch_taxi_availability
 
 # Thread pool for async exposure index fetching
@@ -199,53 +198,47 @@ def _get_pollutant_unit(pollutant_key):
 
 def fetch_psi_data():
     """
-    Fetch PSI data from Data.gov.sg API with caching.
-    Returns cached data if within TTL, otherwise fetches fresh data.
+    Fetch PSI data from Data.gov.sg API.
+    Uses 2-minute in-memory caching aligned to system clock.
     """
-    global _psi_cache
-
-    current_time = time.time()
-
-    # Check if cache is valid
-    if (_psi_cache['data'] is not None and
-            current_time - _psi_cache['timestamp'] < PSI_CACHE_TTL):
-        return _psi_cache['data']
-
-    # Fetch fresh data
-    data = fetch_url(PSI_URL, get_default_headers())
-
-    # Update cache
-    if data is not None:
-        _psi_cache['data'] = data
-        _psi_cache['timestamp'] = current_time
-
-    return data
+    return fetch_url_2min_cached(PSI_URL, get_default_headers())
 
 
 def fetch_psi_data_async():
     """
     Fetch PSI data asynchronously (returns Future).
-    Call .result() to get the data when needed.
     """
-    return _exposure_executor.submit(fetch_psi_data)
+    return _executor.submit(fetch_url_2min_cached, PSI_URL, get_default_headers())
 
 
 def fetch_uv_data():
-    """Fetch UV index data from Data.gov.sg API."""
-    return fetch_url(UV_URL, get_default_headers())
+    """
+    Fetch UV index data from Data.gov.sg API.
+    Uses 2-minute in-memory caching aligned to system clock.
+    """
+    return fetch_url_2min_cached(UV_URL, get_default_headers())
 
 
 def fetch_uv_data_async():
     """
     Fetch UV data asynchronously (returns Future).
-    Call .result() to get the data when needed.
     """
-    return _exposure_executor.submit(fetch_uv_data)
+    return _executor.submit(fetch_url_2min_cached, UV_URL, get_default_headers())
 
 
 def fetch_wbgt_data():
-    """Fetch WBGT data from Data.gov.sg API."""
-    return fetch_url(WBGT_URL, get_default_headers())
+    """
+    Fetch WBGT data from Data.gov.sg API.
+    Uses 2-minute in-memory caching aligned to system clock.
+    """
+    return fetch_url_2min_cached(WBGT_URL, get_default_headers())
+
+
+def fetch_wbgt_data_async():
+    """
+    Fetch WBGT data asynchronously (returns Future).
+    """
+    return _executor.submit(fetch_url_2min_cached, WBGT_URL, get_default_headers())
 
 
 def fetch_zika_cluster_data():
@@ -344,14 +337,6 @@ def fetch_dengue_cluster_data_async():
     Call .result() to get the data when needed.
     """
     return _exposure_executor.submit(fetch_dengue_cluster_data)
-
-
-def fetch_wbgt_data_async():
-    """
-    Fetch WBGT data asynchronously (returns Future).
-    Call .result() to get the data when needed.
-    """
-    return _exposure_executor.submit(fetch_wbgt_data)
 
 
 def _parse_timestamp(timestamp_str):
