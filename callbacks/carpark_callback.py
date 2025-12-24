@@ -14,7 +14,7 @@ from dash import html
 import dash_leaflet as dl
 from typing import List, Optional, Dict, Tuple
 from pyproj import Transformer
-from utils.async_fetcher import fetch_url
+from utils.async_fetcher import fetch_url_2min_cached, _executor
 
 # Cache for carpark location data
 _carpark_locations_cache: Optional[pd.DataFrame] = None
@@ -77,6 +77,7 @@ def load_carpark_locations() -> pd.DataFrame:
 def fetch_carpark_availability() -> Optional[dict]:
     """
     Fetch carpark availability data from LTA DataMall CarPark Availability API v2.
+    Uses 2-minute in-memory caching aligned to system clock.
     
     Returns:
         Dictionary containing carpark data in the format expected by the rest of the code,
@@ -92,8 +93,8 @@ def fetch_carpark_availability() -> Optional[dict]:
         "Content-Type": "application/json"
     }
 
-    # Fetch data from LTA DataMall API
-    response_data = fetch_url(CARPARK_AVAILABILITY_URL, headers)
+    # Fetch data from LTA DataMall API using system-time cached fetcher
+    response_data = fetch_url_2min_cached(CARPARK_AVAILABILITY_URL, headers)
 
     if not response_data:
         return None
@@ -143,7 +144,7 @@ def fetch_carpark_availability_async():
     Fetch carpark availability asynchronously (returns Future).
     Call .result() to get the data when needed.
     """
-    return _carpark_executor.submit(fetch_carpark_availability)
+    return _executor.submit(fetch_carpark_availability)
 
 
 def convert_wgs84_to_svy21(latitude: float, longitude: float) -> Tuple[float, float]:

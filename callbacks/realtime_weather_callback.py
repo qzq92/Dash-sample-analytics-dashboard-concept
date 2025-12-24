@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from dash import Input, Output, State, html, callback_context
 import dash_leaflet as dl
 from conf.windspeed_icon import get_windspeed_icon, get_windspeed_description, WINDSPEED_THRESHOLDS
-from utils.async_fetcher import fetch_url, fetch_async, get_default_headers
+from utils.async_fetcher import get_default_headers, fetch_url_2min_cached, _executor
 from callbacks.weather_indices_callback import fetch_wbgt_data, format_wbgt_display, create_wbgt_markers
 
 # API URLs
@@ -32,7 +32,7 @@ def fetch_flood_alerts():
     Returns:
         Dictionary containing flood alert data or None if error
     """
-    return fetch_url(FLOOD_ALERTS_URL, get_default_headers())
+    return fetch_url_2min_cached(FLOOD_ALERTS_URL, get_default_headers())
 
 
 def fetch_flood_alerts_async():
@@ -40,7 +40,7 @@ def fetch_flood_alerts_async():
     Fetch flood alerts asynchronously (returns Future).
     Call .result() to get the data when needed.
     """
-    return fetch_async(FLOOD_ALERTS_URL, get_default_headers())
+    return _executor.submit(fetch_url_2min_cached, FLOOD_ALERTS_URL, get_default_headers())
 
 
 def fetch_realtime_data(endpoint):
@@ -58,7 +58,7 @@ def fetch_realtime_data(endpoint):
         return None
 
     url = f"{API_BASE}/{endpoint}"
-    return fetch_url(url, get_default_headers())
+    return fetch_url_2min_cached(url, get_default_headers())
 
 
 def fetch_realtime_data_async(endpoint):
@@ -71,7 +71,7 @@ def fetch_realtime_data_async(endpoint):
         return None
 
     url = f"{API_BASE}/{endpoint}"
-    return fetch_async(url, get_default_headers())
+    return _executor.submit(fetch_url_2min_cached, url, get_default_headers())
 
 
 def fetch_lightning_data():
@@ -81,7 +81,7 @@ def fetch_lightning_data():
     Returns:
         Dictionary containing lightning data or None if error
     """
-    return fetch_url(LIGHTNING_URL, get_default_headers())
+    return fetch_url_2min_cached(LIGHTNING_URL, get_default_headers())
 
 
 def fetch_lightning_data_async():
@@ -89,7 +89,7 @@ def fetch_lightning_data_async():
     Fetch lightning data asynchronously (returns Future).
     Call .result() to get the data when needed.
     """
-    return fetch_async(LIGHTNING_URL, get_default_headers())
+    return _executor.submit(fetch_url_2min_cached, LIGHTNING_URL, get_default_headers())
 
 
 def fetch_traffic_incidents():
@@ -112,7 +112,7 @@ def fetch_traffic_incidents():
         "Content-Type": "application/json"
     }
     
-    return fetch_url(traffic_incidents_url, headers)
+    return fetch_url_2min_cached(traffic_incidents_url, headers)
 
 
 def fetch_faulty_traffic_lights():
@@ -135,7 +135,7 @@ def fetch_faulty_traffic_lights():
         "Content-Type": "application/json"
     }
     
-    return fetch_url(faulty_traffic_lights_url, headers)
+    return fetch_url_2min_cached(faulty_traffic_lights_url, headers)
 
 
 def build_station_lookup(data):
@@ -1053,7 +1053,6 @@ def format_wbgt_average(data):
     Format WBGT data to show average value across all stations.
     Returns HTML content for the WBGT average display in a sub-div.
     """
-    from callbacks.weather_indices_callback import fetch_wbgt_data
     
     if not data:
         return html.Div(
