@@ -26,6 +26,7 @@ from callbacks.carpark_callback import register_carpark_callbacks
 from callbacks.tab_navigation_callback import register_tab_navigation_callback
 from callbacks.transport_callback import register_transport_callbacks
 from callbacks.train_service_alerts_callback import register_train_service_alerts_callbacks
+from callbacks.speedband_callback import register_speedband_callbacks
 from auth.onemap_api import initialize_onemap_token
 from utils.data_download_helper import (
     download_hdb_carpark_csv,
@@ -54,6 +55,7 @@ register_busstop_callbacks(app)
 register_carpark_callbacks(app)
 register_transport_callbacks(app)
 register_train_service_alerts_callbacks(app)
+register_speedband_callbacks(app)
 register_tab_navigation_callback(app)
 
 # Dashboard app layout ------------------------------------------------------#
