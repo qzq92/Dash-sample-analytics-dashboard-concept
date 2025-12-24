@@ -18,6 +18,51 @@ load_dotenv(override=True)
 # Using max_workers=10 is reasonable for I/O-bound tasks
 _executor = ThreadPoolExecutor(max_workers=10)
 
+# Global cache for 2-minute interval updates
+# Maps URL to {'data': json_dict, 'bucket': timestamp}
+_2min_dynamic_cache: Dict[str, Any] = {}
+
+
+def get_current_2min_bucket() -> int:
+    """Get the current 2-minute bucket start time (Unix timestamp)."""
+    return int(time.time() // 120) * 120
+
+
+def fetch_url_2min_cached(url: str, headers: Optional[Dict] = None, timeout: int = 10) -> Optional[dict]:
+    """
+    Fetch data from a URL with 2-minute in-memory caching aligned to system clock.
+    
+    Args:
+        url: The URL to fetch
+        headers: Optional headers dict
+        timeout: Request timeout in seconds
+        
+    Returns:
+        JSON response from cache or API
+    """
+    global _2min_dynamic_cache
+    
+    current_bucket = get_current_2min_bucket()
+    
+    # Check cache
+    if url in _2min_dynamic_cache:
+        cached_item = _2min_dynamic_cache[url]
+        if cached_item['bucket'] == current_bucket:
+            # print(f"Serving from 2-minute cache: {url}")
+            return cached_item['data']
+            
+    # Fetch fresh data
+    # print(f"Fetching fresh data for 2-minute bucket: {url}")
+    data = fetch_url(url, headers, timeout)
+    
+    if data is not None:
+        _2min_dynamic_cache[url] = {
+            'data': data,
+            'bucket': current_bucket
+        }
+        
+    return data
+
 
 def get_default_headers() -> Dict[str, str]:
     """Get default headers for Data.gov.sg API requests."""
