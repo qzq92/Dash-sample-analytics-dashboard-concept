@@ -13,6 +13,7 @@ from components.realtime_weather_page import realtime_weather_page
 from components.weather_indices_page import weather_indices_page
 from components.transport_page import transport_page
 from components.nearby_transport_page import nearby_transport_page
+from components.speed_band_page import speed_band_page
 from components.train_service_alerts_component import train_service_alerts_component
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
@@ -84,6 +85,8 @@ app.layout = html.Div(
                 transport_page(),
                 # Nearby transport page (hidden by default)
                 nearby_transport_page(),
+                # Speed band page (hidden by default)
+                speed_band_page(),
                 # Main content area with map and right panel side by side
                 html.Div(
                     id="main-content",
