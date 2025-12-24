@@ -3,6 +3,7 @@ Weather forecast icons configuration.
 Maps forecast text descriptions to appropriate icons/emojis.
 Reference: https://data.gov.sg/datasets?query=weather
 """
+from typing import Optional
 
 # Weather forecast icon mapping
 # Keys are the forecast text values from the API
@@ -49,7 +50,7 @@ WEATHER_ICONS = {
 DEFAULT_ICON = "🌡️"
 
 
-def get_weather_icon(forecast_text):
+def get_weather_icon(forecast_text: Optional[str]) -> str:
     """
     Get the weather icon for a given forecast text.
 
@@ -64,7 +65,7 @@ def get_weather_icon(forecast_text):
     return WEATHER_ICONS.get(forecast_text, DEFAULT_ICON)
 
 
-def get_weather_icon_with_text(forecast_text):
+def get_weather_icon_with_text(forecast_text: Optional[str]) -> str:
     """
     Get the weather icon combined with the forecast text.
 

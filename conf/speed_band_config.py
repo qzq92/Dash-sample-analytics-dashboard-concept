@@ -3,6 +3,7 @@ Speed band mapping configuration.
 Maps speed band numbers to speed ranges in km/h.
 Reference: LTA DataMall Traffic Speed Bands API
 """
+from typing import Tuple, Union
 
 # Speed band to speed range mapping (in km/h)
 # Format: band_number: (min_speed, max_speed)
@@ -18,7 +19,7 @@ SPEED_BAND_RANGES = {
 }
 
 
-def get_speed_range(band):
+def get_speed_range(band: Union[int, str]) -> Tuple[int, int]:
     """
     Get the speed range for a given speed band.
 
@@ -31,7 +32,7 @@ def get_speed_range(band):
     return SPEED_BAND_RANGES.get(band, (0, 0))
 
 
-def get_speed_midpoint(band):
+def get_speed_midpoint(band: Union[int, str]) -> float:
     """
     Get the midpoint speed for a given speed band.
 

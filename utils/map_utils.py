@@ -12,7 +12,7 @@ SG_MAP_MAX_ZOOM = 20  # Maximum zoom level
 ONEMAP_TILES_URL = "https://www.onemap.gov.sg/maps/tiles/Night/{z}/{x}/{y}.png"
 
 
-def get_onemap_attribution():
+def get_onemap_attribution() -> str:
     """
     Get the standard OneMap attribution string used across all maps.
     

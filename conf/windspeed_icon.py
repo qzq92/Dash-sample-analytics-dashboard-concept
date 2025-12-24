@@ -3,6 +3,7 @@ Wind speed icons configuration.
 Maps wind speed values to appropriate icons/emojis based on intensity.
 Reference: Beaufort Wind Scale
 """
+from typing import Optional, Union
 
 # Wind speed thresholds (in km/h) and corresponding icons
 # Based on Beaufort scale with continuous ranges (upper bound exclusive)
@@ -48,7 +49,7 @@ DEFAULT_WINDSPEED_ICON = "🌬️"
 DEFAULT_DIRECTION_ICON = "🧭"
 
 
-def get_windspeed_icon(speed_kmh):
+def get_windspeed_icon(speed_kmh: Optional[Union[int, float]]) -> str:
     """
     Get the wind speed icon based on speed in km/h.
 
@@ -77,7 +78,7 @@ def get_windspeed_icon(speed_kmh):
     return DEFAULT_WINDSPEED_ICON
 
 
-def get_windspeed_description(speed_kmh):
+def get_windspeed_description(speed_kmh: Optional[Union[int, float]]) -> str:
     """
     Get the wind speed description based on speed in km/h.
 
@@ -106,7 +107,7 @@ def get_windspeed_description(speed_kmh):
     return "Unknown"
 
 
-def get_windspeed_icon_with_description(speed_kmh):
+def get_windspeed_icon_with_description(speed_kmh: Optional[Union[int, float]]) -> str:
     """
     Get the wind speed icon combined with description.
 
@@ -121,7 +122,7 @@ def get_windspeed_icon_with_description(speed_kmh):
     return f"{icon} {description}"
 
 
-def get_wind_direction_icon(direction):
+def get_wind_direction_icon(direction: Optional[str]) -> str:
     """
     Get the wind direction icon based on compass direction.
 
@@ -138,7 +139,7 @@ def get_wind_direction_icon(direction):
     return WIND_DIRECTION_ICONS.get(direction_upper, DEFAULT_DIRECTION_ICON)
 
 
-def get_wind_info(speed_kmh, direction=None):
+def get_wind_info(speed_kmh: Optional[Union[int, float]], direction: Optional[str] = None) -> str:
     """
     Get complete wind information with icon, speed, and direction.
 
