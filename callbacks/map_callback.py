@@ -129,9 +129,10 @@ def register_search_callbacks(app):
                 label = ', '.join(label_parts) if label_parts else address
 
                 # Store coordinates in EPSG:4326 format (Leaflet expects this)
+                # Include postal code in value: lat,lon,address,postal
                 options.append({
                     'label': label,
-                    'value': f'{lat},{lon},{address}'  # Store lat,lon,address in EPSG:4326
+                    'value': f'{lat},{lon},{address},{postal}' if postal else f'{lat},{lon},{address}'
                 })
 
         print(f"Generated {len(options)} dropdown options (top 5)")
@@ -289,13 +290,15 @@ def register_search_callbacks(app):
 
         try:
             # Parse the dropdown value
-            parts = dropdown_value.split(',', 2)  # Split into max 3 parts
+            # Format: lat,lon,address,postal (postal is optional)
+            parts = dropdown_value.split(',')
             lat_str, lon_str = parts[0], parts[1]
             address = parts[2] if len(parts) > 2 else "Selected Location"
+            postal_code = parts[3] if len(parts) > 3 else ""
 
             lat, lon = float(lat_str), float(lon_str)
 
-            print(f"Parsed coordinates - lat: {lat}, lon: {lon}, address: {address}")
+            print(f"Parsed coordinates - lat: {lat}, lon: {lon}, address: {address}, postal: {postal_code}")
 
             # Create marker with popup showing the address (Leaflet expects EPSG:4326)
             marker = dl.Marker(
@@ -314,8 +317,10 @@ def register_search_callbacks(app):
                 'transition': 'flyTo'  # Smooth animation to new location
             }
 
-            # Update location store
+            # Update location store with postal code if available
             location_data = {"lat": lat, "lon": lon, "address": address}
+            if postal_code:
+                location_data["postal_code"] = postal_code
 
             print(f"Nearby transport map viewport updated to: center=[{lat}, {lon}], zoom=18")
             return viewport, location_data, [marker]

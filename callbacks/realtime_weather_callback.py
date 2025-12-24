@@ -302,11 +302,11 @@ def format_readings_grid(data, unit, color):
     formatted_avg = f"{avg_value:.1f}{unit}" if unit == '°C' else f"{avg_value:.1f} {unit}"
 
     return html.Div(
-        html.Span(formatted_avg, style={
-            "fontSize": "14px",
-            "fontWeight": "600",
-            "color": color,
-        }),
+            html.Span(formatted_avg, style={
+                "fontSize": "14px",
+                "fontWeight": "600",
+                "color": color,
+            }),
         style={
             "padding": "6px 8px",
             "backgroundColor": "#3a4a5a",
@@ -517,11 +517,11 @@ def format_wind_readings(speed_data):
     formatted_avg = f"{icon} {avg_speed:.1f} km/h"
 
     return html.Div(
-        html.Span(formatted_avg, style={
-            "fontSize": "14px",
-            "fontWeight": "600",
+            html.Span(formatted_avg, style={
+                "fontSize": "14px",
+                "fontWeight": "600",
             "color": "#fff",
-        }),
+            }),
         style={
             "padding": "6px 8px",
             "backgroundColor": "#3a4a5a",
@@ -1125,11 +1125,11 @@ def format_wbgt_average(data):
     formatted_avg = f"{avg_wbgt:.1f}°C"
 
     return html.Div(
-        html.Span(formatted_avg, style={
-            "fontSize": "14px",
-            "fontWeight": "600",
+            html.Span(formatted_avg, style={
+                "fontSize": "14px",
+                "fontWeight": "600",
             "color": "#fff",
-        }),
+            }),
         style={
             "padding": "6px 8px",
             "backgroundColor": "#3a4a5a",

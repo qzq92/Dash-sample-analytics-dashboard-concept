@@ -9,6 +9,7 @@ References:
 import re
 import os
 import base64
+import pandas as pd
 from datetime import datetime
 from typing import Optional, Dict, List, Any, Tuple
 from concurrent.futures import Future
@@ -28,6 +29,7 @@ FAULTY_TRAFFIC_LIGHTS_URL = "https://datamall2.mytransport.sg/ltaodataservice/Fa
 BICYCLE_PARKING_URL = "https://datamall2.mytransport.sg/ltaodataservice/BicycleParkingv2"
 VMS_URL = "https://datamall2.mytransport.sg/ltaodataservice/VMS"
 EV_CHARGING_URL = "https://datamall2.mytransport.sg/ltaodataservice/EVChargingPoints"
+BUS_STOPS_URL = "https://datamall2.mytransport.sg/ltaodataservice/BusStops"
 
 
 def fetch_taxi_availability():
@@ -896,14 +898,16 @@ def format_combined_taxi_display(taxi_data, taxi_stands_data):
     )
 
 
+SPEED_BAND_URL = "https://datamall2.mytransport.sg/ltaodataservice/v4/TrafficSpeedBands"
+
+
 def fetch_speed_band_data():
     """
-    Fetch Traffic Speed Band data from LTA DataMall API.
+    Fetch all Traffic Speed Band data from LTA DataMall API with pagination.
     
     Returns:
-        Dictionary containing speed band data or None if error
+        Dictionary containing all speed band data with combined 'value' list, or None if error
     """
-    speed_band_url = "https://datamall2.mytransport.sg/ltaodataservice/v4/TrafficSpeedBands"
     api_key = os.getenv("LTA_API_KEY")
     
     if not api_key:
@@ -916,7 +920,39 @@ def fetch_speed_band_data():
         "Content-Type": "application/json"
     }
     
-    return fetch_url(speed_band_url, headers)
+    all_speed_bands = []
+    skip = 0
+    page_size = 500
+    
+    while True:
+        # Construct URL with skip parameter
+        url = f"{SPEED_BAND_URL}?$skip={skip}" if skip > 0 else SPEED_BAND_URL
+        
+        # Fetch current page
+        page_data = fetch_url(url, headers)
+        
+        if not page_data or 'value' not in page_data:
+            break
+        
+        speed_bands = page_data.get('value', [])
+        if not speed_bands:
+            break
+        
+        # Add to combined list
+        all_speed_bands.extend(speed_bands)
+        
+        # If we got less than 500 records, we've reached the last page
+        if len(speed_bands) < page_size:
+            break
+        
+        # Move to next page
+        skip += page_size
+        print(f"Fetched {len(speed_bands)} speed bands (skip={skip}), total so far: {len(all_speed_bands)}")
+    
+    print(f"Total speed bands fetched: {len(all_speed_bands)}")
+    
+    # Return in the same format as the API response
+    return {'value': all_speed_bands}
 
 
 def create_speed_band_markers(speed_data):
@@ -1118,6 +1154,158 @@ def fetch_vms_data_async() -> Optional[Future]:
     return fetch_async(VMS_URL, headers)
 
 
+def fetch_bus_stops_data() -> Optional[Dict[str, Any]]:
+    """
+    Fetch all bus stops data from LTA DataMall API with pagination.
+    The API returns 500 records per page. This function fetches all pages
+    until less than 500 records are returned.
+    
+    Returns:
+        Dictionary containing all bus stops data with combined 'value' list, or None if error
+    """
+    api_key = os.getenv("LTA_API_KEY")
+    
+    if not api_key:
+        print("Warning: LTA_API_KEY not found in environment variables")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    all_bus_stops = []
+    skip = 0
+    page_size = 500
+    
+    while True:
+        # Construct URL with skip parameter
+        url = f"{BUS_STOPS_URL}?$skip={skip}" if skip > 0 else BUS_STOPS_URL
+        
+        # Fetch current page
+        page_data = fetch_url(url, headers)
+        
+        if not page_data or 'value' not in page_data:
+            break
+        
+        bus_stops = page_data.get('value', [])
+        if not bus_stops:
+            break
+        
+        # Add to combined list
+        all_bus_stops.extend(bus_stops)
+        
+        # If we got less than 500 records, we've reached the last page
+        if len(bus_stops) < page_size:
+            break
+        
+        # Move to next page
+        skip += page_size
+        print(f"Fetched {len(bus_stops)} bus stops (skip={skip}), total so far: {len(all_bus_stops)}")
+    
+    print(f"Total bus stops fetched: {len(all_bus_stops)}")
+    
+    # Return in the same format as the API response
+    return {'value': all_bus_stops}
+
+
+def fetch_bus_stops_data_async() -> Optional[Future]:
+    """
+    Fetch all bus stops data asynchronously with pagination (returns Future).
+    The API returns 500 records per page. This function fetches all pages
+    until less than 500 records are returned.
+    Call .result() to get the data when needed.
+    
+    Returns:
+        Future object that will contain all bus stops data, or None if error
+    """
+    # Import executor from async_fetcher module
+    from utils.async_fetcher import _executor
+    
+    # Submit the synchronous paginated function to thread pool
+    return _executor.submit(fetch_bus_stops_data)
+
+
+def load_speed_camera_data() -> pd.DataFrame:
+    """
+    Load speed camera data from CSV file.
+    
+    Returns:
+        DataFrame with speed camera data
+    """
+    csv_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'speed_camera.csv')
+    
+    try:
+        df = pd.read_csv(csv_path)
+        return df
+    except Exception as e:
+        print(f"Error loading speed camera data: {e}")
+        return pd.DataFrame()
+
+
+def get_fixed_speed_camera_count() -> int:
+    """
+    Get count of fixed speed cameras from CSV.
+    
+    Returns:
+        Number of fixed speed cameras
+    """
+    df = load_speed_camera_data()
+    if df.empty:
+        return 0
+    
+    # Filter for Fixed Speed Camera type
+    fixed_cameras = df[df['type_of_speed_camera'] == 'Fixed Speed Camera']
+    return len(fixed_cameras)
+
+
+def create_fixed_speed_camera_markers() -> List[dl.CircleMarker]:
+    """
+    Create map markers for fixed speed camera locations from CSV.
+    
+    Returns:
+        List of dl.CircleMarker components
+    """
+    markers = []
+    df = load_speed_camera_data()
+    
+    if df.empty:
+        return markers
+    
+    # Filter for Fixed Speed Camera type
+    fixed_cameras = df[df['type_of_speed_camera'] == 'Fixed Speed Camera']
+    
+    for _, row in fixed_cameras.iterrows():
+        try:
+            lat = float(row.get('location_latitude', 0))
+            lon = float(row.get('location_longitude', 0))
+            location = str(row.get('location', 'Unknown Location'))
+            
+            if lat == 0 or lon == 0:
+                continue
+            
+            # Create circle marker with location tooltip
+            markers.append(
+                dl.CircleMarker(
+                    center=[lat, lon],
+                    radius=6,
+                    color="#81C784",  # Light green for speed cameras
+                    fill=True,
+                    fillColor="#81C784",
+                    fillOpacity=0.7,
+                    weight=2,
+                    children=[
+                        dl.Tooltip(f"Fixed Speed Camera\n{location}"),
+                    ]
+                )
+            )
+        except (ValueError, TypeError, KeyError):
+            continue
+    
+    return markers
+
+
 def create_vms_markers(vms_data: Optional[Dict[str, Any]]) -> List[dl.CircleMarker]:
     """
     Create map markers for VMS (Variable Message Signs) locations.
@@ -1194,37 +1382,64 @@ def fetch_faulty_traffic_lights_data():
     return fetch_url(FAULTY_TRAFFIC_LIGHTS_URL, headers)
 
 
-def get_postal_code_from_coords(lat: float, lon: float) -> str:
+def get_postal_code_from_coords(lat: float = None, lon: float = None, location_data: Optional[Dict[str, Any]] = None) -> str:
     """
-    Get postal code from coordinates using OneMap reverse geocoding API.
+    Get postal code from location data (extracted from search value) or coordinates.
+    Priority: location_data postal_code > location_data value field > reverse geocoding API.
     
     Args:
-        lat: Latitude in degrees
-        lon: Longitude in degrees
+        lat: Latitude in degrees (optional, used as fallback)
+        lon: Longitude in degrees (optional, used as fallback)
+        location_data: Dictionary containing location data with optional 'postal_code' or 'value' field
     
     Returns:
-        Postal code as string, or empty string if not found
+        Postal code as string (6 digits), or empty string if not found
     """
-    import requests
-    try:
-        # OneMap reverse geocoding API
-        url = f"https://www.onemap.gov.sg/api/public/revgeocode?latitude={lat}&longitude={lon}"
-        
-        api_token = os.getenv("ONEMAP_API_KEY")
-        headers = {}
-        if api_token:
-            headers["Authorization"] = api_token
-        
-        response = requests.get(url, headers=headers, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            results = data.get('results', [])
-            if results:
-                # Get postal code from first result
-                postal_code = results[0].get('POSTAL_CODE', '')
-                return postal_code
-    except Exception as e:
-        print(f"Error getting postal code from coordinates: {e}")
+    # First, try to extract from location_data postal_code field
+    if location_data and isinstance(location_data, dict):
+        postal_code = location_data.get('postal_code', '')
+        if postal_code:
+            # Ensure it's a 6-digit string
+            postal_str = str(postal_code).strip()
+            if len(postal_str) == 6 and postal_str.isdigit():
+                return postal_str
+    
+    # Second, try to extract from location_data value field (format: lat,lon,address,postal)
+    if location_data and isinstance(location_data, dict):
+        value = location_data.get('value', '')
+        if value:
+            try:
+                parts = value.split(',')
+                if len(parts) > 3:
+                    postal_code = parts[3].strip()
+                    if len(postal_code) == 6 and postal_code.isdigit():
+                        return postal_code
+            except (ValueError, IndexError):
+                pass
+    
+    # Fallback: Use reverse geocoding API if coordinates are provided
+    if lat is not None and lon is not None:
+        import requests
+        try:
+            # OneMap reverse geocoding API
+            url = f"https://www.onemap.gov.sg/api/public/revgeocode?latitude={lat}&longitude={lon}"
+            
+            api_token = os.getenv("ONEMAP_API_KEY")
+            headers = {}
+            if api_token:
+                headers["Authorization"] = api_token
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get('results', [])
+                if results:
+                    # Get postal code from first result
+                    postal_code = results[0].get('POSTAL_CODE', '')
+                    return postal_code
+        except Exception as e:
+            print(f"Error getting postal code from coordinates: {e}")
+    
     return ""
 
 
@@ -2287,7 +2502,7 @@ def register_transport_callbacks(app):
                 "fontSize": "12px",
                 "fontWeight": "600",
             }
-            text = "Hide Taxi Location & Stands"
+            text = "Hide Current Taxi Locations/Stands"
         else:
             # Inactive state - outline
             style = {
@@ -2300,7 +2515,7 @@ def register_transport_callbacks(app):
                 "fontSize": "12px",
                 "fontWeight": "600",
             }
-            text = "Show Taxi Location & Stands"
+            text = "Show Current Taxi Locations/Stands"
         
         return new_state, style, text
     
@@ -2400,7 +2615,7 @@ def register_transport_callbacks(app):
                 "fontSize": "12px",
                 "fontWeight": "600",
             }
-            text = "Hide Traffic Cameras Location"
+            text = "Hide LTA Traffic Cameras Location"
         else:
             # Inactive state - outline
             style = {
@@ -2413,7 +2628,7 @@ def register_transport_callbacks(app):
                 "fontSize": "12px",
                 "fontWeight": "600",
             }
-            text = "Show Traffic Cameras Location"
+            text = "Show LTA Traffic Cameras Location"
         
         return new_state, style, text
 
@@ -2523,93 +2738,6 @@ def register_transport_callbacks(app):
 
         # Create markers
         markers = create_erp_gantry_markers(gantry_data)
-
-        return markers, count_value
-
-    @app.callback(
-        [Output('speed-band-toggle-state', 'data'),
-         Output('speed-band-toggle-btn', 'style'),
-         Output('speed-band-toggle-btn', 'children')],
-        Input('speed-band-toggle-btn', 'n_clicks'),
-        State('speed-band-toggle-state', 'data'),
-        prevent_initial_call=True
-    )
-    def toggle_speed_band_display(_n_clicks, current_state):
-        """Toggle Speed Band display on/off."""
-        new_state = not current_state
-
-        if new_state:
-            # Active state - cyan background
-            style = {
-                "backgroundColor": "#00BCD4",
-                "border": "none",
-                "borderRadius": "4px",
-                "color": "#fff",
-                "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
-                "fontWeight": "600",
-            }
-            text = "Hide Traffic Speed Bands"
-        else:
-            # Inactive state - outline
-            style = {
-                "backgroundColor": "transparent",
-                "border": "2px solid #00BCD4",
-                "borderRadius": "4px",
-                "color": "#00BCD4",
-                "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
-                "fontWeight": "600",
-            }
-            text = "Show Traffic Speed Bands"
-
-        return new_state, style, text
-
-    @app.callback(
-        [Output('speed-band-markers', 'children'),
-         Output('speed-band-count-value', 'children')],
-        [Input('speed-band-toggle-state', 'data'),
-         Input('transport-interval', 'n_intervals')]
-    )
-    def update_speed_band_display(show_speed_band, n_intervals):
-        """Update Speed Band markers and information display."""
-        _ = n_intervals  # Used for periodic refresh
-
-        # Always fetch data to display counts
-        data = fetch_speed_band_data()
-        
-        # Count number of road segments measured (always calculate)
-        items = data.get('value', []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-        road_segment_count = len(items) if items else 0
-        
-        if road_segment_count > 0:
-            # Display number of road segments measured
-            count_value = html.Div(
-                html.Span(f"{road_segment_count}", style={"color": "#00BCD4"}),
-                style={
-                    "backgroundColor": "rgb(58, 74, 90)",
-                    "padding": "4px 8px",
-                    "borderRadius": "4px",
-                }
-            )
-        else:
-            count_value = html.Div(
-                html.Span("--", style={"color": "#999"}),
-                style={
-                    "backgroundColor": "rgb(58, 74, 90)",
-                    "padding": "4px 8px",
-                    "borderRadius": "4px",
-                }
-            )
-
-        # Only show markers if toggle is on
-        if not show_speed_band:
-            return [], count_value
-
-        # Create markers
-        markers = create_speed_band_markers(data)
 
         return markers, count_value
 
@@ -3164,8 +3292,8 @@ def register_transport_callbacks(app):
                 }
             ), []
 
-        # Get postal code from coordinates
-        postal_code = get_postal_code_from_coords(center_lat, center_lon)
+        # Get postal code from location_data (extracted from search value)
+        postal_code = get_postal_code_from_coords(center_lat, center_lon, location_data)
         
         if not postal_code:
             return html.P(
@@ -3295,7 +3423,7 @@ def register_transport_callbacks(app):
                 "fontSize": "12px",
                 "fontWeight": "600",
             }
-            text = "Hide VMS Display Locations"
+            text = "Hide VMS Display boards Locations"
         else:
             # Inactive state - outline
             style = {
@@ -3308,7 +3436,7 @@ def register_transport_callbacks(app):
                 "fontSize": "12px",
                 "fontWeight": "600",
             }
-            text = "Show VMS Display Locations"
+            text = "Show VMS Display boards Locations"
         
         return new_state, style, text
 
@@ -3349,5 +3477,211 @@ def register_transport_callbacks(app):
         markers = create_vms_markers(data)
 
         return markers, count_value
+
+    @app.callback(
+        Output('bus-stops-count-value', 'children'),
+        Input('transport-interval', 'n_intervals')
+    )
+    def update_bus_stops_count(n_intervals):
+        """Update bus stops count display."""
+        _ = n_intervals  # Used for periodic refresh
+
+        # Always fetch data to display counts (using async)
+        future = fetch_bus_stops_data_async()
+        data: Optional[Dict[str, Any]] = future.result() if future else None
+        
+        # Extract count (always calculate)
+        bus_stops_count = 0
+        if isinstance(data, dict):
+            bus_stops_list = data.get('value', [])
+            if isinstance(bus_stops_list, list):
+                bus_stops_count = len(bus_stops_list)
+        
+        count_value = html.Div(
+            html.Span(f"{bus_stops_count}", style={"color": "#4169E1"}),
+            style={
+                "backgroundColor": "rgb(58, 74, 90)",
+                "padding": "4px 8px",
+                "borderRadius": "4px",
+            }
+        )
+
+        return count_value
+
+    def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[dl.CircleMarker]:
+        """
+        Create map markers for bus stop locations.
+        
+        Args:
+            bus_stops_data: Dictionary containing bus stops response from LTA API
+        
+        Returns:
+            List of dl.CircleMarker components
+        """
+        markers = []
+        
+        if not bus_stops_data or 'value' not in bus_stops_data:
+            return markers
+        
+        bus_stops = bus_stops_data.get('value', [])
+        
+        for bus_stop in bus_stops:
+            try:
+                latitude = float(bus_stop.get('Latitude', 0))
+                longitude = float(bus_stop.get('Longitude', 0))
+                bus_stop_code = bus_stop.get('BusStopCode', 'N/A')
+                road_name = bus_stop.get('RoadName', 'N/A')
+                description = bus_stop.get('Description', 'N/A')
+                
+                if latitude == 0 or longitude == 0:
+                    continue
+                
+                # Create tooltip with bus stop information
+                tooltip_html = (
+                    f"Bus Stop Code: {bus_stop_code}\n"
+                    f"Road: {road_name}\n"
+                    f"Description: {description}"
+                )
+                
+                # Create circle marker for bus stops (royal blue)
+                markers.append(
+                    dl.CircleMarker(
+                        center=[latitude, longitude],
+                        radius=5,
+                        color="#4169E1",  # Royal blue
+                        fill=True,
+                        fillColor="#4169E1",
+                        fillOpacity=0.7,
+                        weight=2,
+                        children=[
+                            dl.Tooltip(tooltip_html),
+                        ]
+                    )
+                )
+            except (ValueError, TypeError, KeyError):
+                continue
+        
+        return markers
+
+    # SPF Speed Camera callbacks
+    @app.callback(
+        [Output('speed-camera-toggle-state', 'data'),
+         Output('speed-camera-toggle-btn', 'style'),
+         Output('speed-camera-toggle-btn', 'children')],
+        Input('speed-camera-toggle-btn', 'n_clicks'),
+        State('speed-camera-toggle-state', 'data'),
+        prevent_initial_call=True
+    )
+    def toggle_speed_camera_display(_n_clicks: Optional[int], current_state: bool) -> Tuple[bool, Dict[str, Any], str]:
+        """Toggle SPF Speed Camera markers display on/off."""
+        new_state = not current_state
+        
+        if new_state:
+            # Active state - light green background
+            style = {
+                "backgroundColor": "#81C784",
+                "border": "none",
+                "borderRadius": "4px",
+                "color": "#fff",
+                "cursor": "pointer",
+                "padding": "6px 12px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Hide SPF Speed Camera Locations"
+        else:
+            # Inactive state - outline
+            style = {
+                "backgroundColor": "transparent",
+                "border": "2px solid #81C784",
+                "borderRadius": "4px",
+                "color": "#81C784",
+                "cursor": "pointer",
+                "padding": "4px 10px",
+                "fontSize": "12px",
+                "fontWeight": "600",
+            }
+            text = "Show SPF Speed Camera Locations"
+        
+        return new_state, style, text
+
+    @app.callback(
+        [Output('speed-camera-markers', 'children'),
+         Output('speed-camera-count-value', 'children')],
+        [Input('speed-camera-toggle-state', 'data'),
+         Input('transport-interval', 'n_intervals')]
+    )
+    def update_speed_camera_display(show_speed_camera: bool, n_intervals: int) -> Tuple[List[dl.CircleMarker], html.Div]:
+        """Update SPF Speed Camera markers and count display."""
+        _ = n_intervals  # Used for periodic refresh
+
+        # Always calculate count
+        speed_camera_count = get_fixed_speed_camera_count()
+        
+        count_value = html.Div(
+            html.Span(f"{speed_camera_count}", style={"color": "#A5D6A7"}),
+            style={
+                "backgroundColor": "rgb(58, 74, 90)",
+                "padding": "4px 8px",
+                "borderRadius": "4px",
+            }
+        )
+
+        # Only show markers if toggle is on
+        if not show_speed_camera:
+            return [], count_value
+
+        # Create markers
+        markers = create_fixed_speed_camera_markers()
+
+        return markers, count_value
+
+    # Speed Band Page callbacks
+    @app.callback(
+        [Output('speed-band-map-markers', 'children'),
+         Output('speed-band-count-value', 'children'),
+         Output('speed-band-info-display', 'children')],
+        [Input('speed-band-page-toggle-state', 'data'),
+         Input('speed-band-interval', 'n_intervals')]
+    )
+    def update_speed_band_page_display(_show_speed_band: bool, n_intervals: int) -> Tuple[List[dl.Polyline], html.Div, html.Div]:
+        """Update Speed Band page markers, count, and information display."""
+        _ = n_intervals  # Used for periodic refresh
+        _ = _show_speed_band  # Always show on speed band page
+
+        # Always fetch data to display counts
+        data = fetch_speed_band_data()
+        
+        # Count number of road segments measured (always calculate)
+        items = data.get('value', []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+        road_segment_count = len(items) if items else 0
+        
+        if road_segment_count > 0:
+            # Display number of road segments measured
+            count_value = html.Div(
+                html.Span(f"{road_segment_count}", style={"color": "#00BCD4"}),
+                style={
+                    "backgroundColor": "rgb(58, 74, 90)",
+                    "padding": "4px 8px",
+                    "borderRadius": "4px",
+                }
+            )
+        else:
+            count_value = html.Div(
+                html.Span("--", style={"color": "#999"}),
+                style={
+                    "backgroundColor": "rgb(58, 74, 90)",
+                    "padding": "4px 8px",
+                    "borderRadius": "4px",
+                }
+            )
+
+        # Always show markers on speed band page
+        markers = create_speed_band_markers(data)
+        
+        # Format speed band information display
+        info_display = format_speed_band_display()
+
+        return markers, count_value, info_display
 
 

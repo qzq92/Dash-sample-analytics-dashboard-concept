@@ -213,8 +213,6 @@ def format_mrt_line_operational_details(data):
             direction = disruption_info.get("direction", "")
             stations = disruption_info.get("stations", "")
             
-            status_text = "⚠️ Disruption"
-            status_color = "#ff4444"
             border_color = "#ff4444"
             
             details = []
@@ -224,11 +222,20 @@ def format_mrt_line_operational_details(data):
                 details.append(f"Stations: {stations}")
             
             detail_text = " | ".join(details) if details else "Service disruption"
+            # Red and bold for disruptions
+            detail_text_color = "#ff4444"
         else:
-            status_text = "✓ Operational"
-            status_color = "#4CAF50"
             border_color = line_color  # Use line color for border when operational
-            detail_text = "Normal service"
+            detail_text = "Normal Service"
+            # Green and bold for normal service
+            detail_text_color = "#4CAF50"
+        
+        # Check if detail_text indicates Normal Service (case-insensitive)
+        is_normal_service = detail_text.lower() == "normal service"
+        if is_normal_service:
+            detail_text_color = "#4CAF50"  # Green and bold
+        else:
+            detail_text_color = "#ff4444"  # Red and bold
         
         return html.Div(
             style={
@@ -244,7 +251,6 @@ def format_mrt_line_operational_details(data):
                         "display": "flex",
                         "justifyContent": "space-between",
                         "alignItems": "center",
-                        "marginBottom": "0.375rem",
                     },
                     children=[
                         html.Span(
@@ -255,24 +261,15 @@ def format_mrt_line_operational_details(data):
                                 "fontSize": "0.8125rem",
                             }
                         ),
-                        html.Span(
-                            status_text,
+                        html.Div(
+                            detail_text,
                             style={
-                                "color": status_color,
-                                "fontWeight": "600",
-                                "fontSize": "0.75rem",
+                                "color": detail_text_color,
+                                "fontSize": "0.6875rem",
+                                "fontWeight": "bold",
                             }
                         ),
                     ]
-                ),
-                html.P(
-                    detail_text,
-                    style={
-                        "color": "#ccc",
-                        "fontSize": "0.6875rem",
-                        "margin": "0",
-                        "lineHeight": "1.4",
-                    }
                 ),
             ]
         )
