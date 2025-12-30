@@ -252,7 +252,21 @@ def speed_band_page():
                                                 "whiteSpace": "nowrap",
                                             })
                                         ], style={"display": "flex", "alignItems": "center"}),
-                                    ])
+                                    ]),
+                                    html.Div(
+                                        "Note: Due to computation limits, speed band "
+                                        "is only shown during map zoom in.",
+                                        style={
+                                            "color": "#aaa",
+                                            "fontSize": "0.6875rem",
+                                            "fontStyle": "italic",
+                                            "marginTop": "0.3125rem",
+                                            "paddingTop": "0.625rem",
+                                            "borderTop": "1px solid rgba(255, 255, 255, 0.1)",
+                                            "textAlign": "center",
+                                            "lineHeight": "1.4"
+                                        }
+                                    )
                                 ]
                             ),
                         ]
@@ -279,30 +293,44 @@ def speed_band_page():
                                     "minHeight": "25rem",
                                 },
                                 children=[
-                                    dl.Map(
-                                        id="speed-band-map",
-                                        center=sg_center,
-                                        zoom=fixed_zoom,
-                                        minZoom=10,
-                                        maxZoom=19,
-                                        maxBounds=sg_bounds,
-                                        maxBoundsViscosity=1.0,
+                                    dcc.Loading(
+                                        id="speed-band-map-loading",
+                                        type="circle",
+                                        color="#00BCD4",
                                         style={
-                                            "width": "100%",
-                                            "height": "100%",
-                                            "backgroundColor": "#1a2a3a",
+                                            "position": "absolute",
+                                            "top": "50%",
+                                            "left": "50%",
+                                            "transform": "translate(-50%, -50%)",
+                                            "zIndex": "1000"
                                         },
                                         children=[
-                                            dl.TileLayer(
-                                                url=onemap_tiles_url,
-                                                attribution=onemap_attribution,
-                                                maxNativeZoom=19,
+                                            dl.Map(
+                                                id="speed-band-map",
+                                                center=sg_center,
+                                                zoom=fixed_zoom,
+                                                minZoom=10,
+                                                maxZoom=19,
+                                                maxBounds=sg_bounds,
+                                                maxBoundsViscosity=1.0,
+                                                style={
+                                                    "width": "100%",
+                                                    "height": "100%",
+                                                    "backgroundColor": "#1a2a3a",
+                                                },
+                                                children=[
+                                                    dl.TileLayer(
+                                                        url=onemap_tiles_url,
+                                                        attribution=onemap_attribution,
+                                                        maxNativeZoom=19,
+                                                    ),
+                                                    dl.LayerGroup(id="speed-band-map-markers"),
+                                                ],
+                                                zoomControl=True,
+                                                dragging=True,
+                                                scrollWheelZoom=True,
                                             ),
-                                            dl.LayerGroup(id="speed-band-map-markers"),
-                                        ],
-                                        zoomControl=True,
-                                        dragging=True,
-                                        scrollWheelZoom=True,
+                                        ]
                                     ),
                                 ]
                             ),
@@ -315,9 +343,8 @@ def speed_band_page():
             # Interval for auto-refresh
             dcc.Interval(
                 id='speed-band-interval',
-                interval=2*60*1000,  # Update every 2 minutes
+                interval=5*60*1000,  # Update every 5 minutes
                 n_intervals=0
             ),
         ]
     )
-
