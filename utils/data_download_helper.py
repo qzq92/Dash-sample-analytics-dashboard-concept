@@ -250,8 +250,16 @@ def clear_csv_files(data_dir: Optional[str] = None, project_root: Optional[str] 
     csv_pattern = os.path.join(data_dir, '*.csv')
     csv_files = glob.glob(csv_pattern)
 
+    # Files to preserve (sourced online, should not be deleted)
+    preserved_files = ['MRTStations.csv']
+
     deleted_count = 0
     for csv_file in csv_files:
+        # Skip preserved files
+        if os.path.basename(csv_file) in preserved_files:
+            print(f"Preserving CSV file: {os.path.basename(csv_file)}")
+            continue
+        
         try:
             os.remove(csv_file)
             print(f"Deleted CSV file: {os.path.basename(csv_file)}")
