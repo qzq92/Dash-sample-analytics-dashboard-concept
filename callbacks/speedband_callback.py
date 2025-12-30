@@ -4,11 +4,12 @@ Callback functions for handling speed band information on the "Speed band on the
 import os
 import math
 import time
+import threading
 from typing import Optional, Dict, List, Any, Tuple
 from concurrent.futures import Future
 from dash import Input, Output, html
 import dash_leaflet as dl
-from utils.async_fetcher import fetch_url
+import requests
 
 # API URL
 SPEED_BAND_URL = "https://datamall2.mytransport.sg/ltaodataservice/v4/TrafficSpeedBands"
@@ -18,10 +19,61 @@ _speed_band_cache: Dict[str, Any] = {
     'data': None,
     'last_bucket': 0  # Unix timestamp of the 5-minute bucket
 }
+_cache_lock = threading.Lock()
+_last_active_tab: Optional[str] = None  # Track last active tab to detect tab switches
 
 # Zoom level thresholds (max zoom is 19, show at 17-18)
 MIN_ZOOM_FOR_DISPLAY = 17
 MAX_POINTS_TO_DISPLAY = 3000
+
+
+def fetch_url_with_retry(url: str, headers: Dict[str, str], timeout: int = 10, max_retries: int = 3) -> Optional[dict]:
+    """
+    Fetch data from a URL with exponential backoff retry starting at 10 seconds.
+    Specifically for speed band API calls which may need more robust retry handling.
+    
+    Args:
+        url: The URL to fetch
+        headers: Headers dict for the request
+        timeout: Request timeout in seconds
+        max_retries: Maximum number of retry attempts (default: 3)
+    
+    Returns:
+        JSON response as dict, or None if error
+    """
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, headers=headers, timeout=timeout)
+            
+            # Accept any 2xx status code as success
+            if 200 <= response.status_code < 300:
+                return response.json()
+            
+            # Check for 5XX server errors (500-599)
+            if 500 <= response.status_code < 600:
+                if attempt < max_retries - 1:
+                    # Exponential backoff starting at 10 seconds: 10s, 20s, 40s
+                    wait_time = 10 * (2 ** attempt)
+                    print(f"Speed band API request failed with {response.status_code}: {url} - retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                print(f"Speed band API request failed after {max_retries} attempts: {url} - status={response.status_code}")
+                return None
+            
+            # For non-5XX errors (4XX client errors), don't retry
+            print(f"Speed band API request failed: {url} - status={response.status_code}")
+            return None
+                
+        except (requests.exceptions.RequestException, ValueError) as error:
+            if attempt < max_retries - 1:
+                # Exponential backoff starting at 10 seconds: 10s, 20s, 40s
+                wait_time = 10 * (2 ** attempt)
+                print(f"Error fetching speed band {url}: {error} - retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+                continue
+            print(f"Error fetching speed band {url} after {max_retries} attempts: {error}")
+    
+    return None
 
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -70,9 +122,10 @@ def fetch_speed_band_data() -> Optional[Dict[str, Any]]:
     current_bucket = int(current_time // 300) * 300  # 300 seconds = 5 minutes
     
     # Return cached data if we're still in the same 5-minute bucket
-    if (_speed_band_cache['data'] is not None and 
-        _speed_band_cache['last_bucket'] == current_bucket):
-        return _speed_band_cache['data']
+    with _cache_lock:
+        if (_speed_band_cache['data'] is not None and 
+            _speed_band_cache['last_bucket'] == current_bucket):
+            return _speed_band_cache['data']
     
     print(f"Refreshing speed band cache for bucket starting at {time.strftime('%H:%M:%S', time.localtime(current_bucket))}")
     
@@ -108,9 +161,9 @@ def fetch_speed_band_data() -> Optional[Dict[str, Any]]:
             url = f"{SPEED_BAND_URL}?$skip={skip}" if skip > 0 else SPEED_BAND_URL
             batch_urls.append((url, skip))
         
-        # Submit all batch requests to thread pool
+        # Submit all batch requests to thread pool with custom retry logic
         batch_futures = {
-            _executor.submit(fetch_url, url, headers): skip
+            _executor.submit(fetch_url_with_retry, url, headers): skip
             for url, skip in batch_urls
         }
         
@@ -138,6 +191,19 @@ def fetch_speed_band_data() -> Optional[Dict[str, Any]]:
                 # Empty page means we've reached the end
                 batch_completed_normally = False
                 break
+            
+            # Pre-parse coordinates as floats to save time during map interactions
+            for item in page_items:
+                try:
+                    item['_start_lat'] = float(item.get('StartLat', 0))
+                    item['_start_lon'] = float(item.get('StartLon', 0))
+                    item['_end_lat'] = float(item.get('EndLat', 0))
+                    item['_end_lon'] = float(item.get('EndLon', 0))
+                except (ValueError, TypeError):
+                    item['_start_lat'] = 0.0
+                    item['_start_lon'] = 0.0
+                    item['_end_lat'] = 0.0
+                    item['_end_lon'] = 0.0
                 
             all_speed_bands.extend(page_items)
             print(f"Fetched {len(page_items)} speed bands (skip={skip}), total so far: {len(all_speed_bands)}")
@@ -165,8 +231,9 @@ def fetch_speed_band_data() -> Optional[Dict[str, Any]]:
     
     # Update cache
     if all_speed_bands:
-        _speed_band_cache['data'] = result
-        _speed_band_cache['last_bucket'] = current_bucket
+        with _cache_lock:
+            _speed_band_cache['data'] = result
+            _speed_band_cache['last_bucket'] = current_bucket
         print(f"Speed band cache updated for 5-minute bucket: {time.strftime('%H:%M:%S', time.localtime(current_bucket))}")
     
     return result
@@ -187,6 +254,8 @@ def fetch_speed_band_data_async() -> Optional[Future]:
     
     # Submit the synchronous paginated function to thread pool
     return _executor.submit(fetch_speed_band_data)
+
+
 
 
 def create_speed_band_markers(speed_data: Optional[Dict[str, Any]]) -> List[dl.Polyline]:
@@ -221,10 +290,18 @@ def create_speed_band_markers(speed_data: Optional[Dict[str, Any]]) -> List[dl.P
     
     for item in items:
         try:
-            start_lat = float(item.get('StartLat', 0))
-            start_lon = float(item.get('StartLon', 0))
-            end_lat = float(item.get('EndLat', 0))
-            end_lon = float(item.get('EndLon', 0))
+            # Use pre-parsed floats if available, otherwise fallback
+            start_lat = item.get('_start_lat')
+            start_lon = item.get('_start_lon')
+            end_lat = item.get('_end_lat')
+            end_lon = item.get('_end_lon')
+            
+            if start_lat is None:
+                start_lat = float(item.get('StartLat', 0))
+                start_lon = float(item.get('StartLon', 0))
+                end_lat = float(item.get('EndLat', 0))
+                end_lon = float(item.get('EndLon', 0))
+            
             band = str(item.get('SpeedBand', '0'))
             
             if start_lat == 0 or end_lat == 0:
@@ -398,10 +475,17 @@ def filter_speed_bands_by_viewport(speed_data: Optional[Dict[str, Any]], center_
     filtered_items = []
     for item in items:
         try:
-            start_lat = float(item.get('StartLat', 0))
-            start_lon = float(item.get('StartLon', 0))
-            end_lat = float(item.get('EndLat', 0))
-            end_lon = float(item.get('EndLon', 0))
+            # Use pre-parsed floats if available, otherwise fallback
+            start_lat = item.get('_start_lat')
+            start_lon = item.get('_start_lon')
+            end_lat = item.get('_end_lat')
+            end_lon = item.get('_end_lon')
+            
+            if start_lat is None:
+                start_lat = float(item.get('StartLat', 0))
+                start_lon = float(item.get('StartLon', 0))
+                end_lat = float(item.get('EndLat', 0))
+                end_lon = float(item.get('EndLon', 0))
             
             if start_lat == 0 or end_lat == 0:
                 continue
@@ -490,8 +574,12 @@ def register_speedband_callbacks(app):
             }
         )
         
+        global _last_active_tab
+        _ = _show_speed_band  # Always show on speed band page
+
         # Only fetch and display data when speed-band tab is active
         if tab_value != 'speed-band':
+            _last_active_tab = tab_value
             return [], html.Div(
                 html.Span("Zoom in to trigger traffic band display", style={"color": "#999"}),
                 style={
@@ -500,9 +588,18 @@ def register_speedband_callbacks(app):
                     "borderRadius": "4px",
                 }
             ), center_coords_display
+
+        # Trigger data fetch/refresh when speed-band tab is active
+        # Fetch when: tab is first selected (tab switch) OR when interval triggers
+        tab_just_selected = (_last_active_tab != 'speed-band')
+        if tab_just_selected or n_intervals is not None:
+            # Check if cache needs refresh (when tab is selected or interval triggers)
+            # fetch_speed_band_data() will check cache and only fetch if needed
+            from utils.async_fetcher import _executor
+            # Trigger async fetch in background (non-blocking)
+            _executor.submit(fetch_speed_band_data)
         
-        _ = n_intervals  # Used for periodic refresh
-        _ = _show_speed_band  # Always show on speed band page
+        _last_active_tab = tab_value
 
         # Initialize default message (zoom required)
         count_value = html.Div(
@@ -542,11 +639,9 @@ def register_speedband_callbacks(app):
         
         # Only fetch and show markers when zoomed in close (zoom >= MIN_ZOOM_FOR_DISPLAY)
         if zoom is not None and zoom >= MIN_ZOOM_FOR_DISPLAY and center_lat is not None and center_lon is not None:
-            print(f"Fetching speed band data at zoom {zoom}...")
-            
-            # Fetch data asynchronously (only when zoomed in)
-            future = fetch_speed_band_data_async()
-            data: Optional[Dict[str, Any]] = future.result() if future else None
+            # Check cache directly - fetch_speed_band_data() returns cached data if available and fresh
+            # If cache is empty or stale, it will fetch in the background (triggered above)
+            data = fetch_speed_band_data()
             
             if data:
                 # Filter data by viewport bounds
