@@ -332,7 +332,7 @@ app.layout = html.Div(
                                             style={
                                                 "backgroundColor": "#4a5a6a",
                                                 "borderRadius": "8px",
-                                                "padding": "10px",
+                                                "padding": "1rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
                                                 "gap": "8px",
@@ -372,7 +372,7 @@ app.layout = html.Div(
                                                         "display": "none",
                                                         "backgroundColor": "#3a4a5a",
                                                         "borderRadius": "5px",
-                                                        "padding": "10px",
+                                                        "padding": "1rem",
                                                         "maxHeight": "200px",
                                                         "overflowY": "auto",
                                                     },
@@ -394,7 +394,7 @@ app.layout = html.Div(
                                             style={
                                                 "backgroundColor": "#4a5a6a",
                                                 "borderRadius": "8px",
-                                                "padding": "10px",
+                                                "padding": "1rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
                                                 "gap": "8px",
@@ -434,7 +434,7 @@ app.layout = html.Div(
                                                         "display": "none",
                                                         "backgroundColor": "#3a4a5a",
                                                         "borderRadius": "5px",
-                                                        "padding": "10px",
+                                                        "padding": "1rem",
                                                         "maxHeight": "200px",
                                                         "overflowY": "auto",
                                                     },
@@ -456,7 +456,7 @@ app.layout = html.Div(
                                             style={
                                                 "backgroundColor": "#4a5a6a",
                                                 "borderRadius": "8px",
-                                                "padding": "10px",
+                                                "padding": "1rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
                                                 "gap": "8px",
@@ -506,7 +506,7 @@ app.layout = html.Div(
                                             style={
                                                 "backgroundColor": "#4a5a6a",
                                                 "borderRadius": "8px",
-                                                "padding": "10px",
+                                                "padding": "1rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
                                                 "gap": "8px",
@@ -557,7 +557,7 @@ app.layout = html.Div(
                                             style={
                                                 "backgroundColor": "#4a5a6a",
                                                 "borderRadius": "8px",
-                                                "padding": "10px",
+                                                "padding": "1rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
                                                 "gap": "8px",
