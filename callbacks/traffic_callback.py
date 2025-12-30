@@ -140,7 +140,7 @@ def format_metadata_text(metadata_dict, camera_id):
         camera_id: Camera ID to get metadata for
 
     Returns:
-        Formatted metadata string with camera ID, lat/lon, and datetime
+        Formatted metadata string with datetime and location (camera ID and lat/lon excluded)
     """
     try:
         if not metadata_dict or camera_id not in metadata_dict:
@@ -166,15 +166,8 @@ def format_metadata_text(metadata_dict, camera_id):
             except (ValueError, AttributeError):
                 formatted_time = str(timestamp) if timestamp else ""
 
-        # Build metadata text
+        # Build metadata text (excluding camera ID and lat/lon)
         metadata_parts = []
-        
-        # Add camera ID as title
-        metadata_parts.append(f"Camera {camera_id}")
-        
-        # Add lat/lon if available
-        if lat is not None and lon is not None:
-            metadata_parts.append(f"(lat: {lat:.6f}, lon: {lon:.6f})")
         
         # Add datetime if available
         if formatted_time:
