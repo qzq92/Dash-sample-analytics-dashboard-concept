@@ -14,6 +14,7 @@ from components.weather_indices_page import weather_indices_page
 from components.transport_page import transport_page
 from components.nearby_transport_page import nearby_transport_page
 from components.speed_band_page import speed_band_page
+from components.mrt_crowd_page import mrt_crowd_page
 from components.train_service_alerts_component import train_service_alerts_component
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
@@ -27,6 +28,7 @@ from callbacks.tab_navigation_callback import register_tab_navigation_callback
 from callbacks.transport_callback import register_transport_callbacks
 from callbacks.train_service_alerts_callback import register_train_service_alerts_callbacks
 from callbacks.speedband_callback import register_speedband_callbacks
+from callbacks.mrt_crowd_callback import register_mrt_crowd_callbacks
 from auth.onemap_api import initialize_onemap_token
 from utils.data_download_helper import (
     download_hdb_carpark_csv,
@@ -56,6 +58,7 @@ register_carpark_callbacks(app)
 register_transport_callbacks(app)
 register_train_service_alerts_callbacks(app)
 register_speedband_callbacks(app)
+register_mrt_crowd_callbacks(app)
 register_tab_navigation_callback(app)
 
 # Dashboard app layout ------------------------------------------------------#
@@ -89,6 +92,8 @@ app.layout = html.Div(
                 nearby_transport_page(),
                 # Speed band page (hidden by default)
                 speed_band_page(),
+                # MRT/LRT Station Crowd page (hidden by default)
+                mrt_crowd_page(),
                 # Main content area with map and right panel side by side
                 html.Div(
                     id="main-content",
@@ -724,6 +729,7 @@ if __name__ == '__main__':
         print("OneMap API token initialized successfully")
     else:
         print("Warning: Failed to initialize OneMap API token. Some features may not work.")
+
     # Enable hot reloading to capture latest changes in code
     # If running locally in Anaconda env:
     if "conda-forge" in sys.version:
