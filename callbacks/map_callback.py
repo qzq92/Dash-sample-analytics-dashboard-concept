@@ -4,6 +4,7 @@ Reference: https://www.onemap.gov.sg/apidocs/search
 """
 import requests
 import os
+import re
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
 from dash.dependencies import Input, Output
@@ -294,7 +295,12 @@ def register_search_callbacks(app):
             parts = dropdown_value.split(',')
             lat_str, lon_str = parts[0], parts[1]
             address = parts[2] if len(parts) > 2 else "Selected Location"
-            postal_code = parts[3] if len(parts) > 3 else ""
+            
+            # Search for 6-digit postal code in the dropdown_value
+            postal_code = ""
+            postal_match = re.search(r'\b\d{6}\b', dropdown_value)
+            if postal_match:
+                postal_code = postal_match.group(0)
 
             lat, lon = float(lat_str), float(lon_str)
 
