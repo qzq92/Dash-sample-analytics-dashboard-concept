@@ -6,8 +6,25 @@ import requests
 from dash.dependencies import Input, Output
 from dash import html
 from callbacks.map_callback import _haversine_distance_m
+from callbacks.mrt_crowd_callback import fetch_all_station_crowd_data
 #from auth.onemap_api import get_onemap_token
 import os
+
+# Crowd level colors (matching mrt_crowd_callback)
+CROWD_COLORS = {
+    'l': '#32CD32',  # Low - Green
+    'm': '#FFD700',  # Moderate - Yellow/Gold
+    'h': '#FF4500',  # High - Orange Red
+    'NA': '#888888',  # Not Available - Grey
+}
+
+# Crowd level labels
+CROWD_LABELS = {
+    'l': 'Low',
+    'm': 'Moderate',
+    'h': 'High',
+    'NA': 'Not Available',
+}
 
 
 
@@ -279,11 +296,22 @@ def register_mrt_callbacks(app):
                 }
             )
         
+        # Fetch crowd data for all stations
+        crowd_data = fetch_all_station_crowd_data()
+        crowd_lookup = {}
+        if crowd_data and 'value' in crowd_data:
+            for stn in crowd_data['value']:
+                station_code = stn.get('Station', '')
+                crowd_level = stn.get('CrowdLevel', 'NA')
+                if station_code:
+                    crowd_lookup[station_code] = crowd_level
+        
         # Build display items for each station
         station_items = []
         for station in stations:
             name = station['name']
             distance_m = station['distance_m']
+            station_code = station.get('raw_data', {}).get('id', '')
             
             # Format distance display
             if distance_m < 1000:
@@ -291,15 +319,52 @@ def register_mrt_callbacks(app):
             else:
                 distance_str = f"{distance_m/1000:.2f}km"
             
+            # Get crowd level for this station
+            # Handle multi-line stations (e.g., "EW8/CC9") - check each code
+            crowd_level = 'NA'
+            if station_code:
+                if '/' in station_code:
+                    # For multi-line stations, try to find crowd data for any of the lines
+                    codes = station_code.split('/')
+                    for code in codes:
+                        if code.strip() in crowd_lookup:
+                            crowd_level = crowd_lookup[code.strip()]
+                            break
+                else:
+                    crowd_level = crowd_lookup.get(station_code, 'NA')
+            
+            crowd_color = CROWD_COLORS.get(crowd_level, CROWD_COLORS['NA'])
+            crowd_label = CROWD_LABELS.get(crowd_level, 'Not Available')
+            
             station_items.append(
                 html.Div(
                     [
                         html.Div(
-                            name,
+                            [
+                                html.Span(
+                                    name,
+                                    style={
+                                        "fontWeight": "600",
+                                        "fontSize": "14px",
+                                        "color": "#fff",
+                                    }
+                                ),
+                                html.Span(
+                                    crowd_label,
+                                    style={
+                                        "fontSize": "11px",
+                                        "color": crowd_color,
+                                        "fontWeight": "700",
+                                        "marginLeft": "8px",
+                                        "padding": "2px 6px",
+                                        "borderRadius": "3px",
+                                        "backgroundColor": f"{crowd_color}22",
+                                    }
+                                )
+                            ],
                             style={
-                                "fontWeight": "600",
-                                "fontSize": "14px",
-                                "color": "#fff",
+                                "display": "flex",
+                                "alignItems": "center",
                                 "marginBottom": "4px"
                             }
                         ),

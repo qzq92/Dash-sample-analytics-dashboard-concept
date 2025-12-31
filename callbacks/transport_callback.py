@@ -341,7 +341,7 @@ def create_cctv_markers(camera_data):
         popup_children = [
             html.Strong(
                 f"Camera {camera_id}",
-                style={"fontSize": "14px"}
+                style={"fontSize": "0.875rem"}
             ),
             html.Br(),
         ]
@@ -351,7 +351,7 @@ def create_cctv_markers(camera_data):
             popup_children.append(
                 html.Div(
                     f"(lat: {lat:.6f}, lon: {lon:.6f})",
-                    style={"fontSize": "12px", "color": "#888", "marginTop": "4px"}
+                    style={"fontSize": "0.75rem", "color": "#888", "marginTop": "0.25rem"}
                 )
             )
         
@@ -360,7 +360,7 @@ def create_cctv_markers(camera_data):
             popup_children.append(
                 html.Div(
                     f"Time: {datetime_text}",
-                    style={"fontSize": "12px", "color": "#888", "marginTop": "4px"}
+                    style={"fontSize": "0.75rem", "color": "#888", "marginTop": "0.25rem"}
                 )
             )
         
@@ -368,10 +368,10 @@ def create_cctv_markers(camera_data):
             html.Img(
                 src=image_url,
                 style={
-                    "width": "280px",
+                    "width": "17.5rem",
                     "height": "auto",
-                    "marginTop": "8px",
-                    "borderRadius": "4px",
+                    "marginTop": "0.5rem",
+                    "borderRadius": "0.25rem",
                 }
             )
         )
@@ -700,11 +700,11 @@ def create_taxi_stands_markers(taxi_stands_data):
             if latitude == 0 or longitude == 0:
                 continue
             
-            # Create tooltip with bulleted points (using HTML for line breaks)
-            tooltip_html = (
-                f"• Name: {taxi_code}({name})"
-                f"• Barrier Free: {bfa}"
-                f"• Owner: {ownership}"
+            # Create tooltip with bulleted points
+            tooltip_text = (
+                f"• Name: {taxi_code}({name})\n"
+                f"• Barrier Free: {bfa}\n"
+                f"• Owner: {ownership}\n"
                 f"• Type: {stand_type}"
             )
             
@@ -728,7 +728,7 @@ def create_taxi_stands_markers(taxi_stands_data):
                     position=[latitude, longitude],
                     icon=triangle_icon,
                     children=[
-                        dl.Tooltip(tooltip_html),
+                        dl.Tooltip(tooltip_text),
                     ]
                 )
             )
@@ -1085,6 +1085,7 @@ def fetch_bus_stops_data() -> Optional[Dict[str, Any]]:
     all_bus_stops = []
     page_size = 500
     initial_batch_size = 5000  # Known minimum: 5000 records
+    max_skip = 6000  # Maximum skip value to limit total records fetched
     
     # Step 1: Fetch first 5000 records in parallel (10 pages)
     print("Fetching first 5000 bus stops in parallel...")
@@ -1125,12 +1126,19 @@ def fetch_bus_stops_data() -> Optional[Dict[str, Any]]:
     last_page_size = len(initial_results.get(4500, []))
     current_skip = initial_batch_size
     
-    # Continue fetching in parallel batches if last page was full
-    while last_page_size == page_size:
+    # Continue fetching in parallel batches only if last page returned exactly 500 records
+    # (If it returned < 500, we've reached the end. If exactly 500, check next batch)
+    # Also stop if we've reached the maximum skip limit
+    while last_page_size == page_size and current_skip < max_skip:
         print(f"Last page was full ({last_page_size} records), fetching next batch starting at skip={current_skip}...")
         
-        # Fetch next batch of 10 pages in parallel
-        batch_skip_values = list(range(current_skip, current_skip + initial_batch_size, page_size))
+        # Calculate batch skip values, but limit to max_skip
+        batch_end = min(current_skip + initial_batch_size, max_skip + page_size)
+        batch_skip_values = [skip for skip in range(current_skip, batch_end, page_size) if skip <= max_skip]
+        
+        # If no valid skip values, stop
+        if not batch_skip_values:
+            break
         
         # Create URLs for this batch
         batch_urls = []
@@ -1171,9 +1179,14 @@ def fetch_bus_stops_data() -> Optional[Dict[str, Any]]:
             
             # Update last_page_size for next iteration check
             last_page_size = len(bus_stops)
+            
+            # If this page returned <= 500 records, it's the last page - stop immediately
+            # Don't fetch the next batch since we've reached the end
+            if last_page_size <= page_size:
+                break
         
-        # If we got less than 500 records, we've reached the end
-        if last_page_size < page_size:
+        # If we got <= 500 records (or empty), we've reached the end - stop fetching
+        if last_page_size <= page_size:
             break
         
         # Move to next batch
@@ -1521,13 +1534,39 @@ def fetch_ev_charging_points(postal_code: str):
         "PostalCode": postal_code
     }
     
+    print(f"EV Charging Points API Request:")
+    print(f"  URL: {EV_CHARGING_URL}")
+    print(f"  Parameters: {params}")
+    
     try:
         response = requests.get(EV_CHARGING_URL, headers=headers, params=params, timeout=10)
+        print(f"  Response Status Code: {response.status_code}")
+        
         if 200 <= response.status_code < 300:
-            return response.json()
+            data = response.json()
+            print(f"  Response JSON: {data}")
+            
+            # Print summary information
+            if isinstance(data, dict):
+                value_data = data.get('value', {})
+                if isinstance(value_data, dict):
+                    ev_list = value_data.get('evLocationsData', [])
+                    print(f"  Number of charging points found: {len(ev_list)}")
+                    if ev_list:
+                        print(f"  First charging point sample: {ev_list[0]}")
+                else:
+                    print(f"  Warning: 'value' is not a dictionary, type: {type(value_data)}")
+            else:
+                print(f"  Warning: Response is not a dictionary, type: {type(data)}")
+            
+            return data
+        else:
+            print(f"  Response Text: {response.text}")
         print(f"EV charging API request failed: status={response.status_code}")
     except (requests.exceptions.RequestException, ValueError) as error:
         print(f"Error fetching EV charging points data: {error}")
+        import traceback
+        traceback.print_exc()
     return None
 
 
@@ -1543,13 +1582,29 @@ def create_ev_charging_markers(ev_data):
     """
     markers = []
     
-    if not ev_data or 'value' not in ev_data:
+    # Ensure ev_data is a dictionary
+    if not ev_data or not isinstance(ev_data, dict):
         return markers
     
-    charging_points = ev_data.get('value', [])
+    if 'value' not in ev_data:
+        return markers
+    
+    value_data = ev_data.get('value', {})
+    if not isinstance(value_data, dict):
+        return markers
+        
+    charging_points = value_data.get('evLocationsData', [])
+    
+    # Ensure charging_points is a list
+    if not isinstance(charging_points, list):
+        return markers
     
     for point in charging_points:
         try:
+            # Ensure point is a dictionary
+            if not isinstance(point, dict):
+                continue
+                
             latitude = float(point.get('Latitude', 0))
             longitude = float(point.get('Longitude', 0))
             address = point.get('Address', 'N/A')
@@ -1589,7 +1644,8 @@ def create_ev_charging_markers(ev_data):
                     ]
                 )
             )
-        except (ValueError, TypeError, KeyError):
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            print(f"Error processing EV charging point: {e}, point type: {type(point)}")
             continue
     
     return markers
@@ -2039,21 +2095,49 @@ def fetch_bicycle_parking_data():
         "Content-Type": "application/json"
     }
     
-    # Set dist=50 to get all bicycle parking lots
+    # Try fetching without distance parameter first to get all bicycle parking lots
+    # If that doesn't work, fall back to a large distance value
     params = {
         "Lat": lat,
         "Long": lon,
-        "Dist": 50
+        "Dist": 100  # Increased to 100km to ensure we cover all of Singapore
     }
     
     try:
-        response = requests.get(BICYCLE_PARKING_URL, headers=headers, params=params, timeout=10)
+        # First attempt: try with large distance
+        response = requests.get(BICYCLE_PARKING_URL, headers=headers, params=params, timeout=30)
+        
+        # If successful, check if we got all results
         if 200 <= response.status_code < 300:
             data = response.json()
+            parking_count = len(data.get('value', []))
+            print(f"Fetched {parking_count} bicycle parking locations with dist=100")
+            
+            # If we got results but suspect there might be more, try without distance parameter
+            # (Some APIs return all results when distance is omitted)
+            if parking_count > 0 and parking_count < 1000:  # Suspiciously low count
+                print("Attempting to fetch all bicycle parking without distance limit...")
+                params_no_dist = {
+                    "Lat": lat,
+                    "Long": lon
+                }
+                try:
+                    response_all = requests.get(BICYCLE_PARKING_URL, headers=headers, 
+                                               params=params_no_dist, timeout=30)
+                    if 200 <= response_all.status_code < 300:
+                        data_all = response_all.json()
+                        all_count = len(data_all.get('value', []))
+                        if all_count > parking_count:
+                            print(f"Found more results without distance limit: {all_count}")
+                            data = data_all
+                            parking_count = all_count
+                except requests.exceptions.RequestException:
+                    pass  # Fall back to dist=100 results
+            
             # Cache the result
             if data:
                 _road_infra_cache['bicycle_parking'] = data
-                print("Bicycle parking data cached in memory")
+                print(f"Bicycle parking data cached in memory: {parking_count} locations")
             return data
         print(f"Bicycle parking API request failed: status={response.status_code}")
     except (requests.exceptions.RequestException, ValueError) as error:
@@ -2524,11 +2608,11 @@ def register_transport_callbacks(app):
             style = {
                 "backgroundColor": "#FFD700",
                 "border": "none",
-                "borderRadius": "4px",
+                "borderRadius": "0.25rem",
                 "color": "#000",
                 "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
+                "padding": "0.375rem 0.75rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Hide Current Taxi Locations/Stands"
@@ -2536,12 +2620,12 @@ def register_transport_callbacks(app):
             # Inactive state - outline
             style = {
                 "backgroundColor": "transparent",
-                "border": "2px solid #FFD700",
-                "borderRadius": "4px",
+                "border": "0.125rem solid #FFD700",
+                "borderRadius": "0.25rem",
                 "color": "#FFD700",
                 "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Show Current Taxi Locations/Stands"
@@ -2589,21 +2673,21 @@ def register_transport_callbacks(app):
             html.Span(f"{taxi_count:,}/{stands_count}", style={"color": "#FFD700"}),
                 style={
                 "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "4px 8px",
-                "borderRadius": "4px",
+                "padding": "0.25rem 0.5rem",
+                "borderRadius": "0.25rem",
             }
         )
         
         # Legend style - show when toggle is on
         legend_style = {
             "position": "absolute",
-            "top": "10px",
-            "right": "10px",
+            "top": "0.625rem",
+            "right": "0.625rem",
             "backgroundColor": "rgba(26, 42, 58, 0.9)",
-            "borderRadius": "8px",
-            "padding": "10px",
+            "borderRadius": "0.5rem",
+            "padding": "0.625rem",
             "zIndex": "1000",
-            "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
+            "boxShadow": "0 0.125rem 0.5rem rgba(0, 0, 0, 0.3)",
             "display": "block" if show_taxis else "none",
         }
         
@@ -2637,11 +2721,11 @@ def register_transport_callbacks(app):
             style = {
                 "backgroundColor": "#4CAF50",
                 "border": "none",
-                "borderRadius": "4px",
+                "borderRadius": "0.25rem",
                 "color": "#fff",
                 "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
+                "padding": "0.375rem 0.75rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Hide LTA Traffic Cameras Location"
@@ -2649,12 +2733,12 @@ def register_transport_callbacks(app):
             # Inactive state - outline
             style = {
                 "backgroundColor": "transparent",
-                "border": "2px solid #4CAF50",
-                "borderRadius": "4px",
+                "border": "0.125rem solid #4CAF50",
+                "borderRadius": "0.25rem",
                 "color": "#4CAF50",
                 "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Show LTA Traffic Cameras Location"
@@ -2681,8 +2765,8 @@ def register_transport_callbacks(app):
             html.Span(f"{camera_count}", style={"color": "#4CAF50"}),
                 style={
                 "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "4px 8px",
-                "borderRadius": "4px",
+                "padding": "0.25rem 0.5rem",
+                "borderRadius": "0.25rem",
             }
         )
         
@@ -2712,11 +2796,11 @@ def register_transport_callbacks(app):
             style = {
                 "backgroundColor": "#FF6B6B",
                 "border": "none",
-                "borderRadius": "4px",
+                "borderRadius": "0.25rem",
                 "color": "#fff",
                 "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
+                "padding": "0.375rem 0.75rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Hide ERP Gantries Location"
@@ -2724,12 +2808,12 @@ def register_transport_callbacks(app):
             # Inactive state - outline
             style = {
                 "backgroundColor": "transparent",
-                "border": "2px solid #FF6B6B",
-                "borderRadius": "4px",
+                "border": "0.125rem solid #FF6B6B",
+                "borderRadius": "0.25rem",
                 "color": "#FF6B6B",
                 "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Show ERP Gantries Location"
@@ -2755,8 +2839,8 @@ def register_transport_callbacks(app):
             html.Span(f"{gantry_count}", style={"color": "#FF6B6B"}),
                 style={
                 "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "4px 8px",
-                "borderRadius": "4px",
+                "padding": "0.25rem 0.5rem",
+                "borderRadius": "0.25rem",
             }
         )
 
@@ -2786,11 +2870,11 @@ def register_transport_callbacks(app):
             style = {
                 "backgroundColor": "#FF9800",
                 "border": "none",
-                "borderRadius": "4px",
+                "borderRadius": "0.25rem",
                 "color": "#fff",
                 "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
+                "padding": "0.375rem 0.75rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Hide Traffic Incidents"
@@ -2798,12 +2882,12 @@ def register_transport_callbacks(app):
             # Inactive state - outline
             style = {
                 "backgroundColor": "transparent",
-                "border": "2px solid #FF9800",
-                "borderRadius": "4px",
+                "border": "0.125rem solid #FF9800",
+                "borderRadius": "0.25rem",
                 "color": "#FF9800",
                 "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Show Traffic Incidents"
@@ -2851,8 +2935,8 @@ def register_transport_callbacks(app):
             html.Span(f"{total_count}", style={"color": "#FF9800"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "4px 8px",
-                "borderRadius": "4px",
+                "padding": "0.25rem 0.5rem",
+                "borderRadius": "0.25rem",
             }
         )
 
@@ -2876,7 +2960,7 @@ def register_transport_callbacks(app):
                         f"• {incident_message}",
                         style={
                             "color": "#ccc",
-                            "fontSize": "11px",
+                            "fontSize": "0.6875rem",
                             "lineHeight": "1.4",
                         }
                     ),
@@ -2903,7 +2987,7 @@ def register_transport_callbacks(app):
                         f"• Faulty Traffic Light (Node ID: {node_id})",
                         style={
                             "color": "#ccc",
-                            "fontSize": "11px",
+                            "fontSize": "0.6875rem",
                             "lineHeight": "1.4",
                         }
                     ),
@@ -2921,7 +3005,7 @@ def register_transport_callbacks(app):
                 style={
                     "padding": "8px",
                     "backgroundColor": "rgb(58, 74, 90)",
-                    "borderRadius": "4px",
+                    "borderRadius": "0.25rem",
                 }
             )
             messages_style = {
@@ -2976,11 +3060,11 @@ def register_transport_callbacks(app):
             style = {
                 "backgroundColor": "#9C27B0",
                 "border": "none",
-                "borderRadius": "4px",
+                "borderRadius": "0.25rem",
                 "color": "#fff",
                 "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
+                "padding": "0.375rem 0.75rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Hide Bicycle Parking Locations"
@@ -2988,12 +3072,12 @@ def register_transport_callbacks(app):
             # Inactive state - outline
             style = {
                 "backgroundColor": "transparent",
-                "border": "2px solid #9C27B0",
-                "borderRadius": "4px",
+                "border": "0.125rem solid #9C27B0",
+                "borderRadius": "0.25rem",
                 "color": "#9C27B0",
                 "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Show Bicycle Parking Locations"
@@ -3020,8 +3104,8 @@ def register_transport_callbacks(app):
                 html.Span("--/--", style={"color": "#999"}),
                 style={
                     "backgroundColor": "rgb(58, 74, 90)",
-                    "padding": "4px 8px",
-                    "borderRadius": "4px",
+                    "padding": "0.25rem 0.5rem",
+                    "borderRadius": "0.25rem",
                 }
             )
             legend_style = {
@@ -3030,7 +3114,7 @@ def register_transport_callbacks(app):
                 "right": "10px",
                 "backgroundColor": "rgba(26, 42, 58, 0.9)",
                 "borderRadius": "8px",
-                "padding": "10px",
+                "padding": "0.625rem",
                 "zIndex": "1000",
                 "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
                 "display": "none",
@@ -3048,8 +3132,8 @@ def register_transport_callbacks(app):
             html.Span(f"{sheltered_count}/{unsheltered_count}", style={"color": "#9C27B0"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "4px 8px",
-                "borderRadius": "4px",
+                "padding": "0.25rem 0.5rem",
+                "borderRadius": "0.25rem",
             }
         )
         
@@ -3060,7 +3144,7 @@ def register_transport_callbacks(app):
             "right": "10px",
             "backgroundColor": "rgba(26, 42, 58, 0.9)",
             "borderRadius": "8px",
-            "padding": "10px",
+            "padding": "0.625rem",
             "zIndex": "1000",
             "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
             "display": "block" if show_bicycle_parking else "none",
@@ -3109,7 +3193,7 @@ def register_transport_callbacks(app):
                         "Sheltered",
                         style={
                             "color": "#fff",
-                            "fontSize": "11px",
+                            "fontSize": "0.6875rem",
                         }
                     ),
                 ]
@@ -3132,7 +3216,7 @@ def register_transport_callbacks(app):
                         "Unsheltered",
                         style={
                             "color": "#fff",
-                            "fontSize": "11px",
+                            "fontSize": "0.6875rem",
                         }
                     ),
                 ]
@@ -3170,9 +3254,9 @@ def register_transport_callbacks(app):
                 "Select a location to view nearest bicycle parking",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
@@ -3184,9 +3268,9 @@ def register_transport_callbacks(app):
             return html.Div(
                 "Invalid coordinates",
                 style={
-                    "padding": "10px",
+                    "padding": "0.625rem",
                     "color": "#ff6b6b",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "textAlign": "center"
                 }
             ), []
@@ -3201,9 +3285,9 @@ def register_transport_callbacks(app):
                 "No bicycle parking found within 100m",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
@@ -3233,16 +3317,16 @@ def register_transport_callbacks(app):
                         html.Div(
                             description,
                             style={
-                                "fontSize": "13px",
+                                "fontSize": "0.8125rem",
                                 "color": "#fff",
                                 "fontWeight": "600",
-                                "marginBottom": "4px"
+                                "marginBottom": "0.25rem"
                             }
                         ),
                         html.Div(
                             f"RackType: {rack_type}",
                             style={
-                                "fontSize": "12px",
+                                "fontSize": "0.75rem",
                                 "color": "#ccc",
                                 "marginBottom": "2px"
                             }
@@ -3250,7 +3334,7 @@ def register_transport_callbacks(app):
                         html.Div(
                             f"RackCount: {rack_count}",
                             style={
-                                "fontSize": "12px",
+                                "fontSize": "0.75rem",
                                 "color": "#ccc",
                                 "marginBottom": "4px"
                             }
@@ -3258,18 +3342,18 @@ def register_transport_callbacks(app):
                         html.Div(
                             f"Distance: {distance_str}",
                             style={
-                                "fontSize": "12px",
+                                "fontSize": "0.75rem",
                                 "color": "#60a5fa",
                                 "fontWeight": "500"
                             }
                         )
                     ],
                     style={
-                        "padding": "10px 12px",
-                        "borderBottom": "1px solid #444",
-                        "marginBottom": "6px",
+                        "padding": "0.625rem 0.75rem",
+                        "borderBottom": "0.0625rem solid #444",
+                        "marginBottom": "0.375rem",
                         "backgroundColor": "#1a1a1a",
-                        "borderRadius": "4px"
+                        "borderRadius": "0.25rem"
                     }
                 )
             )
@@ -3299,9 +3383,9 @@ def register_transport_callbacks(app):
                 "Select a location to view nearby EV charging points",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
@@ -3313,9 +3397,9 @@ def register_transport_callbacks(app):
             return html.Div(
                 "Invalid coordinates",
                 style={
-                    "padding": "10px",
+                    "padding": "0.625rem",
                     "color": "#ff6b6b",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "textAlign": "center"
                 }
             ), []
@@ -3328,9 +3412,9 @@ def register_transport_callbacks(app):
                 "Unable to determine postal code for selected location",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
@@ -3339,28 +3423,43 @@ def register_transport_callbacks(app):
         print(f"Fetching EV charging points for postal code: {postal_code}")
         ev_data = fetch_ev_charging_points(postal_code)
         
-        if not ev_data or 'value' not in ev_data:
+        # Ensure ev_data is a dictionary
+        if not ev_data or not isinstance(ev_data, dict) or 'value' not in ev_data:
             return html.P(
                 "No EV charging points found for this postal code",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
 
-        charging_points = ev_data.get('value', [])
-        
-        if not charging_points:
+        value_data = ev_data.get('value', {})
+        if not isinstance(value_data, dict):
             return html.P(
                 "No EV charging points found for this postal code",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
+                    "fontStyle": "italic"
+                }
+            ), []
+
+        charging_points = value_data.get('evLocationsData', [])
+        
+        # Ensure charging_points is a list
+        if not isinstance(charging_points, list) or not charging_points:
+            return html.P(
+                "No EV charging points found for this postal code",
+                style={
+                    "textAlign": "center",
+                    "padding": "0.9375rem",
+                    "color": "#999",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
@@ -3372,6 +3471,11 @@ def register_transport_callbacks(app):
         charging_items = []
 
         for point in charging_points:
+            # Ensure point is a dictionary
+            if not isinstance(point, dict):
+                print(f"Skipping invalid charging point (not a dict): {point}, type: {type(point)}")
+                continue
+                
             address = point.get('Address', 'N/A')
             status = point.get('Status', '')
             
@@ -3396,10 +3500,10 @@ def register_transport_callbacks(app):
                         html.Div(
                             address,
                             style={
-                                "fontSize": "13px",
+                                "fontSize": "0.8125rem",
                                 "color": "#fff",
                                 "fontWeight": "600",
-                                "marginBottom": "4px"
+                                "marginBottom": "0.25rem"
                             }
                         ),
                         html.Div(
@@ -3407,18 +3511,18 @@ def register_transport_callbacks(app):
                                 status_text,
                                 style={
                                     "color": status_color,
-                                    "fontSize": "12px",
+                                    "fontSize": "0.75rem",
                                     "fontWeight": "500"
                                 }
                             ),
                         )
                     ],
                     style={
-                        "padding": "10px 12px",
-                        "borderBottom": "1px solid #444",
-                        "marginBottom": "6px",
+                        "padding": "0.625rem 0.75rem",
+                        "borderBottom": "0.0625rem solid #444",
+                        "marginBottom": "0.375rem",
                         "backgroundColor": "#1a1a1a",
-                        "borderRadius": "4px"
+                        "borderRadius": "0.25rem"
                     }
                 )
             )
@@ -3444,11 +3548,11 @@ def register_transport_callbacks(app):
             style = {
                 "backgroundColor": "#C0C0C0",
                 "border": "none",
-                "borderRadius": "4px",
+                "borderRadius": "0.25rem",
                 "color": "#000",
                 "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
+                "padding": "0.375rem 0.75rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Hide VMS Display boards Locations"
@@ -3456,12 +3560,12 @@ def register_transport_callbacks(app):
             # Inactive state - outline
             style = {
                 "backgroundColor": "transparent",
-                "border": "2px solid #C0C0C0",
-                "borderRadius": "4px",
+                "border": "0.125rem solid #C0C0C0",
+                "borderRadius": "0.25rem",
                 "color": "#C0C0C0",
                 "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Show VMS Display boards Locations"
@@ -3492,8 +3596,8 @@ def register_transport_callbacks(app):
             html.Span(f"{vms_count}", style={"color": "#C0C0C0"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "4px 8px",
-                "borderRadius": "4px",
+                "padding": "0.25rem 0.5rem",
+                "borderRadius": "0.25rem",
             }
         )
 
@@ -3537,8 +3641,8 @@ def register_transport_callbacks(app):
             html.Span(f"{bus_stops_count}", style={"color": "#4169E1"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "4px 8px",
-                "borderRadius": "4px",
+                "padding": "0.25rem 0.5rem",
+                "borderRadius": "0.25rem",
             }
         )
 
@@ -3561,11 +3665,11 @@ def register_transport_callbacks(app):
             style = {
                 "backgroundColor": "#4169E1",
                 "border": "none",
-                "borderRadius": "4px",
+                "borderRadius": "0.25rem",
                 "color": "#fff",
                 "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
+                "padding": "0.375rem 0.75rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Hide Bus Stop Locations"
@@ -3573,12 +3677,12 @@ def register_transport_callbacks(app):
             # Inactive state - outline
             style = {
                 "backgroundColor": "transparent",
-                "border": "2px solid #4169E1",
-                "borderRadius": "4px",
+                "border": "0.125rem solid #4169E1",
+                "borderRadius": "0.25rem",
                 "color": "#4169E1",
                 "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Show Bus Stop Locations"
@@ -3621,11 +3725,11 @@ def register_transport_callbacks(app):
             style = {
                 "backgroundColor": "#81C784",
                 "border": "none",
-                "borderRadius": "4px",
+                "borderRadius": "0.25rem",
                 "color": "#fff",
                 "cursor": "pointer",
-                "padding": "6px 12px",
-                "fontSize": "12px",
+                "padding": "0.375rem 0.75rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Hide SPF Speed Camera Locations"
@@ -3633,12 +3737,12 @@ def register_transport_callbacks(app):
             # Inactive state - outline
             style = {
                 "backgroundColor": "transparent",
-                "border": "2px solid #81C784",
-                "borderRadius": "4px",
+                "border": "0.125rem solid #81C784",
+                "borderRadius": "0.25rem",
                 "color": "#81C784",
                 "cursor": "pointer",
-                "padding": "4px 10px",
-                "fontSize": "12px",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
                 "fontWeight": "600",
             }
             text = "Show SPF Speed Camera Locations"
@@ -3662,8 +3766,8 @@ def register_transport_callbacks(app):
             html.Span(f"{speed_camera_count}", style={"color": "#A5D6A7"}),
             style={
                 "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "4px 8px",
-                "borderRadius": "4px",
+                "padding": "0.25rem 0.5rem",
+                "borderRadius": "0.25rem",
             }
         )
 

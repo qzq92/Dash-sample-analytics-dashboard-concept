@@ -3,17 +3,39 @@ Callback functions for handling MRT/LRT Station Crowd information.
 Uses LTA DataMall PCDRealTime API for real-time crowd density data.
 """
 import os
-import pandas as pd
-from typing import Optional, Dict, List, Any, Tuple
+import csv
+import re
+import threading
+from typing import Optional, Dict, List, Any
+from concurrent.futures import as_completed
 from dash import Input, Output, html
-import dash_leaflet as dl
-from utils.async_fetcher import fetch_url_2min_cached
+from utils.async_fetcher import fetch_url_10min_cached, _executor, get_current_10min_bucket
 
 # API URL
 PCD_REALTIME_URL = "https://datamall2.mytransport.sg/ltaodataservice/PCDRealTime"
 
-# Station coordinates cache loaded from MRTStations.csv
-_STATION_COORDS_CACHE: Optional[Dict[str, Tuple[float, float]]] = None
+# Global cache for the combined crowd data to ensure 10-minute alignment
+_COMBINED_CROWD_CACHE = {'data': None, 'bucket': None}
+_COMBINED_CROWD_LOCK = threading.Lock()
+
+
+# Official Line Colors and Names (ordered as per TrainLine parameter support)
+LINE_INFO = {
+    'CCL': {'name': 'Circle Line', 'color': '#FFA500'},
+    'CEL': {'name': 'Circle Line Extension – BayFront, Marina Bay', 'color': '#FFA500'},
+    'CGL': {'name': 'Changi Extension – Expo, Changi Airport', 'color': '#009645'},
+    'DTL': {'name': 'Downtown Line', 'color': '#005EC4'},
+    'EWL': {'name': 'East West Line', 'color': '#009645'},
+    'NEL': {'name': 'North East Line', 'color': '#9900AA'},
+    'NSL': {'name': 'North South Line', 'color': '#D42E12'},
+    'BPL': {'name': 'Bukit Panjang LRT', 'color': '#748477'},
+    'SLRT': {'name': 'Sengkang LRT', 'color': '#748477'},
+    'PLRT': {'name': 'Punggol LRT', 'color': '#748477'},
+    'TEL': {'name': 'Thomson-East Coast Line', 'color': '#9D5B25'},
+}
+
+# List of all train lines to fetch
+ALL_TRAIN_LINES = ['CCL', 'CEL', 'CGL', 'DTL', 'EWL', 'NEL', 'NSL', 'BPL', 'SLRT', 'PLRT', 'TEL']
 
 # Crowd level colors
 CROWD_COLORS = {
@@ -32,339 +54,471 @@ CROWD_LABELS = {
 }
 
 
+def _station_sort_key(station_obj):
+    """
+    Helper to sort station codes numerically (e.g., EW1, EW2, ..., EW10).
+    """
+    station_code = station_obj.get('Station', '')
+    if not station_code:
+        return ("", 0)
+
+    # Extract prefix (e.g., EW) and number (e.g., 10)
+    match = re.match(r"([a-zA-Z]+)(\d+)", station_code)
+    if match:
+        prefix, number = match.groups()
+        return (prefix.upper(), int(number))
+
+    # Fallback for codes that don't match the pattern
+    return (station_code.upper(), 0)
+
+# Station name mapping cache
+_STATION_NAME_MAP = None
+
+
+def _load_station_names() -> Dict[str, str]:
+    """
+    Load station codes to station names mapping from CSV file.
+    Returns a dictionary mapping station codes to station names.
+    """
+    global _STATION_NAME_MAP
+    if _STATION_NAME_MAP is not None:
+        return _STATION_NAME_MAP
+
+    _STATION_NAME_MAP = {}
+    csv_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'MRTLRTStations.csv')
+
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                stn_no = row.get('STN_NO', '').strip()
+                stn_name = row.get('STN_NAME', '').strip()
+                if stn_no and stn_name:
+                    # Handle multi-line stations (e.g., "EW8/CC9")
+                    if '/' in stn_no:
+                        for code in stn_no.split('/'):
+                            _STATION_NAME_MAP[code.strip()] = stn_name
+                    else:
+                        _STATION_NAME_MAP[stn_no] = stn_name
+    except Exception as e:
+        print(f"Warning: Could not load station names from CSV: {e}")
+
+    return _STATION_NAME_MAP
+
+
 def fetch_station_crowd_data(train_line: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Fetch station crowd density data from LTA DataMall PCDRealTime API.
-    
+
     Args:
-        train_line: Optional train line code to filter (e.g., 'NSL', 'EWL')
+        train_line: Optional train line code
+                   (CCL, CEL, CGL, DTL, EWL, NEL, NSL, BPL, SLRT, PLRT, TEL)
                    If None, fetches all lines
-    
+
     Returns:
         Dictionary containing crowd data or None if error
     """
     api_key = os.getenv("LTA_API_KEY")
-    
+
     if not api_key:
         print("Warning: LTA_API_KEY not found in environment variables")
         return None
-    
+
     headers = {
         "User-Agent": "Mozilla/5.0",
         "AccountKey": api_key,
         "Content-Type": "application/json"
     }
-    
-    # Build URL with optional train line filter
+
+    # Build URL with TrainLine parameter if specified
     url = PCD_REALTIME_URL
-    if train_line and train_line != "all":
+    if train_line:
         url = f"{PCD_REALTIME_URL}?TrainLine={train_line}"
-    
-    # Use cached fetch (2-minute cache)
-    data = fetch_url_2min_cached(url, headers)
-    
-    return data
+
+    # Use cached fetch (10-minute cache based on system clock)
+    return fetch_url_10min_cached(url, headers)
 
 
-def _load_station_coordinates() -> Dict[str, Tuple[float, float]]:
+def fetch_all_station_crowd_data() -> Optional[Dict[str, Any]]:
     """
-    Load station coordinates from MRTStations.csv file.
-    Caches the result to avoid reloading on every call.
-    
+    Fetch crowd data for all train lines in parallel and combine results.
+    Uses a 10-minute in-memory cache aligned to system clock.
+
     Returns:
-        Dictionary mapping station codes to (lat, lon) tuples
+        Dictionary containing combined crowd data from all lines or None if error
     """
-    global _STATION_COORDS_CACHE
+    global _COMBINED_CROWD_CACHE
     
-    if _STATION_COORDS_CACHE is not None:
-        return _STATION_COORDS_CACHE
+    current_bucket = get_current_10min_bucket()
     
-    _STATION_COORDS_CACHE = {}
-    
-    try:
-        # Get project root (parent of callbacks folder)
-        current_file_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(current_file_dir)
-        csv_path = os.path.join(project_root, 'data', 'MRTStations.csv')
-        
-        if not os.path.exists(csv_path):
-            print(f"Warning: MRTStations.csv not found at {csv_path}")
-            return _STATION_COORDS_CACHE
-        
-        # Read CSV file
-        df = pd.read_csv(csv_path)
-        
-        # Process each station
-        for _, row in df.iterrows():
-            try:
-                stn_no = str(row.get('STN_NO', '')).strip()
-                lat = float(row.get('Latitude', 0))
-                lon = float(row.get('Longitude', 0))
-                
-                if stn_no and lat != 0 and lon != 0:
-                    # Handle stations with multiple codes (e.g., "EW8/CC9")
-                    codes = [code.strip() for code in stn_no.split('/')]
-                    for code in codes:
-                        if code:
-                            _STATION_COORDS_CACHE[code] = (lat, lon)
-            except (ValueError, TypeError, KeyError) as e:
-                continue
-        
-        print(f"Loaded {len(_STATION_COORDS_CACHE)} station coordinates from MRTStations.csv")
-        
-    except Exception as e:
-        print(f"Error loading MRTStations.csv: {e}")
-    
-    return _STATION_COORDS_CACHE
+    # Check high-level cache first
+    with _COMBINED_CROWD_LOCK:
+        if _COMBINED_CROWD_CACHE['bucket'] == current_bucket and _COMBINED_CROWD_CACHE['data'] is not None:
+            # print(f"DEBUG: Serving combined crowd data from 10-minute cache (bucket: {current_bucket})")
+            return _COMBINED_CROWD_CACHE['data']
 
+    # If not in cache or bucket expired, fetch fresh data
+    # Fetch all lines in parallel
+    futures = {
+        _executor.submit(fetch_station_crowd_data, line): line
+        for line in ALL_TRAIN_LINES
+    }
 
-def get_station_coordinates(station_code: str) -> Optional[Tuple[float, float]]:
-    """
-    Get coordinates for a station code from MRTStations.csv.
-    
-    Args:
-        station_code: Station code (e.g., 'NS1', 'EW13')
-    
-    Returns:
-        Tuple of (lat, lon) or None if not found
-    """
-    coords_map = _load_station_coordinates()
-    return coords_map.get(station_code)
-
-
-def create_crowd_markers(crowd_data: Optional[Dict[str, Any]], line_filter: str = "all") -> List[dl.CircleMarker]:
-    """
-    Create map markers for stations with crowd levels.
-    
-    Args:
-        crowd_data: Dictionary containing crowd data from API
-        line_filter: Train line filter ('all' or specific line code)
-    
-    Returns:
-        List of dl.CircleMarker components
-    """
-    markers = []
-    
-    if not crowd_data or 'value' not in crowd_data:
-        return markers
-    
-    stations = crowd_data.get('value', [])
-    
-    for station in stations:
+    all_stations = []
+    for future in as_completed(futures):
+        line = futures[future]
         try:
-            station_code = station.get('Station', '')
-            crowd_level = station.get('CrowdLevel', 'NA')
-            train_line = station.get('TrainLine', '')
-            
-            # Filter by train line if specified
-            if line_filter != "all" and train_line != line_filter:
-                continue
-            
-            # Get station coordinates
-            coords = get_station_coordinates(station_code)
-            if not coords:
-                # Skip if coordinates not available
-                continue
-            
-            lat, lon = coords
-            color = CROWD_COLORS.get(crowd_level, '#888888')
-            
-            # Create marker with popup
-            popup_text = f"{station_code}<br>Crowd: {CROWD_LABELS.get(crowd_level, 'Unknown')}"
-            if train_line:
-                popup_text += f"<br>Line: {train_line}"
-            
-            markers.append(
-                dl.CircleMarker(
-                    center=[lat, lon],
-                    radius=8,
-                    color="#fff",
-                    weight=2,
-                    fillColor=color,
-                    fillOpacity=0.8,
-                    children=[
-                        dl.Popup(popup_text)
-                    ]
-                )
+            data = future.result()
+            if data and 'value' in data:
+                stations = data['value']
+                # Add TrainLine to each station if not present
+                for station in stations:
+                    if 'TrainLine' not in station or not station.get('TrainLine'):
+                        station['TrainLine'] = line
+                all_stations.extend(stations)
+                # print(f"DEBUG: Fetched {len(stations)} stations for line {line}")
+        except Exception as e:
+            print(f"Error fetching crowd data for {line}: {e}")
+
+    if not all_stations:
+        return None
+
+    combined_data = {'value': all_stations}
+    
+    # Update cache
+    with _COMBINED_CROWD_LOCK:
+        _COMBINED_CROWD_CACHE = {
+            'data': combined_data,
+            'bucket': current_bucket
+        }
+
+    print(f"DEBUG: Combined crowd data fetched and cached for bucket {current_bucket} ({len(all_stations)} stations)")
+    return combined_data
+
+
+def format_line_cards(crowd_data: Optional[Dict[str, Any]]) -> List[html.Div]:
+    """
+    Generate expandable cards for each train line.
+    Returns a list with MRT lines in the first row and LRT lines in the second row.
+    """
+    if not crowd_data or 'value' not in crowd_data:
+        msg = "No crowd data available"
+        return [html.P(msg, style={"color": "#999", "textAlign": "center", "padding": "1.25rem"})]
+
+    stations = crowd_data.get('value', [])
+    station_names = _load_station_names()
+
+    # Group stations by line
+    line_groups = {}
+    for station in stations:
+        line = station.get('TrainLine', 'Other')
+        if line not in line_groups:
+            line_groups[line] = []
+        line_groups[line].append(station)
+
+    print(f"DEBUG: Line groups found: {list(line_groups.keys())}")
+    print(f"DEBUG: Total stations: {len(stations)}")
+
+    # MRT lines and LRT lines
+    mrt_lines = ['CCL', 'CEL', 'CGL', 'DTL', 'EWL', 'NEL', 'NSL', 'TEL']
+    lrt_lines = ['BPL', 'SLRT', 'PLRT']
+
+    def create_line_card(line_code):
+        """Helper function to create a single line card"""
+        if line_code not in line_groups:
+            return None
+
+        line_stations = line_groups[line_code]
+        line_stations.sort(key=_station_sort_key)
+
+        info = LINE_INFO.get(line_code, {'name': f'{line_code} Line', 'color': '#888'})
+
+        # Create station items for the expanded view
+        station_items = []
+        for stn in line_stations:
+            lvl = stn.get('CrowdLevel', 'NA')
+            color = CROWD_COLORS.get(lvl, '#888888')
+            stn_code = stn.get('Station', '')
+            stn_name = station_names.get(stn_code, stn_code)
+            label = CROWD_LABELS.get(lvl, 'Unknown')
+
+            station_items.append(
+                html.Div([
+                    html.Div([
+                        html.Span(stn_code, style={"fontWeight": "700", "color": info['color'],
+                                                   "fontSize": "0.85rem", "marginRight": "0.5rem"}),
+                        html.Span(stn_name, style={"fontWeight": "400", "color": "#fff",
+                                                   "fontSize": "0.85rem", "flex": "1"}),
+                    ], style={"display": "flex", "alignItems": "center", "flex": "1"}),
+                    html.Span(label, style={"color": color, "fontSize": "0.8rem",
+                                          "fontWeight": "700"})
+                ], style={
+                    "padding": "0.375rem 0.625rem",
+                    "borderBottom": "0.0625rem solid rgba(255,255,255,0.05)",
+                    "display": "flex", "alignItems": "center"
+                })
             )
-        except (ValueError, TypeError, KeyError) as e:
-            print(f"Error creating marker for station: {e}")
-            continue
-    
-    return markers
+
+        # Create the Card - expanded by default with fixed header
+        return html.Div([
+            # Card Header
+            html.Div([
+                html.Div(style={
+                    "width": "0.25rem", "height": "1.5rem",
+                    "backgroundColor": info['color'], "marginRight": "0.625rem"
+                }),
+                html.Span(
+                    info['name'],
+                    style={"fontWeight": "bold", "color": info['color']}
+                ),
+                html.Span(f" ({len(line_stations)} stns)",
+                         style={"color": "#aaa", "marginLeft": "auto",
+                               "fontSize": "0.75rem"})
+            ], style={
+                "display": "flex", "alignItems": "center",
+                "width": "100%", "padding": "0.625rem 0.75rem",
+                "borderBottom": f"0.0625rem solid {info['color']}22"
+            }),
+            # Card Content (Scrollable - standardised for ~5 stations)
+            html.Div(
+                station_items,
+                style={
+                    "height": "11.5625rem", "overflowY": "auto",
+                    "backgroundColor": "rgba(0,0,0,0.15)", "padding": "0.3125rem"
+                }
+            )
+        ],
+            style={
+                "backgroundColor": "rgba(58, 74, 90, 0.8)",
+                "borderRadius": "0.375rem",
+                "border": f"0.0625rem solid {info['color']}44",
+                "overflow": "hidden",
+                "minWidth": "17.5rem",
+                "flex": "1 1 17.5rem",
+                "maxWidth": "25rem",
+                "display": "flex",
+                "flexDirection": "column"
+            }
+        )
+
+    # Create all line cards (MRT and LRT combined)
+    all_cards = []
+    for line in mrt_lines + lrt_lines:
+        if line in line_groups:
+            card = create_line_card(line)
+            if card is not None:
+                all_cards.append(card)
+
+    print(f"DEBUG: Total cards created: {len(all_cards)}")
+
+    # If no cards at all, return empty message
+    if not all_cards:
+        return [html.P("No station data available",
+                      style={"color": "#999", "textAlign": "center", "padding": "1.25rem"})]
+
+    # Build the layout as a 3 rows x 4 columns grid
+    return [
+        html.Div(
+            all_cards,
+            style={
+                "display": "grid",
+                "gridTemplateColumns": "repeat(4, 1fr)",
+                "gridTemplateRows": "repeat(3, auto)",
+                "gap": "0.9375rem",
+                "width": "100%",
+                "alignItems": "stretch",
+            }
+        )
+    ]
 
 
-def format_station_list(crowd_data: Optional[Dict[str, Any]], line_filter: str = "all") -> List[html.Div]:
+def format_crowd_level_cards(crowd_data: Optional[Dict[str, Any]]) -> List[html.Div]:
     """
-    Format station list with crowd levels for display.
-    
-    Args:
-        crowd_data: Dictionary containing crowd data from API
-        line_filter: Train line filter ('all' or specific line code)
-    
-    Returns:
-        List of HTML Div elements for each station
+    Generate expandable cards for each crowd level (Low, Moderate, High).
     """
-    items = []
-    
     if not crowd_data or 'value' not in crowd_data:
-        return [html.P("No crowd data available", style={"color": "#999", "textAlign": "center", "padding": "20px"})]
-    
+        msg = "No crowd data available"
+        return [html.P(msg, style={"color": "#999", "textAlign": "center", "padding": "1.25rem"})]
+
     stations = crowd_data.get('value', [])
-    
-    # Filter by train line if specified
-    if line_filter != "all":
-        stations = [s for s in stations if s.get('TrainLine', '') == line_filter]
-    
-    if not stations:
-        return [html.P(f"No stations found for selected line", style={"color": "#999", "textAlign": "center", "padding": "20px"})]
-    
-    # Sort by station code
-    stations.sort(key=lambda x: x.get('Station', ''))
-    
+    station_names = _load_station_names()
+
+    # Group stations by crowd level
+    crowd_groups = {
+        'l': [],
+        'm': [],
+        'h': [],
+        'NA': []
+    }
+
     for station in stations:
-        try:
-            station_code = station.get('Station', 'Unknown')
-            crowd_level = station.get('CrowdLevel', 'NA')
-            train_line = station.get('TrainLine', '')
-            start_time = station.get('StartTime', '')
-            end_time = station.get('EndTime', '')
-            
-            color = CROWD_COLORS.get(crowd_level, '#888888')
-            label = CROWD_LABELS.get(crowd_level, 'Unknown')
-            
-            items.append(
+        crowd_level = station.get('CrowdLevel', 'NA').strip().lower()
+        if crowd_level not in crowd_groups:
+            crowd_level = 'NA'
+        crowd_groups[crowd_level].append(station)
+
+    # Sort stations within each group by station code numerically
+    for level in crowd_groups:
+        crowd_groups[level].sort(key=_station_sort_key)
+
+    # Order: Low, Moderate, High, NA
+    level_order = ['l', 'm', 'h', 'NA']
+    cards = []
+
+    for level in level_order:
+        level_stations = crowd_groups[level]
+        if not level_stations:
+            continue
+
+        color = CROWD_COLORS.get(level, '#888888')
+        label = CROWD_LABELS.get(level, 'Unknown')
+
+        # Create station items for the expanded view
+        station_items = []
+        for stn in level_stations:
+            stn_code = stn.get('Station', '')
+            stn_name = station_names.get(stn_code, stn_code)
+            train_line = stn.get('TrainLine', '')
+            line_info = LINE_INFO.get(train_line, {'color': '#888'})
+            line_color = line_info['color']
+
+            station_items.append(
+                html.Div([
+                    html.Div([
+                        html.Span(stn_code, style={"fontWeight": "700", "color": line_color,
+                                                   "fontSize": "0.85rem", "marginRight": "0.5rem"}),
+                        html.Span(stn_name, style={"fontWeight": "400", "color": "#fff",
+                                                   "fontSize": "0.85rem", "flex": "1"}),
+                    ], style={"display": "flex", "alignItems": "center", "flex": "1"}),
+                    html.Span(train_line, style={
+                        "color": "#aaa", "fontSize": "0.75rem", "marginRight": "0.5rem"
+                    }),
+                ], style={
+                    "padding": "0.375rem 0.625rem",
+                    "borderBottom": "0.0625rem solid rgba(255,255,255,0.05)",
+                    "display": "flex", "alignItems": "center"
+                })
+            )
+
+        # Create the Card - expanded by default with fixed header
+        cards.append(
+            html.Div([
+                # Card Header
+                html.Div([
+                    html.Div(style={
+                        "width": "0.25rem", "height": "1.5rem",
+                        "backgroundColor": color, "marginRight": "0.625rem"
+                    }),
+                    html.Span(
+                        f"{label} Crowd",
+                        style={"fontWeight": "bold", "color": "#fff"}
+                    ),
+                    html.Span(f" ({len(level_stations)} stns)",
+                              style={"color": "#aaa", "marginLeft": "auto",
+                                     "fontSize": "0.75rem"})
+                ], style={
+                    "display": "flex", "alignItems": "center",
+                    "width": "100%", "padding": "0.625rem 0.75rem",
+                    "borderBottom": f"0.0625rem solid {color}22"
+                }),
+                # Card Content (Scrollable - standardised for ~5 stations)
                 html.Div(
-                    [
-                        html.Div(
-                            [
-                                html.Div(
-                                    style={
-                                        "width": "12px",
-                                        "height": "12px",
-                                        "backgroundColor": color,
-                                        "borderRadius": "50%",
-                                        "marginRight": "8px",
-                                    }
-                                ),
-                                html.Div(
-                                    [
-                                        html.Span(
-                                            station_code,
-                                            style={
-                                                "fontWeight": "600",
-                                                "fontSize": "0.875rem",
-                                                "color": "#fff",
-                                            }
-                                        ),
-                                        html.Span(
-                                            f" ({train_line})" if train_line else "",
-                                            style={
-                                                "fontSize": "0.75rem",
-                                                "color": "#aaa",
-                                                "marginLeft": "4px",
-                                            }
-                                        ),
-                                    ],
-                                    style={"flex": "1"}
-                                ),
-                                html.Span(
-                                    label,
-                                    style={
-                                        "fontSize": "0.75rem",
-                                        "color": color,
-                                        "fontWeight": "600",
-                                    }
-                                ),
-                            ],
-                            style={
-                                "display": "flex",
-                                "alignItems": "center",
-                                "marginBottom": "4px",
-                            }
-                        ),
-                        html.Div(
-                            f"Time: {start_time} - {end_time}" if start_time and end_time else "",
-                            style={
-                                "fontSize": "0.6875rem",
-                                "color": "#888",
-                                "marginTop": "2px",
-                            }
-                        ),
-                    ],
+                    station_items,
                     style={
-                        "padding": "8px 12px",
-                        "borderBottom": "1px solid rgba(255, 255, 255, 0.1)",
-                        "marginBottom": "4px",
-                        "backgroundColor": "rgba(42, 54, 66, 0.5)",
-                        "borderRadius": "4px",
+                        "height": "11.5625rem", "overflowY": "auto",
+                        "backgroundColor": "rgba(0,0,0,0.15)", "padding": "0.3125rem"
                     }
                 )
+            ],
+                style={
+                    "backgroundColor": "rgba(58, 74, 90, 0.8)",
+                    "borderRadius": "0.375rem",
+                    "marginBottom": "0.9375rem",
+                    "border": f"0.0625rem solid {color}44",
+                    "overflow": "hidden",
+                    "minWidth": "17.5rem",
+                    "flex": "1 1 17.5rem",
+                    "maxWidth": "25rem",
+                    "display": "flex",
+                    "flexDirection": "column"
+                }
             )
-        except (ValueError, TypeError, KeyError) as e:
-            print(f"Error formatting station: {e}")
-            continue
-    
-    return items
+        )
+
+    # Wrap all crowd level cards in a flex container for consistent layout
+    return [
+        html.Div(
+            cards,
+            style={
+                "display": "flex",
+                "flexDirection": "row",
+                "gap": "0.9375rem",
+                "flexWrap": "wrap",
+                "width": "100%",
+                "alignItems": "flex-start",
+                "justifyContent": "flex-start",
+            }
+        )
+    ]
 
 
 def register_mrt_crowd_callbacks(app):
     """
     Register callbacks for MRT/LRT Station Crowd page.
-    
-    Args:
-        app: Dash app instance
     """
     @app.callback(
-        [Output('mrt-crowd-map-markers', 'children'),
-         Output('mrt-crowd-station-list', 'children'),
+        Output('mrt-crowd-view-toggle', 'children'),
+        Input('mrt-crowd-view-toggle', 'n_clicks'),
+        prevent_initial_call=False
+    )
+    def update_toggle_button(n_clicks):
+        """Update toggle button text based on click count."""
+        # Button text shows what view is CURRENTLY displayed
+        # Default to "By Line" view (n_clicks=0 or even)
+        if n_clicks is None:
+            n_clicks = 0
+        # When viewing by line (even clicks), button shows current view
+        # When viewing by crowd (odd clicks), button shows current view
+        return "View: By Crowd Level" if n_clicks % 2 == 1 else "View: By Line"
+
+    @app.callback(
+        [Output('mrt-crowd-station-list', 'children'),
          Output('mrt-crowd-count-value', 'children'),
          Output('mrt-crowd-data-store', 'data')],
         [Input('mrt-crowd-interval', 'n_intervals'),
-         Input('mrt-crowd-line-filter', 'value'),
-         Input('navigation-tabs', 'value')]
+         Input('navigation-tabs', 'value'),
+         Input('mrt-crowd-view-toggle', 'n_clicks')]
     )
-    def update_mrt_crowd_display(n_intervals: int, line_filter: str, tab_value: str):
+    def update_mrt_crowd_display(_n, tab_value: str, toggle_clicks: int):
         """
         Update MRT/LRT Station Crowd display.
-        Only fetches and displays data when the mrt-crowd tab is active.
         """
-        # Only fetch and display data when mrt-crowd tab is active
         if tab_value != 'mrt-crowd':
-            return [], html.P("Select MRT/LRT Station Crowd tab to view data", 
-                            style={"color": "#999", "textAlign": "center", "padding": "20px"}), \
-                   html.Div(html.Span("--", style={"color": "#999"}), 
-                           style={"backgroundColor": "rgb(58, 74, 90)", "padding": "4px 8px", "borderRadius": "4px"}), None
-        
-        # Fetch crowd data
-        crowd_data = fetch_station_crowd_data(line_filter if line_filter else None)
-        
-        if not crowd_data:
-            return [], html.P("Error loading crowd data. Please try again later.", 
-                            style={"color": "#ff6b6b", "textAlign": "center", "padding": "20px"}), \
-                   html.Div(html.Span("Error", style={"color": "#ff6b6b"}), 
-                           style={"backgroundColor": "rgb(58, 74, 90)", "padding": "4px 8px", "borderRadius": "4px"}), None
-        
-        # Create markers
-        markers = create_crowd_markers(crowd_data, line_filter or "all")
-        
-        # Format station list
-        station_list = format_station_list(crowd_data, line_filter or "all")
-        
-        # Count stations
-        stations = crowd_data.get('value', [])
-        if line_filter and line_filter != "all":
-            stations = [s for s in stations if s.get('TrainLine', '') == line_filter]
-        count = len(stations)
-        
-        count_display = html.Div(
-            html.Span(f"{count} stations", style={"color": "#00BCD4"}),
-            style={
-                "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "4px 8px",
-                "borderRadius": "4px",
-            }
-        )
-        
-        return markers, station_list, count_display, crowd_data
+            loading_msg = html.P("Select MRT/LRT Station Crowd tab",
+                               style={"color": "#999", "textAlign": "center",
+                                      "padding": "1.25rem", "gridColumn": "1 / -1"})
+            return [loading_msg], None, None
 
+        # Fetch data for all train lines in parallel
+        crowd_data = fetch_all_station_crowd_data()
+        if not crowd_data:
+            error_msg = html.P("Data currently unavailable. Please try again later.",
+                             style={"color": "#ff6b6b", "textAlign": "center",
+                                    "padding": "1.25rem", "gridColumn": "1 / -1"})
+            return [error_msg], None, None
+
+        # Determine view mode: 0 or even = By Line, odd = By Crowd Level
+        if toggle_clicks is None:
+            toggle_clicks = 0
+        view_by_crowd = toggle_clicks % 2 == 1
+
+        # Generate cards based on view mode
+        if view_by_crowd:
+            cards = format_crowd_level_cards(crowd_data)
+        else:
+            cards = format_line_cards(crowd_data)
+
+        # Summary count - removed text as requested
+        summary = None
+
+        return cards, summary, crowd_data
