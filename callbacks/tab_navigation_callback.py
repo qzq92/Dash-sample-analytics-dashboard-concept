@@ -113,8 +113,7 @@ def register_tab_navigation_callback(app):
                 'weather-indices': 'weather-indices-map',
                 'transport': 'transport-map',
                 'nearby-transport': 'nearby-transport-map',
-                'speed-band': 'speed-band-map',
-                'mrt-crowd': 'mrt-crowd-map'
+                'speed-band': 'speed-band-map'
             };
             
             var targetMapId = tabMapIds[tab_value];
