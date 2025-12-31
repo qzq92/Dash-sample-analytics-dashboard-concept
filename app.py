@@ -352,7 +352,7 @@ app.layout = html.Div(
                                                             style={
                                                                 "color": "#fff",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "13px"
+                                                                "fontSize": "0.8125rem"
                                                             }
                                                         ),
                                                         html.Div(
@@ -360,7 +360,7 @@ app.layout = html.Div(
                                                             children=[
                                                                 html.Span("Loading...", style={
                                                                     "color": "#999",
-                                                                    "fontSize": "12px"
+                                                                    "fontSize": "0.75rem"
                                                                 })
                                                             ],
                                                         ),
@@ -371,16 +371,16 @@ app.layout = html.Div(
                                                     style={
                                                         "display": "none",
                                                         "backgroundColor": "#3a4a5a",
-                                                        "borderRadius": "5px",
+                                                        "borderRadius": "0.3125rem",
                                                         "padding": "0.25rem",
-                                                        "maxHeight": "200px",
+                                                        "maxHeight": "12.5rem",
                                                         "overflowY": "auto",
                                                     },
                                                     children=[
                                                         html.Div(id="main-flood-indicator-content", children=[
                                                             html.P("No flooding notice at the moment", style={
                                                                 "color": "#999",
-                                                                "fontSize": "12px",
+                                                                "fontSize": "0.75rem",
                                                                 "textAlign": "center"
                                                             })
                                                         ])
@@ -393,11 +393,11 @@ app.layout = html.Div(
                                             id="main-lightning-indicator-container",
                                             style={
                                                 "backgroundColor": "#4a5a6a",
-                                                "borderRadius": "8px",
+                                                "borderRadius": "0.5rem",
                                                 "padding": "0.25rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
-                                                "gap": "8px",
+                                                "gap": "0.5rem",
                                                 "flexShrink": "0",
                                             },
                                             children=[
@@ -414,7 +414,7 @@ app.layout = html.Div(
                                                             style={
                                                                 "color": "#fff",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "13px"
+                                                                "fontSize": "0.8125rem"
                                                             }
                                                         ),
                                                         html.Div(
@@ -422,7 +422,7 @@ app.layout = html.Div(
                                                             children=[
                                                                 html.Span("Loading...", style={
                                                                     "color": "#999",
-                                                                    "fontSize": "12px"
+                                                                    "fontSize": "0.75rem"
                                                                 })
                                                             ],
                                                         ),
@@ -433,16 +433,16 @@ app.layout = html.Div(
                                                     style={
                                                         "display": "none",
                                                         "backgroundColor": "#3a4a5a",
-                                                        "borderRadius": "5px",
+                                                        "borderRadius": "0.3125rem",
                                                         "padding": "0.25rem",
-                                                        "maxHeight": "200px",
+                                                        "maxHeight": "12.5rem",
                                                         "overflowY": "auto",
                                                     },
                                                     children=[
                                                         html.Div(id="main-lightning-indicator-content", children=[
                                                             html.P("Loading...", style={
                                                                 "color": "#999",
-                                                                "fontSize": "12px",
+                                                                "fontSize": "0.75rem",
                                                                 "textAlign": "center"
                                                             })
                                                         ])
@@ -455,11 +455,11 @@ app.layout = html.Div(
                                             id="weather-forecast-24h-section",
                                             style={
                                                 "backgroundColor": "#4a5a6a",
-                                                "borderRadius": "8px",
+                                                "borderRadius": "0.5rem",
                                                 "padding": "0.25rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
-                                                "gap": "8px",
+                                                "gap": "0.5rem",
                                                 "flexShrink": "0",
                                             },
                                             children=[
@@ -477,7 +477,7 @@ app.layout = html.Div(
                                                             style={
                                                                 "color": "#fff",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "13px"
+                                                                "fontSize": "0.8125rem"
                                                             }
                                                         ),
                                                         html.Div(style={"flex": "1"}),  # Spacer
@@ -505,11 +505,11 @@ app.layout = html.Div(
                                             id="main-traffic-incidents-container",
                                             style={
                                                 "backgroundColor": "#4a5a6a",
-                                                "borderRadius": "8px",
+                                                "borderRadius": "0.5rem",
                                                 "padding": "0.25rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
-                                                "gap": "8px",
+                                                "gap": "0.5rem",
                                                 "overflow": "hidden",
                                             },
                                             children=[
@@ -526,7 +526,7 @@ app.layout = html.Div(
                                                             style={
                                                                 "color": "#fff",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "13px"
+                                                                "fontSize": "0.8125rem"
                                                             }
                                                         ),
                                                         html.Div(style={"flex": "1"}),  # Spacer
@@ -556,11 +556,11 @@ app.layout = html.Div(
                                             id="disease-clusters-section",
                                             style={
                                                 "backgroundColor": "#4a5a6a",
-                                                "borderRadius": "8px",
+                                                "borderRadius": "0.5rem",
                                                 "padding": "0.25rem",
                                                 "display": "flex",
                                                 "flexDirection": "column",
-                                                "gap": "8px",
+                                                "gap": "0.5rem",
                                                 "flexShrink": "0",
                                             },
                                             children=[
@@ -577,7 +577,7 @@ app.layout = html.Div(
                                                             style={
                                                                 "color": "#fff",
                                                                 "fontWeight": "600",
-                                                                "fontSize": "13px"
+                                                                "fontSize": "0.8125rem"
                                                             }
                                                         ),
                                                         html.Div(style={"flex": "1"}),  # Spacer
