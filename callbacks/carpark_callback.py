@@ -364,14 +364,14 @@ def create_carpark_markers(nearby_carparks, availability_lookup=None):
         marker_html = (
             f'<div style="position:relative;display:flex;flex-direction:column;'
             f'align-items:center;">'
-            f'<div style="background:#2196F3;color:#fff;padding:4px 8px;'
-            f'border-radius:4px;border:2px solid #fff;'
-            f'box-shadow:0 2px 8px rgba(33,150,243,0.6);'
-            f'font-size:11px;font-weight:bold;white-space:nowrap;">'
+            f'<div style="background:#2196F3;color:#fff;padding:0.25rem 0.5rem;'
+            f'border-radius:0.25rem;border:0.125rem solid #fff;'
+            f'box-shadow:0 0.125rem 0.5rem rgba(33,150,243,0.6);'
+            f'font-size:0.6875rem;font-weight:bold;white-space:nowrap;">'
             f'{carpark_number}</div>'
-            f'<div style="width:0;height:0;border-left:8px solid transparent;'
-            f'border-right:8px solid transparent;border-top:8px solid #2196F3;'
-            f'margin-top:-2px;"></div>'
+            f'<div style="width:0;height:0;border-left:0.5rem solid transparent;'
+            f'border-right:0.5rem solid transparent;border-top:0.5rem solid #2196F3;'
+            f'margin-top:-0.125rem;"></div>'
             f'</div>'
         )
 
@@ -443,9 +443,9 @@ def register_carpark_callbacks(app):
                 "Select a location to view nearest carparks",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
@@ -457,9 +457,9 @@ def register_carpark_callbacks(app):
             return html.Div(
                 "Invalid coordinates",
                 style={
-                    "padding": "10px",
+                    "padding": "0.625rem",
                     "color": "#ff6b6b",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "textAlign": "center"
                 }
             ), []
@@ -477,9 +477,9 @@ def register_carpark_callbacks(app):
                 "No carparks found within 500m",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
@@ -492,9 +492,9 @@ def register_carpark_callbacks(app):
                 "Error fetching carpark data",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#ff6b6b",
-                    "fontSize": "12px"
+                    "fontSize": "0.75rem"
                 }
             ), []
         
@@ -505,9 +505,9 @@ def register_carpark_callbacks(app):
                 "No carpark data available",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#ff6b6b",
-                    "fontSize": "12px"
+                    "fontSize": "0.75rem"
                 }
             ), []
         
@@ -584,20 +584,20 @@ def register_carpark_callbacks(app):
                             html.Span(
                                 f"{type_initial}: ",
                                 style={
-                                    "fontSize": "9px",
+                                    "fontSize": "0.5625rem",
                                     "color": "#999",
                                 }
                             ),
                             html.Span(
                                 f"{avail_info['available']}",
                                 style={
-                                    "fontSize": "9px",
+                                    "fontSize": "0.5625rem",
                                     "color": avail_info['color'],
                                     "fontWeight": "bold",
                                 }
                             ),
                         ],
-                        style={"marginBottom": "2px"}
+                        style={"marginBottom": "0.125rem"}
                     )
                 )
 
@@ -614,25 +614,25 @@ def register_carpark_callbacks(app):
                                         carpark_number,
                                         style={
                                             "display": "inline-block",
-                                            "padding": "2px 8px",
+                                            "padding": "0.125rem 0.5rem",
                                             "backgroundColor": "#2196F3",
                                             "color": "#fff",
-                                            "borderRadius": "4px",
-                                            "fontSize": "11px",
+                                            "borderRadius": "0.25rem",
+                                            "fontSize": "0.6875rem",
                                             "fontWeight": "bold",
-                                            "marginRight": "8px",
+                                            "marginRight": "0.5rem",
                                         }
                                     ),
                                     html.Span(
                                         f"{distance_str}",
                                         style={
-                                            "fontSize": "10px",
+                                            "fontSize": "0.625rem",
                                             "color": "#999",
                                         }
                                     ),
                                 ],
                                 style={
-                                    "marginBottom": "3px",
+                                    "marginBottom": "0.1875rem",
                                     "display": "flex",
                                     "alignItems": "center"
                                 }
@@ -641,7 +641,7 @@ def register_carpark_callbacks(app):
                             html.Div(
                                 address if address != 'N/A' else 'No address',
                                 style={
-                                    "fontSize": "9px",
+                                    "fontSize": "0.5625rem",
                                     "color": "#ccc",
                                     "overflow": "hidden",
                                     "textOverflow": "ellipsis",
@@ -653,25 +653,25 @@ def register_carpark_callbacks(app):
                     ),
                     # Right side: Availability info
                     html.Div(
-                        availability_elements if availability_elements else html.Span("No data", style={"fontSize": "9px", "color": "#666"}),
+                        availability_elements if availability_elements else html.Span("No data", style={"fontSize": "0.5625rem", "color": "#666"}),
                         style={
                             "display": "flex",
                             "flexDirection": "column",
                             "alignItems": "flex-end",
                             "justifyContent": "center",
-                            "marginLeft": "8px"
+                            "marginLeft": "0.5rem"
                         }
                     )
                 ],
                 style={
-                    "padding": "6px 8px",
-                    "marginBottom": "4px",
+                    "padding": "0.375rem 0.5rem",
+                    "marginBottom": "0.25rem",
                     "backgroundColor": "#000000",
-                    "borderRadius": "4px",
-                    "borderLeft": "3px solid #60a5fa",
+                    "borderRadius": "0.25rem",
+                    "borderLeft": "0.1875rem solid #60a5fa",
                     "display": "flex",
                     "alignItems": "center",
-                    "gap": "8px"
+                    "gap": "0.5rem"
                 }
             )
             
@@ -680,12 +680,12 @@ def register_carpark_callbacks(app):
         # Return cards and markers
         cards_output = carpark_cards if carpark_cards else html.P(
             "No carpark data available",
-            style={
-                "textAlign": "center",
-                "padding": "15px",
-                "color": "#999",
-                "fontSize": "12px"
-            }
+                style={
+                    "textAlign": "center",
+                    "padding": "0.9375rem",
+                    "color": "#999",
+                    "fontSize": "0.75rem"
+                }
         )
         
         return cards_output, markers
@@ -712,9 +712,9 @@ def register_carpark_callbacks(app):
                 "Select a location to view nearest carparks",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
@@ -726,9 +726,9 @@ def register_carpark_callbacks(app):
             return html.Div(
                 "Invalid coordinates",
                 style={
-                    "padding": "10px",
+                    "padding": "0.625rem",
                     "color": "#ff6b6b",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "textAlign": "center"
                 }
             ), []
@@ -746,9 +746,9 @@ def register_carpark_callbacks(app):
                 "No carparks found within 500m",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#999",
-                    "fontSize": "12px",
+                    "fontSize": "0.75rem",
                     "fontStyle": "italic"
                 }
             ), []
@@ -761,9 +761,9 @@ def register_carpark_callbacks(app):
                 "Error fetching carpark data",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#ff6b6b",
-                    "fontSize": "12px"
+                    "fontSize": "0.75rem"
                 }
             ), []
 
@@ -774,9 +774,9 @@ def register_carpark_callbacks(app):
                 "No carpark data available",
                 style={
                     "textAlign": "center",
-                    "padding": "15px",
+                    "padding": "0.9375rem",
                     "color": "#ff6b6b",
-                    "fontSize": "12px"
+                    "fontSize": "0.75rem"
                 }
             ), []
 
@@ -851,20 +851,20 @@ def register_carpark_callbacks(app):
                             html.Span(
                                 f"{type_initial}: ",
                                 style={
-                                    "fontSize": "9px",
+                                    "fontSize": "0.5625rem",
                                     "color": "#999",
                                 }
                             ),
                             html.Span(
                                 f"{avail_info['available']}",
                                 style={
-                                    "fontSize": "9px",
+                                    "fontSize": "0.5625rem",
                                     "color": avail_info['color'],
                                     "fontWeight": "bold",
                                 }
                             ),
                         ],
-                        style={"marginBottom": "2px"}
+                        style={"marginBottom": "0.125rem"}
                     )
                 )
 
@@ -881,25 +881,25 @@ def register_carpark_callbacks(app):
                                         carpark_number,
                                         style={
                                             "display": "inline-block",
-                                            "padding": "2px 8px",
+                                            "padding": "0.125rem 0.5rem",
                                             "backgroundColor": "#2196F3",
                                             "color": "#fff",
-                                            "borderRadius": "4px",
-                                            "fontSize": "11px",
+                                            "borderRadius": "0.25rem",
+                                            "fontSize": "0.6875rem",
                                             "fontWeight": "bold",
-                                            "marginRight": "8px",
+                                            "marginRight": "0.5rem",
                                         }
                                     ),
                                     html.Span(
                                         f"{distance_str}",
                                         style={
-                                            "fontSize": "10px",
+                                            "fontSize": "0.625rem",
                                             "color": "#999",
                                         }
                                     ),
                                 ],
                                 style={
-                                    "marginBottom": "3px",
+                                    "marginBottom": "0.1875rem",
                                     "display": "flex",
                                     "alignItems": "center"
                                 }
@@ -908,7 +908,7 @@ def register_carpark_callbacks(app):
                             html.Div(
                                 address if address != 'N/A' else 'No address',
                                 style={
-                                    "fontSize": "9px",
+                                    "fontSize": "0.5625rem",
                                     "color": "#ccc",
                                     "overflow": "hidden",
                                     "textOverflow": "ellipsis",
@@ -920,25 +920,25 @@ def register_carpark_callbacks(app):
                     ),
                     # Right side: Availability info
                     html.Div(
-                        availability_elements if availability_elements else html.Span("No data", style={"fontSize": "9px", "color": "#666"}),
+                        availability_elements if availability_elements else html.Span("No data", style={"fontSize": "0.5625rem", "color": "#666"}),
                         style={
                             "display": "flex",
                             "flexDirection": "column",
                             "alignItems": "flex-end",
                             "justifyContent": "center",
-                            "marginLeft": "8px"
+                            "marginLeft": "0.5rem"
                         }
                     )
                 ],
                 style={
-                    "padding": "6px 8px",
-                    "marginBottom": "4px",
+                    "padding": "0.375rem 0.5rem",
+                    "marginBottom": "0.25rem",
                     "backgroundColor": "#000000",
-                    "borderRadius": "4px",
-                    "borderLeft": "3px solid #60a5fa",
+                    "borderRadius": "0.25rem",
+                    "borderLeft": "0.1875rem solid #60a5fa",
                     "display": "flex",
                     "alignItems": "center",
-                    "gap": "8px"
+                    "gap": "0.5rem"
                 }
             )
 
@@ -947,12 +947,12 @@ def register_carpark_callbacks(app):
         # Return cards and markers
         cards_output = carpark_cards if carpark_cards else html.P(
             "No carpark data available",
-            style={
-                "textAlign": "center",
-                "padding": "15px",
-                "color": "#999",
-                "fontSize": "12px"
-            }
+                style={
+                    "textAlign": "center",
+                    "padding": "0.9375rem",
+                    "color": "#999",
+                    "fontSize": "0.75rem"
+                }
         )
 
         return cards_output, markers
