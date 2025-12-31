@@ -32,8 +32,8 @@ def nearby_transport_page():
         id="nearby-transport-page",
         style={
             "display": "none",  # Hidden by default
-            "padding": "20px",
-            "height": "calc(100vh - 120px)",
+            "padding": "1.25rem",
+            "height": "calc(100vh - 7.5rem)",
             "width": "100%",
         },
         children=[
@@ -42,9 +42,9 @@ def nearby_transport_page():
                 id="nearby-transport-content",
                 style={
                     "display": "flex",
-                    "gap": "20px",
-                    "height": "calc(100% - 50px)",
-                    "maxWidth": "1800px",
+                    "gap": "1.25rem",
+                    "height": "calc(100% - 3.125rem)",
+                    "maxWidth": "112.5rem",
                     "margin": "0 auto",
                 },
                 children=[
@@ -53,13 +53,13 @@ def nearby_transport_page():
                         id="nearby-transport-info-panel",
                         style={
                             "width": "30%",
-                            "minWidth": "300px",
+                            "minWidth": "18.75rem",
                             "display": "flex",
                             "flexDirection": "column",
-                            "gap": "15px",
+                            "gap": "0.9375rem",
                             "backgroundColor": "#1a2a3a",
-                            "borderRadius": "8px",
-                            "padding": "15px",
+                            "borderRadius": "0.5rem",
+                            "padding": "0.9375rem",
                             "overflowY": "auto",
                         },
                         children=[
@@ -67,8 +67,8 @@ def nearby_transport_page():
                                 "Nearby Facilities",
                                 style={
                                     "color": "#fff",
-                                    "margin": "0 0 15px 0",
-                                    "fontSize": "18px",
+                                    "margin": "0 0 0.9375rem 0",
+                                    "fontSize": "1.125rem",
                                     "fontWeight": "600",
                                 }
                             ),
@@ -78,7 +78,7 @@ def nearby_transport_page():
                                 style={
                                     "display": "flex",
                                     "flexDirection": "column",
-                                    "gap": "10px",
+                                    "gap": "0.625rem",
                                     "flex": "1",
                                     "overflowY": "auto",
                                 },
@@ -87,7 +87,7 @@ def nearby_transport_page():
                                     html.Div(
                                         style={
                                             "display": "flex",
-                                            "gap": "10px",
+                                            "gap": "0.625rem",
                                             "width": "100%",
                                         },
                                         children=[
@@ -97,19 +97,19 @@ def nearby_transport_page():
                                                 style={
                                                     "flex": "1",
                                                     "backgroundColor": "#2c3e50",
-                                                    "borderRadius": "5px",
-                                                    "padding": "15px",
-                                                    "minHeight": "150px"
+                                                    "borderRadius": "0.3125rem",
+                                                    "padding": "0.9375rem",
+                                                    "minHeight": "9.375rem"
                                                 },
                                                 children=[
                                                     html.H4(
                                                         "Nearest MRT (1KM radius) with crowd level",
                                                         style={
                                                             "textAlign": "center",
-                                                            "marginBottom": "10px",
+                                                            "marginBottom": "0.625rem",
                                                             "color": "#fff",
                                                             "fontWeight": "700",
-                                                            "fontSize": "14px"
+                                                            "fontSize": "0.875rem"
                                                         }
                                                     ),
                                                     html.Div(
@@ -117,7 +117,7 @@ def nearby_transport_page():
                                                         style={
                                                             "overflowY": "auto",
                                                             "overflowX": "hidden",
-                                                            "maxHeight": "calc(100% - 40px)"
+                                                            "maxHeight": "calc(100% - 2.5rem)"
                                                         },
                                                         children=[
                                                             html.P(
@@ -125,9 +125,9 @@ def nearby_transport_page():
                                                                 style={
                                                                     "textAlign": "center",
                                                                     "color": "#999",
-                                                                    "fontSize": "12px",
+                                                                    "fontSize": "0.75rem",
                                                                     "fontStyle": "italic",
-                                                                    "padding": "15px"
+                                                                    "padding": "0.9375rem"
                                                                 }
                                                             )
                                                         ]
@@ -140,19 +140,19 @@ def nearby_transport_page():
                                                 style={
                                                     "flex": "1",
                                                     "backgroundColor": "#2c3e50",
-                                                    "borderRadius": "5px",
-                                                    "padding": "15px",
-                                                    "minHeight": "150px"
+                                                    "borderRadius": "0.3125rem",
+                                                    "padding": "0.9375rem",
+                                                    "minHeight": "9.375rem"
                                                 },
                                                 children=[
                                                     html.H4(
                                                         "Top 5 Nearest HDB Carparks",
                                                         style={
                                                             "textAlign": "center",
-                                                            "marginBottom": "10px",
+                                                            "marginBottom": "0.625rem",
                                                             "color": "#fff",
                                                             "fontWeight": "700",
-                                                            "fontSize": "14px"
+                                                            "fontSize": "0.875rem"
                                                         }
                                                     ),
                                                     html.Div(
@@ -160,7 +160,7 @@ def nearby_transport_page():
                                                         style={
                                                             "overflowY": "auto",
                                                             "overflowX": "hidden",
-                                                            "maxHeight": "calc(100% - 40px)"
+                                                            "maxHeight": "calc(100% - 2.5rem)"
                                                         },
                                                         children=[
                                                             html.P(
@@ -168,9 +168,9 @@ def nearby_transport_page():
                                                                 style={
                                                                     "textAlign": "center",
                                                                     "color": "#999",
-                                                                    "fontSize": "12px",
+                                                                    "fontSize": "0.75rem",
                                                                     "fontStyle": "italic",
-                                                                    "padding": "15px"
+                                                                    "padding": "0.9375rem"
                                                                 }
                                                             )
                                                         ]
@@ -183,19 +183,19 @@ def nearby_transport_page():
                                                 style={
                                                     "flex": "1",
                                                     "backgroundColor": "#2c3e50",
-                                                    "borderRadius": "5px",
-                                                    "padding": "15px",
-                                                    "minHeight": "150px"
+                                                    "borderRadius": "0.3125rem",
+                                                    "padding": "0.9375rem",
+                                                    "minHeight": "9.375rem"
                                                 },
                                                 children=[
                                                     html.H4(
                                                         "Top 5 Nearest Bus Stops",
                                                         style={
                                                             "textAlign": "center",
-                                                            "marginBottom": "10px",
+                                                            "marginBottom": "0.625rem",
                                                             "color": "#fff",
                                                             "fontWeight": "700",
-                                                            "fontSize": "14px"
+                                                            "fontSize": "0.875rem"
                                                         }
                                                     ),
                                                     html.Div(
@@ -203,7 +203,7 @@ def nearby_transport_page():
                                                         style={
                                                             "overflowY": "auto",
                                                             "overflowX": "hidden",
-                                                            "maxHeight": "calc(100% - 40px)"
+                                                            "maxHeight": "calc(100% - 2.5rem)"
                                                         },
                                                         children=[
                                                             html.P(
@@ -211,9 +211,9 @@ def nearby_transport_page():
                                                                 style={
                                                                     "textAlign": "center",
                                                                     "color": "#999",
-                                                                    "fontSize": "12px",
+                                                                    "fontSize": "0.75rem",
                                                                     "fontStyle": "italic",
-                                                                    "padding": "15px"
+                                                                    "padding": "0.9375rem"
                                                                 }
                                                             )
                                                         ]
@@ -226,7 +226,7 @@ def nearby_transport_page():
                                     html.Div(
                                         style={
                                             "display": "flex",
-                                            "gap": "10px",
+                                            "gap": "0.625rem",
                                             "width": "100%",
                                         },
                                         children=[
@@ -236,19 +236,19 @@ def nearby_transport_page():
                                                 style={
                                                     "flex": "1",
                                                     "backgroundColor": "#2c3e50",
-                                                    "borderRadius": "5px",
-                                                    "padding": "15px",
-                                                    "minHeight": "150px"
+                                                    "borderRadius": "0.3125rem",
+                                                    "padding": "0.9375rem",
+                                                    "minHeight": "9.375rem"
                                                 },
                                                 children=[
                                                     html.H4(
                                                         "Nearby 300m Taxi Stands",
                                                         style={
                                                             "textAlign": "center",
-                                                            "marginBottom": "10px",
+                                                            "marginBottom": "0.625rem",
                                                             "color": "#fff",
                                                             "fontWeight": "700",
-                                                            "fontSize": "14px"
+                                                            "fontSize": "0.875rem"
                                                         }
                                                     ),
                                                     html.Div(
@@ -256,7 +256,7 @@ def nearby_transport_page():
                                                         style={
                                                             "overflowY": "auto",
                                                             "overflowX": "hidden",
-                                                            "maxHeight": "calc(100% - 40px)"
+                                                            "maxHeight": "calc(100% - 2.5rem)"
                                                         },
                                                         children=[
                                                             html.P(
@@ -264,9 +264,9 @@ def nearby_transport_page():
                                                                 style={
                                                                     "textAlign": "center",
                                                                     "color": "#999",
-                                                                    "fontSize": "12px",
+                                                                    "fontSize": "0.75rem",
                                                                     "fontStyle": "italic",
-                                                                    "padding": "15px"
+                                                                    "padding": "0.9375rem"
                                                                 }
                                                             )
                                                         ]
@@ -279,19 +279,19 @@ def nearby_transport_page():
                                                 style={
                                                     "flex": "1",
                                                     "backgroundColor": "#2c3e50",
-                                                    "borderRadius": "5px",
-                                                    "padding": "15px",
-                                                    "minHeight": "150px"
+                                                    "borderRadius": "0.3125rem",
+                                                    "padding": "0.9375rem",
+                                                    "minHeight": "9.375rem"
                                                 },
                                                 children=[
                                                     html.H4(
                                                         "Nearby 100m Bicycle Parking Spots",
                                                         style={
                                                             "textAlign": "center",
-                                                            "marginBottom": "10px",
+                                                            "marginBottom": "0.625rem",
                                                             "color": "#fff",
                                                             "fontWeight": "700",
-                                                            "fontSize": "14px"
+                                                            "fontSize": "0.875rem"
                                                         }
                                                     ),
                                                     html.Div(
@@ -299,7 +299,7 @@ def nearby_transport_page():
                                                         style={
                                                             "overflowY": "auto",
                                                             "overflowX": "hidden",
-                                                            "maxHeight": "calc(100% - 40px)"
+                                                            "maxHeight": "calc(100% - 2.5rem)"
                                                         },
                                                         children=[
                                                             html.P(
@@ -307,9 +307,9 @@ def nearby_transport_page():
                                                                 style={
                                                                     "textAlign": "center",
                                                                     "color": "#999",
-                                                                    "fontSize": "12px",
+                                                                    "fontSize": "0.75rem",
                                                                     "fontStyle": "italic",
-                                                                    "padding": "15px"
+                                                                    "padding": "0.9375rem"
                                                                 }
                                                             )
                                                         ]
@@ -326,19 +326,19 @@ def nearby_transport_page():
                                 style={
                                     "flex": "1",
                                     "backgroundColor": "#2c3e50",
-                                    "borderRadius": "5px",
-                                    "padding": "15px",
-                                    "minHeight": "150px"
+                                    "borderRadius": "0.3125rem",
+                                    "padding": "0.9375rem",
+                                    "minHeight": "9.375rem"
                                 },
                                 children=[
                                     html.H4(
                                         "Nearby EV Charging Points",
                                         style={
                                             "textAlign": "center",
-                                            "marginBottom": "10px",
+                                            "marginBottom": "0.625rem",
                                             "color": "#fff",
                                             "fontWeight": "700",
-                                            "fontSize": "14px"
+                                            "fontSize": "0.875rem"
                                         }
                                     ),
                                     html.Div(
@@ -346,7 +346,7 @@ def nearby_transport_page():
                                         style={
                                             "overflowY": "auto",
                                             "overflowX": "hidden",
-                                            "maxHeight": "calc(100% - 40px)"
+                                            "maxHeight": "calc(100% - 2.5rem)"
                                         },
                                         children=[
                                             html.P(
@@ -354,9 +354,9 @@ def nearby_transport_page():
                                                 style={
                                                     "textAlign": "center",
                                                     "color": "#999",
-                                                    "fontSize": "12px",
+                                                    "fontSize": "0.75rem",
                                                     "fontStyle": "italic",
-                                                    "padding": "15px"
+                                                    "padding": "0.9375rem"
                                                 }
                                             )
                                         ]
@@ -370,11 +370,11 @@ def nearby_transport_page():
                         id="nearby-transport-map-panel",
                         style={
                             "flex": "1",
-                            "minWidth": "500px",
+                            "minWidth": "31.25rem",
                             "display": "flex",
                             "flexDirection": "column",
                             "height": "100%",
-                            "gap": "10px",
+                            "gap": "0.625rem",
                         },
                         children=[
                             # Search bar above map
@@ -387,7 +387,7 @@ def nearby_transport_page():
                                     dcc.Dropdown(
                                         id="nearby-transport-search",
                                         placeholder="Search address or location in Singapore",
-                                        style={"width": "100%", "marginBottom": "8px"},
+                                        style={"width": "100%", "marginBottom": "0.5rem"},
                                         searchable=True,
                                         clearable=True,
                                         optionHeight=40,
@@ -401,7 +401,7 @@ def nearby_transport_page():
                                     "flex": "1",
                                     "minHeight": "0",
                                     "backgroundColor": "#1a2a3a",
-                                    "borderRadius": "8px",
+                                    "borderRadius": "0.5rem",
                                     "overflow": "hidden",
                                 },
                                 children=[
@@ -416,7 +416,7 @@ def nearby_transport_page():
                                         style={
                                             "width": "100%",
                                             "height": "100%",
-                                            "minHeight": "400px",
+                                            "minHeight": "25rem",
                                             "backgroundColor": "#1a2a3a",
                                         },
                                         children=[
