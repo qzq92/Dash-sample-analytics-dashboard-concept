@@ -32,8 +32,8 @@ def speed_band_page():
         id="speed-band-page",
         style={
             "display": "none",  # Hidden by default
-            "padding": "20px",
-            "height": "calc(100vh - 120px)",
+            "padding": "1.25rem",
+            "height": "calc(100vh - 7.5rem)",
             "width": "100%",
         },
         children=[
@@ -42,9 +42,9 @@ def speed_band_page():
                 id="speed-band-content",
                 style={
                     "display": "flex",
-                    "gap": "20px",
-                    "height": "calc(100% - 50px)",
-                    "maxWidth": "1800px",
+                    "gap": "1.25rem",
+                    "height": "calc(100% - 3.125rem)",
+                    "maxWidth": "112.5rem",
                     "margin": "0 auto",
                 },
                 children=[
