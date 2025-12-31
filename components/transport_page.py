@@ -32,8 +32,8 @@ def transport_page():
         id="transport-page",
         style={
             "display": "none",  # Hidden by default
-            "padding": "20px",
-            "height": "calc(100vh - 120px)",
+            "padding": "1.25rem",
+            "height": "calc(100vh - 7.5rem)",
             "width": "100%",
         },
         children=[
