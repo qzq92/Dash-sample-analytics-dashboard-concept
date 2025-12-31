@@ -16,7 +16,7 @@ def train_service_alerts_component():
         style={
             "backgroundColor": "#4a5a6a",
             "borderRadius": "8px",
-            "padding": "10px",
+            "padding": "0.25rem",
             "display": "flex",
             "flexDirection": "column",
             "gap": "8px",
