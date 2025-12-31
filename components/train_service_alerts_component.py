@@ -15,11 +15,11 @@ def train_service_alerts_component():
         id="train-service-alerts-container",
         style={
             "backgroundColor": "#4a5a6a",
-            "borderRadius": "8px",
+            "borderRadius": "0.5rem",
             "padding": "0.25rem",
             "display": "flex",
             "flexDirection": "column",
-            "gap": "8px",
+            "gap": "0.5rem",
         },
         children=[
             html.Div(
@@ -35,7 +35,7 @@ def train_service_alerts_component():
                         style={
                             "color": "#fff",
                             "fontWeight": "600",
-                            "fontSize": "13px"
+                            "fontSize": "0.8125rem"
                         }
                     ),
                     html.Div(style={"flex": "1"}),  # Spacer
