@@ -298,7 +298,7 @@ def format_mrt_line_operational_details(data):
 
 def register_train_service_alerts_callbacks(app):
     """
-    Register callbacks for train service alerts.
+    Register callbacks for train service alerts and station crowd alerts.
     
     Args:
         app: Dash app instance
@@ -307,28 +307,20 @@ def register_train_service_alerts_callbacks(app):
         Output('train-service-alerts-status', 'children'),
         Input('interval-component', 'n_intervals')
     )
-    def update_train_service_alerts(n_intervals):
+    def update_train_service_alerts(_n_intervals):
         """
         Update train service alerts periodically.
-        
-        Args:
-            n_intervals: Number of intervals (from dcc.Interval component)
-            
-        Returns:
-            Formatted HTML elements displaying train service alerts
         """
+        alerts_display = html.P("Error loading train service alerts", style={
+            "color": "#ff4444", "fontSize": "0.75rem"
+        })
         try:
-            # Fetch train service alerts
             data = fetch_train_service_alerts()
-            
-            # Format and return the alerts
-            return format_train_service_alerts(data)
+            alerts_display = format_train_service_alerts(data)
         except Exception as error:
             print(f"Error updating train service alerts: {error}")
-            return html.P("Error loading train service alerts", style={
-                "color": "#ff4444",
-                "fontSize": "0.75rem"
-            })
+
+        return alerts_display
     
     @app.callback(
         Output('mrt-line-status-display', 'children'),
