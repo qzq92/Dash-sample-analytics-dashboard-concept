@@ -37,6 +37,7 @@ _road_infra_cache: Dict[str, Optional[Any]] = {
     'vms': None,
     'taxi_stands': None,
     'bicycle_parking': None,
+    'bicycle_parking_bucket': None,  # YYYYMM bucket for monthly refresh
     'speed_camera_df': None,  # DataFrame cache
     'erp_gantries': None,  # Parsed ERP gantry data
 }
@@ -53,6 +54,7 @@ def clear_road_infra_cache():
         'vms': None,
         'taxi_stands': None,
         'bicycle_parking': None,
+        'bicycle_parking_bucket': None,
         'speed_camera_df': None,
         'erp_gantries': None,
     }
@@ -728,7 +730,7 @@ def create_taxi_stands_markers(taxi_stands_data):
                     position=[latitude, longitude],
                     icon=triangle_icon,
                     children=[
-                        dl.Tooltip(tooltip_text),
+                        dl.Tooltip(html.Pre(tooltip_text, style={"margin": "0", "fontFamily": "inherit"})),
                     ]
                 )
             )
@@ -1357,7 +1359,7 @@ def create_fixed_speed_camera_markers() -> List[dl.CircleMarker]:
                     fillOpacity=0.7,
                     weight=2,
                     children=[
-                        dl.Tooltip(f"Fixed Speed Camera\n{location}"),
+                        dl.Tooltip(html.Pre(f"Fixed Speed Camera\n{location}", style={"margin": "0", "fontFamily": "inherit"})),
                     ]
                 )
             )
@@ -1551,7 +1553,7 @@ def fetch_ev_charging_points(postal_code: str):
                 value_data = data.get('value', {})
                 if isinstance(value_data, dict):
                     ev_list = value_data.get('evLocationsData', [])
-                    print(f"  Number of charging points found: {len(ev_list)}")
+                    print(f"  Number of locations found: {len(ev_list)}")
                     if ev_list:
                         print(f"  First charging point sample: {ev_list[0]}")
                 else:
@@ -1593,46 +1595,87 @@ def create_ev_charging_markers(ev_data):
     if not isinstance(value_data, dict):
         return markers
         
-    charging_points = value_data.get('evLocationsData', [])
+    locations = value_data.get('evLocationsData', [])
     
-    # Ensure charging_points is a list
-    if not isinstance(charging_points, list):
+    # Ensure locations is a list
+    if not isinstance(locations, list):
         return markers
     
-    for point in charging_points:
+    for loc in locations:
         try:
-            # Ensure point is a dictionary
-            if not isinstance(point, dict):
+            # Ensure loc is a dictionary
+            if not isinstance(loc, dict):
                 continue
                 
-            latitude = float(point.get('Latitude', 0))
-            longitude = float(point.get('Longitude', 0))
-            address = point.get('Address', 'N/A')
-            status = point.get('Status', '')
+            # Handle both TitleCase and lowercase keys as the API or data format might vary
+            lat = float(loc.get('latitude') or loc.get('Latitude', 0))
+            lon = float(loc.get('longitude') or loc.get('Longitude', 0))
+            address = loc.get('address') or loc.get('Address', 'N/A')
             
-            if latitude == 0 or longitude == 0:
+            if lat == 0 or lon == 0:
                 continue
             
-            # Map status: 0 = occupied, 1 = available, "" = not available
-            if status == "0":
-                status_text = "Occupied"
-            elif status == "1":
-                status_text = "Available"
-            elif status == "":
-                status_text = "Not Available"
+            # Build tooltip content
+            tooltip_content = []
+            tooltip_content.append(html.B(f"Address: {address}"))
+            tooltip_content.append(html.Br())
+            
+            charging_points = loc.get('chargingPoints', [])
+            if not isinstance(charging_points, list):
+                charging_points = []
+                
+            if not charging_points:
+                loc_status = loc.get('status') or loc.get('Status', 'N/A')
+                tooltip_content.append(f"Status: {loc_status}")
             else:
-                status_text = f"Status: {status}"
-            
-            # Create tooltip with address and status
-            tooltip_html = (
-                f"Address: {address}"
-                f"Status: {status_text}"
-            )
-            
-            # Create circle marker for EV charging point (using electric blue color)
+                for i, cp in enumerate(charging_points):
+                    if i > 0:
+                        tooltip_content.append(html.Hr(style={"margin": "5px 0"}))
+                        
+                    cp_status_raw = cp.get('status') or cp.get('Status', '')
+                    if cp_status_raw == '1':
+                        cp_status = "Available"
+                    elif cp_status_raw == '0':
+                        cp_status = "Occupied"
+                    else:
+                        cp_status = cp_status_raw or "N/A"
+                        
+                    operator = cp.get('operator') or cp.get('Operator', 'N/A')
+                    position = cp.get('position') or cp.get('Position', 'N/A')
+                    
+                    plug_types = cp.get('plugTypes', [])
+                    if isinstance(plug_types, list) and plug_types:
+                        for j, pt in enumerate(plug_types):
+                            if j > 0:
+                                tooltip_content.append(html.Br())
+                                tooltip_content.append("---")
+                                tooltip_content.append(html.Br())
+                            
+                            plug_type = pt.get('plugType') or pt.get('PlugType', 'N/A')
+                            power_rating = pt.get('powerRating') or pt.get('PowerRating', 'N/A')
+                            speed = pt.get('chargingSpeed') or pt.get('ChargingSpeed', 'N/A')
+                            price = pt.get('price') or pt.get('Price', 'N/A')
+                            price_type = pt.get('priceType') or pt.get('PriceType', '')
+                            
+                            tooltip_content.extend([
+                                f"Status: {cp_status}", html.Br(),
+                                f"Operator: {operator}", html.Br(),
+                                f"Position: {position}", html.Br(),
+                                f"PlugType (rating): {plug_type}({power_rating})", html.Br(),
+                                f"ChargingSpeed: {speed}", html.Br(),
+                                f"Price: {price}{price_type}"
+                            ])
+                    else:
+                        tooltip_content.extend([
+                            f"Status: {cp_status}", html.Br(),
+                            f"Operator: {operator}", html.Br(),
+                            f"Position: {position}"
+                        ])
+
+            # Create circle marker for EV charging point
             markers.append(
                 dl.CircleMarker(
-                    center=[latitude, longitude],
+                    center=[lat, lon],
                     radius=6,
                     color="#00BFFF",  # Deep sky blue for EV charging
                     fill=True,
@@ -1640,12 +1683,12 @@ def create_ev_charging_markers(ev_data):
                     fillOpacity=0.7,
                     weight=2,
                     children=[
-                        dl.Tooltip(tooltip_html),
+                        dl.Tooltip(html.Div(tooltip_content, style={"fontSize": "11px", "maxWidth": "250px"})),
                     ]
                 )
             )
         except (ValueError, TypeError, KeyError, AttributeError) as e:
-            print(f"Error processing EV charging point: {e}, point type: {type(point)}")
+            print(f"Error processing EV charging point: {e}, loc type: {type(loc)}")
             continue
     
     return markers
@@ -2074,8 +2117,14 @@ def fetch_bicycle_parking_data():
     """
     global _road_infra_cache
     
-    # Return cached data if available
-    if _road_infra_cache['bicycle_parking'] is not None:
+    # Monthly cache bucket (YYYYMM) - bicycle parking updates monthly
+    current_bucket = datetime.now().year * 100 + datetime.now().month
+
+    # Return cached data if available and still within the same month
+    if (
+        _road_infra_cache['bicycle_parking'] is not None
+        and _road_infra_cache.get('bicycle_parking_bucket') == current_bucket
+    ):
         return _road_infra_cache['bicycle_parking']
     
     import requests
@@ -2100,43 +2149,22 @@ def fetch_bicycle_parking_data():
     params = {
         "Lat": lat,
         "Long": lon,
-        "Dist": 100  # Increased to 100km to ensure we cover all of Singapore
+        "Dist": 999
+
     }
     
     try:
-        # First attempt: try with large distance
-        response = requests.get(BICYCLE_PARKING_URL, headers=headers, params=params, timeout=30)
+        response = requests.get(BICYCLE_PARKING_URL, headers=headers, params=params, timeout=60)
         
         # If successful, check if we got all results
         if 200 <= response.status_code < 300:
             data = response.json()
             parking_count = len(data.get('value', []))
-            print(f"Fetched {parking_count} bicycle parking locations with dist=100")
+            print(f"Fetched {parking_count} bicycle parking locations with {params}")
             
-            # If we got results but suspect there might be more, try without distance parameter
-            # (Some APIs return all results when distance is omitted)
-            if parking_count > 0 and parking_count < 1000:  # Suspiciously low count
-                print("Attempting to fetch all bicycle parking without distance limit...")
-                params_no_dist = {
-                    "Lat": lat,
-                    "Long": lon
-                }
-                try:
-                    response_all = requests.get(BICYCLE_PARKING_URL, headers=headers, 
-                                               params=params_no_dist, timeout=30)
-                    if 200 <= response_all.status_code < 300:
-                        data_all = response_all.json()
-                        all_count = len(data_all.get('value', []))
-                        if all_count > parking_count:
-                            print(f"Found more results without distance limit: {all_count}")
-                            data = data_all
-                            parking_count = all_count
-                except requests.exceptions.RequestException:
-                    pass  # Fall back to dist=100 results
-            
-            # Cache the result
             if data:
                 _road_infra_cache['bicycle_parking'] = data
+                _road_infra_cache['bicycle_parking_bucket'] = current_bucket
                 print(f"Bicycle parking data cached in memory: {parking_count} locations")
             return data
         print(f"Bicycle parking API request failed: status={response.status_code}")
@@ -2209,6 +2237,62 @@ def fetch_nearby_taxi_stands(lat: float, lon: float, radius_m: int = 300) -> lis
     return processed_results
 
 
+def create_nearby_taxi_stands_markers(nearby_taxi_stands: list) -> list:
+    """
+    Create map markers for nearby taxi stands from processed list.
+
+    Args:
+        nearby_taxi_stands: List of taxi stand dictionaries returned by fetch_nearby_taxi_stands()
+
+    Returns:
+        List of dl.Marker components
+    """
+    if not nearby_taxi_stands:
+        return []
+
+    markers = []
+    for stand in nearby_taxi_stands:
+        try:
+            lat = float(stand.get('latitude', 0))
+            lon = float(stand.get('longitude', 0))
+            if lat == 0 or lon == 0:
+                continue
+
+            taxi_code = stand.get('taxi_code', 'N/A')
+            name = stand.get('name', 'N/A')
+            stand_type = stand.get('stand_type', 'N/A')
+            ownership = stand.get('ownership', 'N/A')
+            bfa = stand.get('bfa', 'N/A')
+            distance_m = float(stand.get('distance_m', 0))
+            distance_str = f"{int(distance_m)}m" if distance_m < 1000 else f"{distance_m/1000:.2f}km"
+
+            tooltip_text = (
+                f"• Taxi Stand: {taxi_code} ({name})\n"
+                f"• Distance: {distance_str}\n"
+                f"• Type: {stand_type}\n"
+                f"• Ownership: {ownership}\n"
+                f"• BFA: {bfa}"
+            )
+
+            # Simple taxi stand marker (yellow circle) for nearby view
+            markers.append(
+                dl.CircleMarker(
+                    center=[lat, lon],
+                    radius=7,
+                    color="#FFD700",
+                    weight=2,
+                    fill=True,
+                    fillColor="#FFD700",
+                    fillOpacity=0.8,
+                    children=[dl.Tooltip(html.Pre(tooltip_text, style={"margin": "0", "fontFamily": "inherit"}))]
+                )
+            )
+        except (ValueError, TypeError):
+            continue
+
+    return markers
+
+
 def fetch_nearby_bicycle_parking(lat: float, lon: float, radius_m: int = 500) -> list:
     """
     Fetch nearby bicycle parking data within specified radius.
@@ -2231,13 +2315,11 @@ def fetch_nearby_bicycle_parking(lat: float, lon: float, radius_m: int = 500) ->
     parking_locations = full_data.get('value', [])
     processed_results = []
     
-    for loc in parking_locations:
+    for i,loc in enumerate(parking_locations):
+        print(str(i) +":"+ loc)
         try:
             parking_lat = float(loc.get('Latitude', 0))
             parking_lon = float(loc.get('Longitude', 0))
-            
-            if parking_lat == 0 or parking_lon == 0:
-                continue
             
             # Calculate distance using haversine formula
             distance_m = _haversine_distance_m(lat, lon, parking_lat, parking_lon)
@@ -2341,7 +2423,7 @@ def create_bicycle_parking_markers(bicycle_data):
                     position=[latitude, longitude],
                     icon=bicycle_rack_icon,
                     children=[
-                        dl.Tooltip(tooltip_html),
+                        dl.Tooltip(html.Pre(tooltip_html, style={"margin": "0", "fontFamily": "inherit"})),
                     ]
                 )
             )
@@ -2426,7 +2508,7 @@ def create_nearby_bicycle_parking_markers(bicycle_parking_list):
                     position=[latitude, longitude],
                     icon=bicycle_rack_icon,
                     children=[
-                        dl.Tooltip(tooltip_html),
+                        dl.Tooltip(html.Pre(tooltip_html, style={"margin": "0", "fontFamily": "inherit"})),
                     ]
                 )
             )
@@ -3232,13 +3314,134 @@ def register_transport_callbacks(app):
         
         return markers, count_value, legend_style, legend_content
 
+    # Callback for nearby transport page - taxi stands (within 300m)
+    @app.callback(
+        [Output('nearby-transport-taxi-stand-content', 'children'),
+         Output('nearby-taxi-stand-markers', 'children')],
+        [Input('nearby-transport-map', 'viewport'),
+         Input('nearby-transport-location-store', 'data')]
+    )
+    def update_nearby_transport_taxi_stands(viewport, location_data):
+        """
+        Update taxi stands display for nearby transport page based on selected location.
+        Shows taxi stands within 300m of the selected location.
+        """
+        # Prefer viewport center (so panning/zooming updates nearby results)
+        center = None
+        if isinstance(viewport, dict):
+            center = viewport.get('center')
+
+        if isinstance(center, (list, tuple)) and len(center) == 2:
+            center_lat, center_lon = center[0], center[1]
+        else:
+            if not location_data:
+                return html.P(
+                    "Select a location to view nearest taxi stands",
+                    style={
+                        "textAlign": "center",
+                        "padding": "0.9375rem",
+                        "color": "#999",
+                        "fontSize": "0.75rem",
+                        "fontStyle": "italic"
+                    }
+                ), []
+
+            try:
+                center_lat = float(location_data.get('lat'))
+                center_lon = float(location_data.get('lon'))
+            except (ValueError, TypeError, KeyError, AttributeError):
+                return html.Div(
+                    "Invalid coordinates",
+                    style={
+                        "padding": "0.625rem",
+                        "color": "#ff6b6b",
+                        "fontSize": "0.75rem",
+                        "textAlign": "center"
+                    }
+                ), []
+
+        print(f"Searching for taxi stands near ({center_lat}, {center_lon}) within 300m (viewport-driven)")
+        nearby_stands = fetch_nearby_taxi_stands(center_lat, center_lon, radius_m=300)
+        print(f"Found {len(nearby_stands)} taxi stands within 300m")
+
+        if not nearby_stands:
+            return html.P(
+                "No taxi stands found within 300m",
+                style={
+                    "textAlign": "center",
+                    "padding": "0.9375rem",
+                    "color": "#999",
+                    "fontSize": "0.75rem",
+                    "fontStyle": "italic"
+                }
+            ), []
+
+        markers = create_nearby_taxi_stands_markers(nearby_stands)
+
+        stand_items = []
+        for stand in nearby_stands:
+            taxi_code = stand.get('taxi_code', 'N/A')
+            name = stand.get('name', 'N/A')
+            distance_m = stand.get('distance_m', 0)
+            lat = stand.get('latitude', 0)
+            lon = stand.get('longitude', 0)
+
+            if distance_m < 1000:
+                distance_str = f"{int(distance_m)}m"
+            else:
+                distance_str = f"{distance_m/1000:.2f}km"
+
+            location_str = f"{lat:.6f}, {lon:.6f}" if lat and lon else "N/A"
+
+            stand_items.append(
+                html.Div(
+                    [
+                        html.Div(
+                            f"{taxi_code} ({name})",
+                            style={
+                                "fontSize": "0.8125rem",
+                                "color": "#fff",
+                                "fontWeight": "600",
+                                "marginBottom": "0.25rem"
+                            }
+                        ),
+                        html.Div(
+                            f"Distance: {distance_str}",
+                            style={
+                                "fontSize": "0.75rem",
+                                "color": "#FFD700",
+                                "fontWeight": "500",
+                                "marginBottom": "2px"
+                            }
+                        ),
+                        html.Div(
+                            f"Location: {location_str}",
+                            style={
+                                "fontSize": "0.75rem",
+                                "color": "#ccc",
+                            }
+                        )
+                    ],
+                    style={
+                        "padding": "0.625rem 0.75rem",
+                        "borderBottom": "0.0625rem solid #444",
+                        "marginBottom": "0.375rem",
+                        "backgroundColor": "#1a1a1a",
+                        "borderRadius": "0.25rem"
+                    }
+                )
+            )
+
+        return stand_items, markers
+
     # Callback for nearby transport page - bicycle parking
     @app.callback(
         [Output('nearby-transport-bicycle-content', 'children'),
          Output('nearby-bicycle-markers', 'children')],
-        Input('nearby-transport-location-store', 'data')
+        [Input('nearby-transport-map', 'viewport'),
+         Input('nearby-transport-location-store', 'data')]
     )
-    def update_nearby_transport_bicycle_parking(location_data):
+    def update_nearby_transport_bicycle_parking(viewport, location_data):
         """
         Update bicycle parking display for nearby transport page based on selected location.
         Shows bicycle parking within 100m of the selected location.
@@ -3249,36 +3452,43 @@ def register_transport_callbacks(app):
         Returns:
             HTML Div containing bicycle parking information and markers
         """
-        if not location_data:
-            return html.P(
-                "Select a location to view nearest bicycle parking",
-                style={
-                    "textAlign": "center",
-                    "padding": "0.9375rem",
-                    "color": "#999",
-                    "fontSize": "0.75rem",
-                    "fontStyle": "italic"
-                }
-            ), []
+        # Prefer viewport center (so panning/zooming updates nearby results)
+        center = None
+        if isinstance(viewport, dict):
+            center = viewport.get('center')
 
-        try:
-            center_lat = float(location_data.get('lat'))
-            center_lon = float(location_data.get('lon'))
-        except (ValueError, TypeError, KeyError):
-            return html.Div(
-                "Invalid coordinates",
-                style={
-                    "padding": "0.625rem",
-                    "color": "#ff6b6b",
-                    "fontSize": "0.75rem",
-                    "textAlign": "center"
-                }
-            ), []
+        if isinstance(center, (list, tuple)) and len(center) == 2:
+            center_lat, center_lon = center[0], center[1]
+        else:
+            if not location_data:
+                return html.P(
+                    "Select a location to view nearest bicycle parking",
+                    style={
+                        "textAlign": "center",
+                        "padding": "0.9375rem",
+                        "color": "#999",
+                        "fontSize": "0.75rem",
+                        "fontStyle": "italic"
+                    }
+                ), []
 
-        # Fetch nearby bicycle parking within 100m
-        print(f"Searching for bicycle parking near ({center_lat}, {center_lon}) for nearby transport page")
+            # Fallback to stored lat/lon (e.g., from search)
+            try:
+                center_lat = float(location_data.get('lat'))
+                center_lon = float(location_data.get('lon'))
+            except (ValueError, TypeError, KeyError, AttributeError):
+                return html.Div(
+                    "Invalid coordinates",
+                    style={
+                        "padding": "0.625rem",
+                        "color": "#ff6b6b",
+                        "fontSize": "0.75rem",
+                        "textAlign": "center"
+                    }
+                ), []
+
+        # Monthly dataset: filter locally around viewport center (100m)
         nearby_parking = fetch_nearby_bicycle_parking(center_lat, center_lon, radius_m=100)
-        print(f"Found {len(nearby_parking)} bicycle parking locations within 100m")
 
         if not nearby_parking:
             return html.P(
@@ -3449,10 +3659,10 @@ def register_transport_callbacks(app):
                 }
             ), []
 
-        charging_points = value_data.get('evLocationsData', [])
+        locations = value_data.get('evLocationsData', [])
         
-        # Ensure charging_points is a list
-        if not isinstance(charging_points, list) or not charging_points:
+        # Ensure locations is a list
+        if not isinstance(locations, list) or not locations:
             return html.P(
                 "No EV charging points found for this postal code",
                 style={
@@ -3470,30 +3680,51 @@ def register_transport_callbacks(app):
         # Build display components for each EV charging point
         charging_items = []
 
-        for point in charging_points:
-            # Ensure point is a dictionary
-            if not isinstance(point, dict):
-                print(f"Skipping invalid charging point (not a dict): {point}, type: {type(point)}")
+        for loc in locations:
+            # Ensure loc is a dictionary
+            if not isinstance(loc, dict):
+                print(f"Skipping invalid location (not a dict): {loc}, type: {type(loc)}")
                 continue
                 
-            address = point.get('Address', 'N/A')
-            status = point.get('Status', '')
+            address = loc.get('address') or loc.get('Address', 'N/A')
             
-            # Map status: 0 = occupied, 1 = available, "" = not available
-            if status == "0":
-                status_text = "Occupied"
-                status_color = "#ff6b6b"  # Red
-            elif status == "1":
-                status_text = "Available"
-                status_color = "#4CAF50"  # Green
-            elif status == "":
-                status_text = "Not Available"
-                status_color = "#999"  # Gray
-            else:
-                status_text = f"Status: {status}"
-                status_color = "#999"
+            # For the list display, we might want to show a summary or the first charging point
+            charging_points = loc.get('chargingPoints', [])
+            cp_details = []
+            
+            if isinstance(charging_points, list) and charging_points:
+                for cp in charging_points:
+                    cp_status_raw = cp.get('status') or cp.get('Status', '')
+                    if cp_status_raw == '1':
+                        cp_status = "Available"
+                        cp_color = "#4CAF50"  # Green
+                    elif cp_status_raw == '0':
+                        cp_status = "Occupied"
+                        cp_color = "#ff6b6b"  # Red
+                    else:
+                        cp_status = cp_status_raw or "N/A"
+                        cp_color = "#999"  # Gray
+                    
+                    operator = cp.get('operator') or cp.get('Operator', 'N/A')
+                    position = cp.get('position') or cp.get('Position', 'N/A')
+                    
+                    cp_details.append(
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Span(f"{cp_status}", style={"color": cp_color, "fontWeight": "bold"}),
+                                        html.Span(f" | {operator}", style={"color": "#ccc", "fontSize": "0.7rem"}),
+                                    ],
+                                    style={"marginBottom": "2px"}
+                                ),
+                                html.Div(f"Pos: {position}", style={"color": "#aaa", "fontSize": "0.65rem"})
+                            ],
+                            style={"marginTop": "4px", "paddingLeft": "8px", "borderLeft": f"2px solid {cp_color}"}
+                        )
+                    )
 
-            # Create card for each EV charging point
+            # Create card for each EV charging location
             charging_items.append(
                 html.Div(
                     [
@@ -3506,16 +3737,7 @@ def register_transport_callbacks(app):
                                 "marginBottom": "0.25rem"
                             }
                         ),
-                        html.Div(
-                            html.Span(
-                                status_text,
-                                style={
-                                    "color": status_color,
-                                    "fontSize": "0.75rem",
-                                    "fontWeight": "500"
-                                }
-                            ),
-                        )
+                        html.Div(cp_details)
                     ],
                     style={
                         "padding": "0.625rem 0.75rem",
