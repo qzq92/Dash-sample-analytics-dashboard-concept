@@ -710,25 +710,36 @@ def create_taxi_stands_markers(taxi_stands_data):
                 f"• Type: {stand_type}"
             )
             
-            # Create triangle marker for taxi stands using DivIcon with SVG
-            triangle_svg = (
-                '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">'
-                '<path d="M 8 0 L 16 16 L 0 16 Z" fill="#FFA500" stroke="#FFA500" stroke-width="1"/>'
-                '</svg>'
-            )
-            triangle_svg_base64 = base64.b64encode(triangle_svg.encode()).decode()
+            # Create text box label for taxi stand (similar to carpark)
+            # Use taxi_code as the label, or a shortened name if code is N/A
+            label_text = taxi_code if taxi_code != 'N/A' else (name[:8] if len(name) > 8 else name)
             
-            triangle_icon = {
-                "iconUrl": f"data:image/svg+xml;base64,{triangle_svg_base64}",
-                "iconSize": [16, 16],
-                "iconAnchor": [8, 16],
-                "popupAnchor": [0, -16],
-            }
+            marker_html = (
+                f'<div style="position:relative;display:flex;flex-direction:column;'
+                f'align-items:center;">'
+                f'<div style="background:#FFA500;color:#fff;padding:0.25rem 0.5rem;'
+                f'border-radius:0.25rem;border:0.125rem solid #fff;'
+                f'box-shadow:0 0.125rem 0.5rem rgba(255,165,0,0.6);'
+                f'font-size:0.6875rem;font-weight:bold;white-space:nowrap;">'
+                f'{label_text}</div>'
+                f'<div style="width:0;height:0;border-left:0.5rem solid transparent;'
+                f'border-right:0.5rem solid transparent;border-top:0.5rem solid #FFA500;'
+                f'margin-top:-0.125rem;"></div>'
+                f'</div>'
+            )
+            
+            marker_id = f"taxi-stand-{taxi_code}-{latitude}-{longitude}"
             
             markers.append(
-                dl.Marker(
+                dl.DivMarker(
+                    id=marker_id,
                     position=[latitude, longitude],
-                    icon=triangle_icon,
+                    iconOptions={
+                        'className': 'taxi-stand-pin',
+                        'html': marker_html,
+                        'iconSize': [60, 40],
+                        'iconAnchor': [30, 40],
+                    },
                     children=[
                         dl.Tooltip(html.Pre(tooltip_text, style={"margin": "0", "fontFamily": "inherit"})),
                     ]
@@ -1672,16 +1683,31 @@ def create_ev_charging_markers(ev_data):
                             f"Position: {position}"
                         ])
 
-            # Create circle marker for EV charging point
+            # Create EV charger icon SVG
+            ev_charger_svg = (
+                '<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+                '<rect x="4" y="6" width="16" height="12" rx="2" fill="#00BFFF" opacity="0.9" stroke="#0066CC" stroke-width="1.5"/>'
+                '<circle cx="8" cy="12" r="1.5" fill="#fff"/>'
+                '<circle cx="16" cy="12" r="1.5" fill="#fff"/>'
+                '<path d="M 6 2 L 6 6 M 18 2 L 18 6" stroke="#00BFFF" stroke-width="2" stroke-linecap="round"/>'
+                '<path d="M 10 18 L 10 20 M 14 18 L 14 20" stroke="#00BFFF" stroke-width="2" stroke-linecap="round"/>'
+                '<path d="M 12 20 L 12 22" stroke="#00BFFF" stroke-width="2" stroke-linecap="round"/>'
+                '</svg>'
+            )
+            ev_charger_svg_base64 = base64.b64encode(ev_charger_svg.encode()).decode()
+            
+            ev_charger_icon = {
+                "iconUrl": f"data:image/svg+xml;base64,{ev_charger_svg_base64}",
+                "iconSize": [24, 24],
+                "iconAnchor": [12, 24],
+                "popupAnchor": [0, -24],
+            }
+            
+            # Create marker with EV charger icon
             markers.append(
-                dl.CircleMarker(
-                    center=[lat, lon],
-                    radius=6,
-                    color="#00BFFF",  # Deep sky blue for EV charging
-                    fill=True,
-                    fillColor="#00BFFF",
-                    fillOpacity=0.7,
-                    weight=2,
+                dl.Marker(
+                    position=[lat, lon],
+                    icon=ev_charger_icon,
                     children=[
                         dl.Tooltip(html.Div(tooltip_content, style={"fontSize": "11px", "maxWidth": "250px"})),
                     ]
@@ -2106,6 +2132,51 @@ def format_erp_count_display(gantry_data):
     )
 
 
+def save_bicycle_parking_to_csv(data, filepath="data/BicycleParking.csv"):
+    """
+    Save bicycle parking data to CSV file.
+    
+    Args:
+        data: Dictionary containing bicycle parking response from LTA API
+        filepath: Path to save the CSV file (default: data/BicycleParking.csv)
+    """
+    if not data or 'value' not in data:
+        print("No bicycle parking data to save")
+        return
+    
+    parking_locations = data.get('value', [])
+    if not parking_locations:
+        print("No bicycle parking locations to save")
+        return
+    
+    try:
+        # Create DataFrame from the data
+        df = pd.DataFrame(parking_locations)
+        
+        # Ensure all expected columns exist (add with default values if missing)
+        expected_columns = ['Latitude', 'Longitude', 'Description', 'RackType', 'RackCount', 'ShelterIndicator']
+        for col in expected_columns:
+            if col not in df.columns:
+                df[col] = 'N/A'
+        
+        # Select and reorder columns for CSV
+        columns_to_save = ['Latitude', 'Longitude', 'Description', 'RackType', 'RackCount', 'ShelterIndicator']
+        # Include any additional columns that might exist
+        for col in df.columns:
+            if col not in columns_to_save:
+                columns_to_save.append(col)
+        
+        df_to_save = df[columns_to_save]
+        
+        # Save to CSV
+        df_to_save.to_csv(filepath, index=False)
+        print(f"Saved {len(df_to_save)} bicycle parking locations to {filepath}")
+    except Exception as e:
+        print(f"Error saving bicycle parking data to CSV: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 def fetch_bicycle_parking_data():
     """
     Fetch bicycle parking data from LTA DataMall API.
@@ -2166,6 +2237,9 @@ def fetch_bicycle_parking_data():
                 _road_infra_cache['bicycle_parking'] = data
                 _road_infra_cache['bicycle_parking_bucket'] = current_bucket
                 print(f"Bicycle parking data cached in memory: {parking_count} locations")
+                
+                # Save to CSV file
+                save_bicycle_parking_to_csv(data)
             return data
         print(f"Bicycle parking API request failed: status={response.status_code}")
     except (requests.exceptions.RequestException, ValueError) as error:
@@ -2274,16 +2348,36 @@ def create_nearby_taxi_stands_markers(nearby_taxi_stands: list) -> list:
                 f"• BFA: {bfa}"
             )
 
-            # Simple taxi stand marker (yellow circle) for nearby view
+            # Create text box label for taxi stand (similar to carpark)
+            # Use taxi_code as the label, or a shortened name if code is N/A
+            label_text = taxi_code if taxi_code != 'N/A' else (name[:8] if len(name) > 8 else name)
+            
+            marker_html = (
+                f'<div style="position:relative;display:flex;flex-direction:column;'
+                f'align-items:center;">'
+                f'<div style="background:#FFA500;color:#fff;padding:0.25rem 0.5rem;'
+                f'border-radius:0.25rem;border:0.125rem solid #fff;'
+                f'box-shadow:0 0.125rem 0.5rem rgba(255,165,0,0.6);'
+                f'font-size:0.6875rem;font-weight:bold;white-space:nowrap;">'
+                f'{label_text}</div>'
+                f'<div style="width:0;height:0;border-left:0.5rem solid transparent;'
+                f'border-right:0.5rem solid transparent;border-top:0.5rem solid #FFA500;'
+                f'margin-top:-0.125rem;"></div>'
+                f'</div>'
+            )
+            
+            marker_id = f"taxi-stand-nearby-{taxi_code}-{lat}-{lon}"
+            
             markers.append(
-                dl.CircleMarker(
-                    center=[lat, lon],
-                    radius=7,
-                    color="#FFD700",
-                    weight=2,
-                    fill=True,
-                    fillColor="#FFD700",
-                    fillOpacity=0.8,
+                dl.DivMarker(
+                    id=marker_id,
+                    position=[lat, lon],
+                    iconOptions={
+                        'className': 'taxi-stand-pin',
+                        'html': marker_html,
+                        'iconSize': [60, 40],
+                        'iconAnchor': [30, 40],
+                    },
                     children=[dl.Tooltip(html.Pre(tooltip_text, style={"margin": "0", "fontFamily": "inherit"}))]
                 )
             )
@@ -2291,6 +2385,74 @@ def create_nearby_taxi_stands_markers(nearby_taxi_stands: list) -> list:
             continue
 
     return markers
+
+
+def fetch_bicycle_parking_from_api(lat: float, lon: float, dist_m: int = 300) -> list:
+    """
+    Fetch bicycle parking data directly from LTA DataMall API for a specific location.
+    
+    Args:
+        lat: Latitude in degrees
+        lon: Longitude in degrees
+        dist_m: Search radius in meters (default: 300)
+    
+    Returns:
+        List of bicycle parking dictionaries with distance information
+    """
+    import requests
+    
+    api_key = os.getenv("LTA_API_KEY")
+    if not api_key:
+        print("Warning: LTA_API_KEY not found")
+        return []
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    # Convert meters to km (API expects distance in km, rounded to 1 decimal)
+    dist_km = round(dist_m / 1000, 1)
+    
+    params = {
+        "Lat": lat,
+        "Long": lon,
+        "Dist": dist_km
+    }
+    
+    try:
+        response = requests.get(BICYCLE_PARKING_URL, headers=headers, params=params, timeout=30)
+        if 200 <= response.status_code < 300:
+            data = response.json()
+            parking_locations = data.get('value', [])
+            
+            # Process and calculate distances
+            processed_results = []
+            for loc in parking_locations:
+                try:
+                    parking_lat = float(loc.get('Latitude', 0))
+                    parking_lon = float(loc.get('Longitude', 0))
+                    distance_m = _haversine_distance_m(lat, lon, parking_lat, parking_lon)
+                    
+                    processed_results.append({
+                        'description': loc.get('Description', 'N/A'),
+                        'rack_type': loc.get('RackType', 'N/A'),
+                        'rack_count': loc.get('RackCount', 'N/A'),
+                        'shelter_indicator': loc.get('ShelterIndicator', 'N'),
+                        'latitude': parking_lat,
+                        'longitude': parking_lon,
+                        'distance_m': distance_m,
+                    })
+                except (ValueError, TypeError, KeyError):
+                    continue
+            
+            # Sort by distance
+            processed_results.sort(key=lambda x: x['distance_m'])
+            return processed_results
+    except Exception as e:
+        print(f"Error fetching bicycle parking from API: {e}")
+        return []
 
 
 def fetch_nearby_bicycle_parking(lat: float, lon: float, radius_m: int = 500) -> list:
@@ -2316,7 +2478,7 @@ def fetch_nearby_bicycle_parking(lat: float, lon: float, radius_m: int = 500) ->
     processed_results = []
     
     for i,loc in enumerate(parking_locations):
-        print(str(i) +":"+ loc)
+        #print(str(i) +":"+ str(loc))
         try:
             parking_lat = float(loc.get('Latitude', 0))
             parking_lon = float(loc.get('Longitude', 0))
@@ -3125,195 +3287,6 @@ def register_transport_callbacks(app):
 
         return markers, count_value, messages_display, messages_style
 
-    @app.callback(
-        [Output('bicycle-parking-toggle-state', 'data'),
-         Output('bicycle-parking-toggle-btn', 'style'),
-         Output('bicycle-parking-toggle-btn', 'children')],
-        Input('bicycle-parking-toggle-btn', 'n_clicks'),
-        State('bicycle-parking-toggle-state', 'data'),
-        prevent_initial_call=True
-    )
-    def toggle_bicycle_parking_display(_n_clicks, current_state):
-        """Toggle bicycle parking markers display on/off."""
-        new_state = not current_state
-
-        if new_state:
-            # Active state - purple background
-            style = {
-                "backgroundColor": "#9C27B0",
-                "border": "none",
-                "borderRadius": "0.25rem",
-                "color": "#fff",
-                "cursor": "pointer",
-                "padding": "0.375rem 0.75rem",
-                "fontSize": "0.75rem",
-                "fontWeight": "600",
-            }
-            text = "Hide Bicycle Parking Locations"
-        else:
-            # Inactive state - outline
-            style = {
-                "backgroundColor": "transparent",
-                "border": "0.125rem solid #9C27B0",
-                "borderRadius": "0.25rem",
-                "color": "#9C27B0",
-                "cursor": "pointer",
-                "padding": "0.25rem 0.625rem",
-                "fontSize": "0.75rem",
-                "fontWeight": "600",
-            }
-            text = "Show Bicycle Parking Locations"
-
-        return new_state, style, text
-
-    @app.callback(
-        [Output('bicycle-parking-markers', 'children'),
-         Output('bicycle-parking-count-value', 'children'),
-         Output('bicycle-parking-legend', 'style'),
-         Output('bicycle-parking-legend-content', 'children')],
-        [Input('bicycle-parking-toggle-state', 'data'),
-         Input('transport-interval', 'n_intervals')]
-    )
-    def update_bicycle_parking_display(show_bicycle_parking, n_intervals):
-        """Update bicycle parking markers and count display."""
-        _ = n_intervals  # Used for periodic refresh
-
-        # Always fetch data to display counts
-        data = fetch_bicycle_parking_data()
-        
-        if not data or 'value' not in data:
-            count_value = html.Div(
-                html.Span("--/--", style={"color": "#999"}),
-                style={
-                    "backgroundColor": "rgb(58, 74, 90)",
-                    "padding": "0.25rem 0.5rem",
-                    "borderRadius": "0.25rem",
-                }
-            )
-            legend_style = {
-                "position": "absolute",
-                "top": "120px",  # Position below taxi legend
-                "right": "10px",
-                "backgroundColor": "rgba(26, 42, 58, 0.9)",
-                "borderRadius": "8px",
-                "padding": "0.625rem",
-                "zIndex": "1000",
-                "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
-                "display": "none",
-            }
-            return [], count_value, legend_style, []
-        
-        parking_locations = data.get('value', [])
-        
-        # Count sheltered vs unsheltered
-        sheltered_count = sum(1 for loc in parking_locations if loc.get('ShelterIndicator') == 'Y')
-        unsheltered_count = len(parking_locations) - sheltered_count
-        
-        # Format as "sheltered/unsheltered"
-        count_value = html.Div(
-            html.Span(f"{sheltered_count}/{unsheltered_count}", style={"color": "#9C27B0"}),
-            style={
-                "backgroundColor": "rgb(58, 74, 90)",
-                "padding": "0.25rem 0.5rem",
-                "borderRadius": "0.25rem",
-            }
-        )
-        
-        # Legend style - show when toggle is on
-        legend_style = {
-            "position": "absolute",
-            "top": "120px",  # Position below taxi legend
-            "right": "10px",
-            "backgroundColor": "rgba(26, 42, 58, 0.9)",
-            "borderRadius": "8px",
-            "padding": "0.625rem",
-            "zIndex": "1000",
-            "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
-            "display": "block" if show_bicycle_parking else "none",
-        }
-        
-        # Create legend content with both icon types
-        sheltered_svg = (
-            '<svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
-            '<rect x="2" y="2" width="20" height="20" rx="2" fill="#9C27B0" opacity="0.2" stroke="#9C27B0" stroke-width="1.5"/>'
-            '<path d="M 3 3 L 3 19 M 7 3 L 7 19 M 11 3 L 11 19 M 15 3 L 15 19 M 19 3 L 19 19" '
-            'stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
-            '<path d="M 4 19 L 20 19" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
-            '<path d="M 2 3 Q 12 1 22 3" stroke="#9C27B0" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
-            '<path d="M 2 2 L 22 2" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
-            '</svg>'
-        )
-        sheltered_svg_base64 = base64.b64encode(sheltered_svg.encode()).decode()
-        
-        unsheltered_svg = (
-            '<svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
-            '<rect x="2" y="2" width="20" height="20" rx="2" fill="#9C27B0" opacity="0.2" stroke="#9C27B0" stroke-width="1.5"/>'
-            '<path d="M 6 4 L 6 20 M 10 4 L 10 20 M 14 4 L 14 20 M 18 4 L 18 20" '
-            'stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
-            '<path d="M 4 20 L 20 20" stroke="#9C27B0" stroke-width="2.5" stroke-linecap="round"/>'
-            '</svg>'
-        )
-        unsheltered_svg_base64 = base64.b64encode(unsheltered_svg.encode()).decode()
-        
-        legend_content = [
-            html.Div(
-                style={
-                    "display": "flex",
-                    "alignItems": "center",
-                    "marginBottom": "6px",
-                },
-                children=[
-                    html.Img(
-                        src=f"data:image/svg+xml;base64,{sheltered_svg_base64}",
-                        style={
-                            "width": "20px",
-                            "height": "20px",
-                            "marginRight": "8px",
-                        }
-                    ),
-                    html.Span(
-                        "Sheltered",
-                        style={
-                            "color": "#fff",
-                            "fontSize": "0.6875rem",
-                        }
-                    ),
-                ]
-            ),
-            html.Div(
-                style={
-                    "display": "flex",
-                    "alignItems": "center",
-                },
-                children=[
-                    html.Img(
-                        src=f"data:image/svg+xml;base64,{unsheltered_svg_base64}",
-                        style={
-                            "width": "20px",
-                            "height": "20px",
-                            "marginRight": "8px",
-                        }
-                    ),
-                    html.Span(
-                        "Unsheltered",
-                        style={
-                            "color": "#fff",
-                            "fontSize": "0.6875rem",
-                        }
-                    ),
-                ]
-            ),
-        ]
-        
-        # Only show markers if toggle is on
-        if not show_bicycle_parking:
-            return [], count_value, legend_style, []
-        
-        # Create markers
-        markers = create_bicycle_parking_markers(data)
-        
-        return markers, count_value, legend_style, legend_content
-
     # Callback for nearby transport page - taxi stands (within 300m)
     @app.callback(
         [Output('nearby-transport-taxi-stand-content', 'children'),
@@ -3444,7 +3417,7 @@ def register_transport_callbacks(app):
     def update_nearby_transport_bicycle_parking(viewport, location_data):
         """
         Update bicycle parking display for nearby transport page based on selected location.
-        Shows bicycle parking within 100m of the selected location.
+        Shows bicycle parking within 300m of the selected location.
         
         Args:
             location_data: Dictionary containing {'lat': float, 'lon': float} of selected location
@@ -3487,12 +3460,12 @@ def register_transport_callbacks(app):
                     }
                 ), []
 
-        # Monthly dataset: filter locally around viewport center (100m)
-        nearby_parking = fetch_nearby_bicycle_parking(center_lat, center_lon, radius_m=100)
+        # Fetch bicycle parking from API within 300m
+        nearby_parking = fetch_bicycle_parking_from_api(center_lat, center_lon, dist_m=300)
 
         if not nearby_parking:
             return html.P(
-                "No bicycle parking found within 100m",
+                "No bicycle parking found within 300m",
                 style={
                     "textAlign": "center",
                     "padding": "0.9375rem",
