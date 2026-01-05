@@ -2,15 +2,14 @@
 Callback functions for handling map interactions and OneMap search API integration.
 Reference: https://www.onemap.gov.sg/apidocs/search
 """
-import requests
-import os
 import re
 from urllib.parse import quote_plus
+
+import requests
 from dotenv import load_dotenv
 from dash.dependencies import Input, Output
-from dash import no_update, html
+from dash import no_update
 import dash_leaflet as dl
-from auth.onemap_api import get_onemap_token
 load_dotenv(override=True)
 
 def search_location_via_onemap_info(searchVal: str, returnGeom: str = "Y", getAddrDetails: str = "Y", pageNum: int = 1):
@@ -289,6 +288,8 @@ def register_search_callbacks(app):
             print("No dropdown value, returning no_update")
             return no_update, no_update, []
 
+
+
         try:
             # Parse the dropdown value
             # Format: lat,lon,address,postal (postal is optional)
@@ -324,7 +325,13 @@ def register_search_callbacks(app):
             }
 
             # Update location store with postal code if available
-            location_data = {"lat": lat, "lon": lon, "address": address}
+            location_data = {
+                "lat": lat,
+                "lon": lon,
+                "address": address,
+                # Seed viewport so nearby tab features can use map center immediately
+                "viewport": {"center": [lat, lon], "zoom": 18}
+            }
             if postal_code:
                 location_data["postal_code"] = postal_code
 
