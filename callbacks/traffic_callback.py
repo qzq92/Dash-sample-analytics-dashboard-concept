@@ -186,11 +186,11 @@ def register_camera_feed_callbacks(app):
     """
     Register callbacks for displaying camera feed images on the main page.
     """
-    from dash import Input, Output
+    from dash import Input, Output, html
 
     @app.callback(
-        [Output('camera-feed-2701', 'src'),
-         Output('camera-feed-4713', 'src'),
+        [Output('camera-feed-2701-container', 'children'),
+         Output('camera-feed-4713-container', 'children'),
          Output('camera-2701-metadata', 'children'),
          Output('camera-4713-metadata', 'children')],
         Input('interval-component', 'n_intervals')
@@ -203,7 +203,7 @@ def register_camera_feed_callbacks(app):
             n_intervals: Number of intervals (from dcc.Interval component)
 
         Returns:
-            Tuple of (image_2701, image_4713, metadata_2701, metadata_4713)
+            Tuple of (image_container_2701, image_container_4713, metadata_2701, metadata_4713)
         """
         # n_intervals is required by the callback but not used directly
         _ = n_intervals
@@ -212,7 +212,15 @@ def register_camera_feed_callbacks(app):
             metadata_dict = query_traffic_metadata()
 
             if not metadata_dict:
-                return None, None, "Metadata unavailable", "Metadata unavailable"
+                no_image_text = html.Div(
+                    "Image not available",
+                    style={
+                        "color": "#999",
+                        "fontSize": "0.875rem",
+                        "textAlign": "center",
+                    }
+                )
+                return no_image_text, no_image_text, "Metadata unavailable", "Metadata unavailable"
 
             # Get images for specific cameras
             img_2701 = get_camera_image_base64(metadata_dict, "2701")
@@ -222,7 +230,54 @@ def register_camera_feed_callbacks(app):
             meta_2701 = format_metadata_text(metadata_dict, "2701")
             meta_4713 = format_metadata_text(metadata_dict, "4713")
 
-            return img_2701, img_4713, meta_2701, meta_4713
+            # Create image containers or text placeholders
+            if img_2701:
+                container_2701 = html.Img(
+                    src=img_2701,
+                    style={
+                        "width": "100%",
+                        "height": "100%",
+                        "objectFit": "cover",
+                    }
+                )
+            else:
+                container_2701 = html.Div(
+                    "Image not available",
+                    style={
+                        "color": "#999",
+                        "fontSize": "0.875rem",
+                        "textAlign": "center",
+                    }
+                )
+
+            if img_4713:
+                container_4713 = html.Img(
+                    src=img_4713,
+                    style={
+                        "width": "100%",
+                        "height": "100%",
+                        "objectFit": "cover",
+                    }
+                )
+            else:
+                container_4713 = html.Div(
+                    "Image not available",
+                    style={
+                        "color": "#999",
+                        "fontSize": "0.875rem",
+                        "textAlign": "center",
+                    }
+                )
+
+            return container_2701, container_4713, meta_2701, meta_4713
         except (KeyError, AttributeError, TypeError) as error:
             print(f"Error updating camera feeds: {error}")
-            return None, None, "Metadata unavailable", "Metadata unavailable"
+            no_image_text = html.Div(
+                "Image not available",
+                style={
+                    "color": "#999",
+                    "fontSize": "0.875rem",
+                    "textAlign": "center",
+                }
+            )
+            return no_image_text, no_image_text, "Metadata unavailable", "Metadata unavailable"

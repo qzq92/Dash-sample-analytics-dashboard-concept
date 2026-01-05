@@ -160,17 +160,8 @@ app.layout = html.Div(
                                                         "justifyContent": "center",
                                                         "backgroundColor": "#000",
                                                     },
-                                                    children=[
-                                                        html.Img(
-                                                            id="camera-feed-2701",
-                                                            src="",
-                                                            style={
-                                                                "width": "100%",
-                                                                "height": "100%",
-                                                                "objectFit": "cover",
-                                                            }
-                                                        ),
-                                                    ]
+                                                    id="camera-feed-2701-container",
+                                                    children=[]
                                                 ),
                                                 html.Div(
                                                     id="camera-2701-metadata",
@@ -204,17 +195,8 @@ app.layout = html.Div(
                                                         "justifyContent": "center",
                                                         "backgroundColor": "#000",
                                                     },
-                                                    children=[
-                                                        html.Img(
-                                                            id="camera-feed-4713",
-                                                            src="",
-                                                            style={
-                                                                "width": "100%",
-                                                                "height": "100%",
-                                                                "objectFit": "cover",
-                                                            }
-                                                        ),
-                                                    ]
+                                                    id="camera-feed-4713-container",
+                                                    children=[]
                                                 ),
                                                 html.Div(
                                                     id="camera-4713-metadata",
