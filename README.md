@@ -180,6 +180,14 @@ The dashboard consists of 5 main pages accessible via tabs with glossy black-to-
   - Consistent styling across all interactive elements
   - White text on dark backgrounds for improved readability
 
+## Known Limitations and Restrictions
+
+### Bicycle Parking Plotting
+- **Bicycle rack plotting on map is not available**: Despite expanding the search radius in the bicycle parking API, the API returns limited results, likely due to API rate limits or data availability constraints. As a result, bicycle parking locations cannot be plotted on the main transport map. However, bicycle parking data is still available in the "Nearby Transportation & Parking" tab for locations within 300m of a selected address.
+
+### Speed Band Visualization
+- **Speed band plotting requires zoomed-in view**: Due to the massive number of traffic speed band segments (>100,000) returned by the LTA DataMall API, plotting all segments at once can cause the web browser to hang or become unresponsive. To mitigate this, speed band visualization is only displayed when the map is zoomed in to a sufficient level, reducing the number of visible segments and ensuring smooth performance.
+
 ## Screenshots of app
 
 ### Main Dashboard Page
