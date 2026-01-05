@@ -260,56 +260,6 @@ def transport_page():
                                     ),
                                 ]
                             ),
-                            # Bicycle Parking card
-                            html.Div(
-                                id="bicycle-parking-card",
-                                style={
-                                    "backgroundColor": "#4a5a6a",
-                                    "borderRadius": "8px",
-                                    "padding": "10px",
-                                    "display": "flex",
-                                    "flexDirection": "column",
-                                    "gap": "8px",
-                                },
-                                children=[
-                                    html.Div(
-                                        style={
-                                            "display": "flex",
-                                            "flexDirection": "row",
-                                            "alignItems": "center",
-                                            "justifyContent": "space-between",
-                                        },
-                                        children=[
-                                            html.Span(
-                                                "🚴 Bicycle Parking (Sheltered/Unsheltered)",
-                                                style={
-                                                    "color": "#fff",
-                                                    "fontWeight": "600",
-                                                    "fontSize": "13px"
-                                                }
-                                            ),
-                                            html.Div(
-                                                id="bicycle-parking-count-value",
-                                                style={
-                                                    "color": "#9C27B0",
-                                                    "fontSize": "1.125rem",
-                                                    "fontWeight": "700",
-                                                },
-                                                children=[
-                                                    html.Div(
-                                                        html.Span("--/--", style={"color": "#999"}),
-                                                        style={
-                                                            "backgroundColor": "rgb(58, 74, 90)",
-                                                            "padding": "4px 8px",
-                                                            "borderRadius": "4px",
-                                                        }
-                                                    )
-                                                ]
-                                            ),
-                                        ]
-                                    ),
-                                ]
-                            ),
                             # VMS card
                             html.Div(
                                 id="vms-card",
@@ -559,21 +509,6 @@ def transport_page():
                                         },
                                     ),
                                     html.Button(
-                                        "Show Bicycle Parking Locations",
-                                        id="bicycle-parking-toggle-btn",
-                                        n_clicks=0,
-                                        style={
-                                            "backgroundColor": "transparent",
-                                            "border": "2px solid #9C27B0",
-                                            "borderRadius": "4px",
-                                            "color": "#9C27B0",
-                                            "cursor": "pointer",
-                                            "padding": "4px 10px",
-                                            "fontSize": "12px",
-                                            "fontWeight": "600",
-                                        },
-                                    ),
-                                    html.Button(
                                         "Show VMS Display boards Locations",
                                         id="vms-toggle-btn",
                                         n_clicks=0,
@@ -654,7 +589,6 @@ def transport_page():
                                             dl.LayerGroup(id="speed-band-markers"),
                                             dl.LayerGroup(id="speed-camera-markers"),
                                             dl.LayerGroup(id="traffic-incidents-markers"),
-                                            dl.LayerGroup(id="bicycle-parking-markers"),
                                             dl.LayerGroup(id="vms-markers"),
                                             dl.LayerGroup(id="bus-stops-markers"),
                                         ],
@@ -740,38 +674,6 @@ def transport_page():
                                             ),
                                         ]
                                     ),
-                                    # Bicycle parking legend overlay
-                                    html.Div(
-                                        id="bicycle-parking-legend",
-                                        style={
-                                            "position": "absolute",
-                                            "top": "120px",  # Position below taxi legend
-                                            "right": "10px",
-                                            "backgroundColor": "rgba(26, 42, 58, 0.9)",
-                                            "borderRadius": "8px",
-                                            "padding": "10px",
-                                            "zIndex": "1000",
-                                            "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.3)",
-                                            "display": "none",  # Hidden by default, shown when bicycle parking toggle is on
-                                        },
-                                        children=[
-                                            html.Div(
-                                                style={
-                                                    "fontSize": "12px",
-                                                    "fontWeight": "600",
-                                                    "color": "#fff",
-                                                    "marginBottom": "8px",
-                                                    "borderBottom": "1px solid #4a5a6a",
-                                                    "paddingBottom": "4px",
-                                                },
-                                                children="Bicycle Parking Legend"
-                                            ),
-                                            html.Div(
-                                                id="bicycle-parking-legend-content",
-                                                children=[]
-                                            ),
-                                        ]
-                                    ),
                                 ]
                             ),
                         ]
@@ -838,7 +740,6 @@ def transport_page():
             dcc.Store(id="speed-band-toggle-state", data=False),
             dcc.Store(id="speed-camera-toggle-state", data=False),
             dcc.Store(id="traffic-incidents-toggle-state", data=False),
-            dcc.Store(id="bicycle-parking-toggle-state", data=False),
             dcc.Store(id="vms-toggle-state", data=False),
             dcc.Store(id="bus-stops-toggle-state", data=False),
             # Interval for auto-refresh

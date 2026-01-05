@@ -178,13 +178,6 @@ def show_descriptive_stats():
                 label="Number of nearby taxi stands",
                 value="0",
             ),
-
-            # Bicycle Parking area
-            display_nearby_artefacts(
-                id="nearby-bicycle-parking-led",
-                label="Number of nearby bicycle parking points",
-                value="0",
-            ),
             # Nearby Parking area
             display_nearby_artefacts(
                 id="nearby-carpark-led",

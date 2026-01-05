@@ -285,7 +285,7 @@ def nearby_transport_page():
                                                 },
                                                 children=[
                                                     html.H4(
-                                                        "Nearby 100m Bicycle Parking Spots",
+                                                        "Nearby 300m Bicycle Parking Spots",
                                                         style={
                                                             "textAlign": "center",
                                                             "marginBottom": "0.625rem",
