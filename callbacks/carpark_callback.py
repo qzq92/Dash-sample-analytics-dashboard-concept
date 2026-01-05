@@ -386,7 +386,7 @@ def create_carpark_markers(nearby_carparks, availability_lookup=None):
                 'iconSize': [60, 40],
                 'iconAnchor': [30, 40],
             },
-            children=[dl.Tooltip(tooltip_text)]
+            children=[dl.Tooltip(html.Pre(tooltip_text, style={"margin": "0", "fontFamily": "inherit"}))]
         ))
 
     return markers
