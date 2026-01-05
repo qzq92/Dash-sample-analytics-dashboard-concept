@@ -14,7 +14,6 @@ from components.weather_indices_page import weather_indices_page
 from components.transport_page import transport_page
 from components.nearby_transport_page import nearby_transport_page
 from components.speed_band_page import speed_band_page
-from components.mrt_crowd_page import mrt_crowd_page
 from components.train_service_alerts_component import train_service_alerts_component
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
@@ -92,8 +91,6 @@ app.layout = html.Div(
                 nearby_transport_page(),
                 # Speed band page (hidden by default)
                 speed_band_page(),
-                # MRT/LRT Station Crowd page (hidden by default)
-                mrt_crowd_page(),
                 # Main content area with map and right panel side by side
                 html.Div(
                     id="main-content",
@@ -279,6 +276,21 @@ app.layout = html.Div(
                                         html.Button(
                                             "🌦️ Show 2H Forecast",
                                             id="toggle-2h-forecast",
+                                            n_clicks=0,
+                                            style={
+                                                "padding": "0.375rem 0.75rem",
+                                                "borderRadius": "0.375rem",
+                                                "border": "0.125rem solid #60a5fa",
+                                                "backgroundColor": "transparent",
+                                                "color": "#60a5fa",
+                                                "cursor": "pointer",
+                                                "fontSize": "0.75rem",
+                                                "fontWeight": "600",
+                                            }
+                                        ),
+                                        html.Button(
+                                            "🚆 MRT Crowd Level",
+                                            id="toggle-mrt-crowd",
                                             n_clicks=0,
                                             style={
                                                 "padding": "0.375rem 0.75rem",
@@ -685,6 +697,8 @@ app.layout = html.Div(
                 dcc.Store(id="2h-forecast-toggle-state", data=False),
                 # Store for Regional PSI Info toggle state
                 dcc.Store(id="psi-locations-toggle-state", data=False),
+                # Store for MRT Crowd Level toggle state (default: disabled)
+                dcc.Store(id="mrt-crowd-toggle-state", data=False),
                 # Interval component to update images and weather periodically
                 dcc.Interval(
                     id='interval-component',
