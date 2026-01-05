@@ -31,7 +31,7 @@ def train_service_alerts_component():
                 },
                 children=[
                     html.Span(
-                        "🚇 MRT/LRT service alerts",
+                        "🚇 MRT/LRT Operation Status",
                         style={
                             "color": "#fff",
                             "fontWeight": "600",
