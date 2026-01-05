@@ -100,6 +100,7 @@ def map_component(lat=None, lon=None):
                 dl.ScaleControl(imperial=False, position="bottomleft"),
                 dl.LayerGroup(id="main-psi-markers"),
                 dl.LayerGroup(id="weather-2h-markers"),
+                dl.LayerGroup(id="mrt-crowd-markers"),
             ],
         )
     ], style={"width": "100%", "height": "100%", "display": "flex", "flexDirection": "column"})
