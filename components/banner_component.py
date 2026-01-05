@@ -77,12 +77,6 @@ def build_dashboard_banner():
                             style=TAB_STYLE,
                             selected_style=TAB_SELECTED_STYLE,
                         ),
-                        dcc.Tab(
-                            label="🚇 MRT/LRT Station Crowd",
-                            value="mrt-crowd",
-                            style=TAB_STYLE,
-                            selected_style=TAB_SELECTED_STYLE,
-                        ),
                     ],
                     style={
                         "height": "auto",
