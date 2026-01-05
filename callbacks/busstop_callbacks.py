@@ -119,25 +119,34 @@ def create_bus_stop_markers(bus_stops):
         lon = bus_stop.get('longitude')
         name = bus_stop.get('name', 'Bus Stop')
         code = bus_stop.get('code', '')
-        distance_m = bus_stop.get('distance_m', 0)
 
         if lat is None or lon is None:
             continue
 
-        # Format distance
-        if distance_m < 1000:
-            distance_str = f"{int(distance_m)}m"
-        else:
-            distance_str = f"{distance_m/1000:.2f}km"
-
         # Get label letter
         label = _get_label_letter(idx)
 
-        # Build tooltip text
-        tooltip_text = f"{label}: {name}"
-        if code:
-            tooltip_text += f" ({code})"
-        tooltip_text += f" - {distance_str}"
+        # Extract road name from raw_data if available, otherwise use N/A
+        road_name = 'N/A'
+        if 'raw_data' in bus_stop:
+            raw = bus_stop['raw_data']
+            # OneMap API might have road name in different fields
+            road_name = raw.get('road', raw.get('roadName', raw.get('road_name', 'N/A')))
+        
+        # Build tooltip text as bulleted points
+        tooltip_lines = [f"• Bus Stop Code: {code}" if code else "• Bus Stop Code: N/A"]
+        if road_name and road_name != 'N/A':
+            tooltip_lines.append(f"• Road Name: {road_name}")
+        tooltip_lines.append(f"• Description: {name}")
+        
+        tooltip_content = html.Pre(
+            "\n".join(tooltip_lines),
+            style={
+                "margin": "0",
+                "whiteSpace": "pre-wrap",
+                "fontSize": "0.75rem",
+            }
+        )
 
         # Create marker HTML with label
         marker_html = (
@@ -167,7 +176,7 @@ def create_bus_stop_markers(bus_stops):
                 'iconSize': [32, 32],
                 'iconAnchor': [16, 16],
             },
-            children=[dl.Tooltip(tooltip_text)]
+            children=[dl.Tooltip(tooltip_content)]
         ))
 
     return markers
