@@ -13,7 +13,7 @@ import pandas as pd
 from datetime import datetime
 from typing import Optional, Dict, List, Any, Tuple
 from concurrent.futures import Future
-from dash import Input, Output, State, html, dependencies
+from dash import Input, Output, State, html, dependencies, callback_context
 import dash_leaflet as dl
 from utils.async_fetcher import fetch_url, fetch_async, fetch_url_2min_cached
 from utils.data_download_helper import fetch_erp_gantry_data
@@ -1219,7 +1219,7 @@ def fetch_bus_stops_data() -> Optional[Dict[str, Any]]:
     return result
 
 
-def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[dl.CircleMarker]:
+def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[dl.DivMarker]:
     """
     Create map markers for bus stop locations.
     
@@ -1227,7 +1227,7 @@ def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[d
         bus_stops_data: Dictionary containing bus stops response from LTA API
     
     Returns:
-        List of dl.CircleMarker components
+        List of dl.DivMarker components
     """
     markers = []
     
@@ -1247,59 +1247,57 @@ def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[d
             if latitude == 0 or longitude == 0:
                 continue
             
-            # Create text box label for bus stop (similar to carpark and taxi stand)
-            # Use "View bus arrival" as the label text
-            label_text = "View bus arrival"
-            
-            marker_html = (
-                f'<div style="position:relative;display:flex;flex-direction:column;'
-                f'align-items:center;">'
-                f'<div style="background:#4169E1;color:#fff;padding:0.25rem 0.5rem;'
-                f'border-radius:0.25rem;border:0.125rem solid #fff;'
-                f'box-shadow:0 0.125rem 0.5rem rgba(65,105,225,0.6);'
-                f'font-size:0.6875rem;font-weight:bold;white-space:nowrap;">'
-                f'{label_text}</div>'
-                f'<div style="width:0;height:0;border-left:0.5rem solid transparent;'
-                f'border-right:0.5rem solid transparent;border-top:0.5rem solid #4169E1;'
-                f'margin-top:-0.125rem;"></div>'
-                f'</div>'
+            # Create tooltip with basic bus stop information
+            tooltip_text = (
+                f"• Bus Stop Code: {bus_stop_code}\n"
+                f"• Road Name: {road_name}\n"
+                f"• Description: {description}\n\n"
+                f"💡 Click to show bus services and arrival time"
             )
             
             marker_id = f"bus-stop-marker-{bus_stop_code}"
-            popup_content = html.Div([
-                html.P(f"Bus Stop: {bus_stop_code}", style={"margin": "0.25rem 0", "fontWeight": "600"}),
-                html.P(f"{description}", style={"margin": "0.25rem 0", "fontSize": "0.875rem"}),
-                html.P(f"{road_name}", style={"margin": "0.25rem 0", "fontSize": "0.75rem", "color": "#666"}),
-                html.Button(
-                    "View Bus Arrivals",
-                    id={"type": "bus-stop-btn", "index": bus_stop_code},
-                    n_clicks=0,
-                    style={
-                        "marginTop": "0.5rem",
-                        "padding": "0.375rem 0.75rem",
-                        "backgroundColor": "#4169E1",
-                        "color": "#fff",
-                        "border": "none",
-                        "borderRadius": "4px",
-                        "cursor": "pointer",
-                        "fontSize": "0.75rem",
-                        "fontWeight": "600",
-                    }
-                ),
-            ])
+            
+            # Create clickable circle marker using DivMarker with a button
+            marker_html = (
+                f'<div style="position:relative;width:10px;height:10px;'
+                f'border-radius:50%;background-color:#4169E1;'
+                f'border:2px solid #4169E1;opacity:0.7;cursor:pointer;">'
+                f'</div>'
+            )
             
             markers.append(
                 dl.DivMarker(
                     id=marker_id,
                     position=[latitude, longitude],
                     iconOptions={
-                        'className': 'bus-stop-pin',
+                        'className': 'bus-stop-marker',
                         'html': marker_html,
-                        'iconSize': [100, 40],
-                        'iconAnchor': [50, 40],
+                        'iconSize': [10, 10],
+                        'iconAnchor': [5, 5],
                     },
                     children=[
-                        dl.Popup(popup_content),
+                        dl.Tooltip(
+                            html.Pre(
+                                tooltip_text,
+                                style={"margin": "0", "fontFamily": "inherit", "whiteSpace": "pre-wrap"}
+                            )
+                        ),
+                        html.Button(
+                            id={"type": "bus-stop-marker-btn", "index": bus_stop_code},
+                            n_clicks=0,
+                            style={
+                                "position": "absolute",
+                                "width": "100%",
+                                "height": "100%",
+                                "top": "0",
+                                "left": "0",
+                                "border": "none",
+                                "background": "transparent",
+                                "cursor": "pointer",
+                                "padding": "0",
+                                "margin": "0",
+                            }
+                        ),
                     ]
                 )
             )
@@ -4187,7 +4185,7 @@ def register_transport_callbacks(app):
         [Input('bus-stops-toggle-state', 'data'),
          Input('transport-interval', 'n_intervals')]
     )
-    def update_bus_stops_markers(show_bus_stops: bool, n_intervals: int) -> List[dl.CircleMarker]:
+    def update_bus_stops_markers(show_bus_stops: bool, n_intervals: int) -> List[dl.DivMarker]:
         """Update Bus Stops markers on the map."""
         if not show_bus_stops:
             return []
@@ -4273,20 +4271,23 @@ def register_transport_callbacks(app):
 
         return markers, count_value
 
-    # Bus arrival callback - handles clicks on bus stop buttons
+    # Bus arrival callback - handles clicks on bus stop markers and search input
     @app.callback(
         Output('bus-arrival-content', 'children'),
-        Input({'type': 'bus-stop-btn', 'index': dependencies.ALL}, 'n_clicks'),
-        State({'type': 'bus-stop-btn', 'index': dependencies.ALL}, 'id'),
+        [Input({'type': 'bus-stop-marker-btn', 'index': dependencies.ALL}, 'n_clicks'),
+         Input('bus-stop-search-btn', 'n_clicks')],
+        [State({'type': 'bus-stop-marker-btn', 'index': dependencies.ALL}, 'id'),
+         State('bus-stop-search-input', 'value')],
         prevent_initial_call=True
     )
-    def update_bus_arrival_display(n_clicks_list, button_ids):
-        """Update bus arrival display when a bus stop button is clicked."""
+    def update_bus_arrival_display(marker_clicks_list, search_clicks, marker_ids, search_value):
+        """Update bus arrival display when a bus stop marker is clicked or search is performed."""
         
-        # Find which button was clicked
-        if not n_clicks_list or not any(n_clicks_list):
+        # Determine which input triggered the callback
+        ctx = callback_context
+        if not ctx.triggered:
             return html.P(
-                "Click on a bus stop marker to view bus arrival times",
+                "Click on a bus stop marker or search by bus stop code",
                 style={
                     "color": "#999",
                     "textAlign": "center",
@@ -4296,30 +4297,77 @@ def register_transport_callbacks(app):
                 }
             )
         
-        # Get the index of the clicked button
-        clicked_index = None
-        for i, clicks in enumerate(n_clicks_list):
-            if clicks and clicks > 0:
-                clicked_index = i
-                break
+        trigger_id = ctx.triggered[0]['prop_id']
         
-        if clicked_index is None or clicked_index >= len(button_ids):
-            return html.P(
-                "Error: Could not identify bus stop. Please try again.",
-                style={
-                    "color": "#ff6b6b",
-                    "textAlign": "center",
-                    "fontSize": "0.75rem",
-                    "margin": "0.5rem 0",
-                }
-            )
+        bus_stop_code = None
         
-        # Extract bus stop code from button ID
-        button_id = button_ids[clicked_index]
-        if isinstance(button_id, dict):
-            bus_stop_code = button_id.get('index', '')
-        else:
-            bus_stop_code = str(button_id)
+        # Check if search button was clicked
+        if 'bus-stop-search-btn' in trigger_id:
+            if not search_value:
+                return html.P(
+                    "Please enter a bus stop code",
+                    style={
+                        "color": "#ff6b6b",
+                        "textAlign": "center",
+                        "fontSize": "0.75rem",
+                        "margin": "0.5rem 0",
+                    }
+                )
+            
+            # Validate bus stop code (must be 5 digits)
+            search_value = search_value.strip()
+            if not search_value.isdigit() or len(search_value) != 5:
+                return html.P(
+                    "Invalid bus stop code. Please enter a 5-digit number.",
+                    style={
+                        "color": "#ff6b6b",
+                        "textAlign": "center",
+                        "fontSize": "0.75rem",
+                        "margin": "0.5rem 0",
+                    }
+                )
+            
+            bus_stop_code = search_value
+        
+        # Check if a marker was clicked
+        elif 'bus-stop-marker-btn' in trigger_id:
+            # Find which marker was clicked
+            if not marker_clicks_list or not any(marker_clicks_list):
+                return html.P(
+                    "Click on a bus stop marker or search by bus stop code",
+                    style={
+                        "color": "#999",
+                        "textAlign": "center",
+                        "fontSize": "0.75rem",
+                        "fontStyle": "italic",
+                        "margin": "0.5rem 0",
+                    }
+                )
+            
+            # Get the index of the clicked marker
+            clicked_index = None
+            for i, clicks in enumerate(marker_clicks_list):
+                if clicks and clicks > 0:
+                    clicked_index = i
+                    break
+            
+            if clicked_index is None or clicked_index >= len(marker_ids):
+                return html.P(
+                    "Error: Could not identify bus stop. Please try again.",
+                    style={
+                        "color": "#ff6b6b",
+                        "textAlign": "center",
+                        "fontSize": "0.75rem",
+                        "margin": "0.5rem 0",
+                    }
+                )
+            
+            # Extract bus stop code from marker ID
+            marker_id = marker_ids[clicked_index]
+            if isinstance(marker_id, dict):
+                bus_stop_code = marker_id.get('index', '')
+            else:
+                bus_stop_code = str(marker_id)
         
         if not bus_stop_code:
             return html.P(

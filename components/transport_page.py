@@ -694,6 +694,96 @@ def transport_page():
                             "overflowY": "auto",
                         },
                         children=[
+                            # Bus Arrival Information card
+                            html.Div(
+                                id="bus-arrival-card",
+                                style={
+                                    "backgroundColor": "#4a5a6a",
+                                    "borderRadius": "8px",
+                                    "padding": "10px",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "gap": "8px",
+                                    "marginBottom": "0.9375rem",
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "flexDirection": "row",
+                                            "alignItems": "center",
+                                            "justifyContent": "space-between",
+                                        },
+                                        children=[
+                                            html.Span(
+                                                "🚌 Bus Arrival Information for Busstops",
+                                                style={
+                                                    "color": "#fff",
+                                                    "fontWeight": "600",
+                                                    "fontSize": "13px"
+                                                }
+                                            ),
+                                        ]
+                                    ),
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "gap": "0.5rem",
+                                            "marginBottom": "0.5rem",
+                                        },
+                                        children=[
+                                            dcc.Input(
+                                                id="bus-stop-search-input",
+                                                type="text",
+                                                placeholder="Enter 5-digit bus stop code",
+                                                style={
+                                                    "flex": "1",
+                                                    "padding": "0.375rem 0.5rem",
+                                                    "borderRadius": "4px",
+                                                    "border": "1px solid #5a6a7a",
+                                                    "backgroundColor": "rgb(58, 74, 90)",
+                                                    "color": "#fff",
+                                                    "fontSize": "0.75rem",
+                                                },
+                                            ),
+                                            html.Button(
+                                                "Search",
+                                                id="bus-stop-search-btn",
+                                                n_clicks=0,
+                                                style={
+                                                    "padding": "0.375rem 0.75rem",
+                                                    "backgroundColor": "#4169E1",
+                                                    "color": "#fff",
+                                                    "border": "none",
+                                                    "borderRadius": "4px",
+                                                    "cursor": "pointer",
+                                                    "fontSize": "0.75rem",
+                                                    "fontWeight": "600",
+                                                }
+                                            ),
+                                        ]
+                                    ),
+                                    html.Div(
+                                        id="bus-arrival-content",
+                                        style={
+                                            "maxHeight": "300px",
+                                            "overflowY": "auto",
+                                        },
+                                        children=[
+                                            html.P(
+                                                "Click on a bus stop marker to view bus arrival times",
+                                                style={
+                                                    "color": "#999",
+                                                    "textAlign": "center",
+                                                    "fontSize": "0.75rem",
+                                                    "fontStyle": "italic",
+                                                    "margin": "0.5rem 0",
+                                                }
+                                            )
+                                        ]
+                                    ),
+                                ]
+                            ),
                             html.Div(
                                 style={
                                     "borderBottom": "0.0625rem solid #5a6a7a",
@@ -742,6 +832,7 @@ def transport_page():
             dcc.Store(id="traffic-incidents-toggle-state", data=False),
             dcc.Store(id="vms-toggle-state", data=False),
             dcc.Store(id="bus-stops-toggle-state", data=False),
+            dcc.Store(id="selected-bus-stop-code", data=None),
             # Interval for auto-refresh
             dcc.Interval(
                 id='transport-interval',
