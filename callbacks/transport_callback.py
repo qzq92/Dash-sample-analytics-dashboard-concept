@@ -13,7 +13,7 @@ import pandas as pd
 from datetime import datetime
 from typing import Optional, Dict, List, Any, Tuple
 from concurrent.futures import Future
-from dash import Input, Output, State, html
+from dash import Input, Output, State, html, dependencies
 import dash_leaflet as dl
 from utils.async_fetcher import fetch_url, fetch_async, fetch_url_2min_cached
 from utils.data_download_helper import fetch_erp_gantry_data
@@ -29,6 +29,7 @@ BICYCLE_PARKING_URL = "https://datamall2.mytransport.sg/ltaodataservice/BicycleP
 VMS_URL = "https://datamall2.mytransport.sg/ltaodataservice/VMS"
 EV_CHARGING_URL = "https://datamall2.mytransport.sg/ltaodataservice/EVChargingPoints"
 BUS_STOPS_URL = "https://datamall2.mytransport.sg/ltaodataservice/BusStops"
+BUS_ARRIVAL_URL = "https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival"
 
 # In-memory cache for static road infrastructure data
 # These represent physical infrastructure that rarely changes
@@ -613,8 +614,8 @@ def create_erp_gantry_markers(gantry_data):
             dl.Polyline(
                 positions=coords,
                 color="#FF6B6B",
-                weight=4,
-                opacity=0.8,
+                weight=8,
+                opacity=0.9,
                 children=[
                     dl.Tooltip(tooltip_text),
                 ]
@@ -1246,25 +1247,59 @@ def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[d
             if latitude == 0 or longitude == 0:
                 continue
             
-            # Create tooltip with bus stop information (each field on separate line)
-            tooltip_html = (
-                f"Bus Stop Code: {bus_stop_code}<br>"
-                f"Road: {road_name}<br>"
-                f"Description: {description}"
+            # Create text box label for bus stop (similar to carpark and taxi stand)
+            # Use "View bus arrival" as the label text
+            label_text = "View bus arrival"
+            
+            marker_html = (
+                f'<div style="position:relative;display:flex;flex-direction:column;'
+                f'align-items:center;">'
+                f'<div style="background:#4169E1;color:#fff;padding:0.25rem 0.5rem;'
+                f'border-radius:0.25rem;border:0.125rem solid #fff;'
+                f'box-shadow:0 0.125rem 0.5rem rgba(65,105,225,0.6);'
+                f'font-size:0.6875rem;font-weight:bold;white-space:nowrap;">'
+                f'{label_text}</div>'
+                f'<div style="width:0;height:0;border-left:0.5rem solid transparent;'
+                f'border-right:0.5rem solid transparent;border-top:0.5rem solid #4169E1;'
+                f'margin-top:-0.125rem;"></div>'
+                f'</div>'
             )
             
-            # Create circle marker for bus stops (royal blue)
+            marker_id = f"bus-stop-marker-{bus_stop_code}"
+            popup_content = html.Div([
+                html.P(f"Bus Stop: {bus_stop_code}", style={"margin": "0.25rem 0", "fontWeight": "600"}),
+                html.P(f"{description}", style={"margin": "0.25rem 0", "fontSize": "0.875rem"}),
+                html.P(f"{road_name}", style={"margin": "0.25rem 0", "fontSize": "0.75rem", "color": "#666"}),
+                html.Button(
+                    "View Bus Arrivals",
+                    id={"type": "bus-stop-btn", "index": bus_stop_code},
+                    n_clicks=0,
+                    style={
+                        "marginTop": "0.5rem",
+                        "padding": "0.375rem 0.75rem",
+                        "backgroundColor": "#4169E1",
+                        "color": "#fff",
+                        "border": "none",
+                        "borderRadius": "4px",
+                        "cursor": "pointer",
+                        "fontSize": "0.75rem",
+                        "fontWeight": "600",
+                    }
+                ),
+            ])
+            
             markers.append(
-                dl.CircleMarker(
-                    center=[latitude, longitude],
-                    radius=5,
-                    color="#4169E1",  # Royal blue
-                    fill=True,
-                    fillColor="#4169E1",
-                    fillOpacity=0.7,
-                    weight=2,
+                dl.DivMarker(
+                    id=marker_id,
+                    position=[latitude, longitude],
+                    iconOptions={
+                        'className': 'bus-stop-pin',
+                        'html': marker_html,
+                        'iconSize': [100, 40],
+                        'iconAnchor': [50, 40],
+                    },
                     children=[
-                        dl.Tooltip(tooltip_html),
+                        dl.Popup(popup_content),
                     ]
                 )
             )
@@ -1272,6 +1307,269 @@ def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[d
             continue
     
     return markers
+
+
+def fetch_bus_arrival_data(bus_stop_code: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetch bus arrival data for a specific bus stop from LTA DataMall API.
+    
+    Args:
+        bus_stop_code: Bus stop code (e.g., "83139")
+    
+    Returns:
+        Dictionary containing bus arrival data, or None if error
+    """
+    api_key = os.getenv("LTA_API_KEY")
+    if not api_key:
+        print("Warning: LTA_API_KEY not found")
+        return None
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "AccountKey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    params = {
+        "BusStopCode": bus_stop_code
+    }
+    
+    try:
+        import requests
+        response = requests.get(BUS_ARRIVAL_URL, headers=headers, params=params, timeout=10)
+        if 200 <= response.status_code < 300:
+            return response.json()
+        return None
+    except Exception as e:
+        print(f"Error fetching bus arrival data for stop {bus_stop_code}: {e}")
+        return None
+
+
+def format_arrival_time_minutes(estimated_arrival: str) -> str:
+    """
+    Calculate and format arrival time in minutes from current time.
+    
+    Args:
+        estimated_arrival: ISO format datetime string (e.g., "2024-08-14T16:41:48+08:00")
+    
+    Returns:
+        String like "5 min" or "Arriving" or "N/A"
+    """
+    if not estimated_arrival:
+        return "N/A"
+    
+    try:
+        # Parse the estimated arrival time
+        if isinstance(estimated_arrival, str):
+            # Remove timezone info for parsing
+            arrival_str = estimated_arrival.replace('+08:00', '').replace('Z', '')
+            arrival_dt = datetime.strptime(arrival_str, "%Y-%m-%dT%H:%M:%S")
+        else:
+            arrival_dt = estimated_arrival
+        
+        # Get current time
+        current_dt = datetime.now()
+        
+        # Calculate difference
+        time_diff = arrival_dt - current_dt
+        total_seconds = time_diff.total_seconds()
+        
+        if total_seconds < 0:
+            return "Departed"
+        elif total_seconds < 60:
+            return "Arriving"
+        else:
+            minutes = int(total_seconds / 60)
+            return f"{minutes} min"
+    except (ValueError, TypeError, AttributeError) as e:
+        print(f"Error formatting arrival time '{estimated_arrival}': {e}")
+        return "N/A"
+
+
+def format_bus_arrival_display(arrival_data: Optional[Dict[str, Any]], bus_stop_code: str) -> html.Div:
+    """
+    Format bus arrival data for display in the panel.
+    
+    Args:
+        arrival_data: Dictionary containing bus arrival API response
+        bus_stop_code: Bus stop code for display
+    
+    Returns:
+        HTML Div containing formatted bus arrival information
+    """
+    if not arrival_data:
+        return html.Div(
+            html.P(
+                "Unable to fetch bus arrival data. Please try again.",
+                style={
+                    "color": "#999",
+                    "textAlign": "center",
+                    "fontSize": "0.75rem",
+                    "margin": "0.5rem 0",
+                }
+            )
+        )
+    
+    services = arrival_data.get('Services', [])
+    
+    if not services:
+        return html.Div(
+            html.P(
+                "No bus services available at this stop.",
+                style={
+                    "color": "#999",
+                    "textAlign": "center",
+                    "fontSize": "0.75rem",
+                    "margin": "0.5rem 0",
+                }
+            )
+        )
+    
+    service_items = []
+    
+    for service in services:
+        service_no = service.get('ServiceNo', 'N/A')
+        operator = service.get('Operator', 'N/A')
+        
+        # Get arrival times for NextBus, NextBus2, NextBus3
+        next_bus = service.get('NextBus', {})
+        next_bus2 = service.get('NextBus2', {})
+        next_bus3 = service.get('NextBus3', {})
+        
+        estimated_arrival_1 = next_bus.get('EstimatedArrival', '') if next_bus else ''
+        estimated_arrival_2 = next_bus2.get('EstimatedArrival', '') if next_bus2 else ''
+        estimated_arrival_3 = next_bus3.get('EstimatedArrival', '') if next_bus3 else ''
+        
+        arrival_1_min = format_arrival_time_minutes(estimated_arrival_1)
+        arrival_2_min = format_arrival_time_minutes(estimated_arrival_2)
+        arrival_3_min = format_arrival_time_minutes(estimated_arrival_3)
+        
+        # Create service card
+        service_card = html.Div(
+            style={
+                "backgroundColor": "rgb(58, 74, 90)",
+                "borderRadius": "4px",
+                "padding": "0.625rem",
+                "marginBottom": "0.5rem",
+            },
+            children=[
+                html.Div(
+                    style={
+                        "display": "flex",
+                        "justifyContent": "space-between",
+                        "alignItems": "center",
+                        "marginBottom": "0.375rem",
+                    },
+                    children=[
+                        html.Span(
+                            f"Service {service_no}",
+                            style={
+                                "color": "#4169E1",
+                                "fontWeight": "700",
+                                "fontSize": "0.875rem",
+                            }
+                        ),
+                        html.Span(
+                            operator,
+                            style={
+                                "color": "#999",
+                                "fontSize": "0.75rem",
+                            }
+                        ),
+                    ]
+                ),
+                html.Div(
+                    style={
+                        "display": "flex",
+                        "gap": "0.5rem",
+                        "flexWrap": "wrap",
+                    },
+                    children=[
+                        html.Div(
+                            arrival_1_min,
+                            style={
+                                "backgroundColor": "#4CAF50" if arrival_1_min != "N/A" and arrival_1_min != "Departed" else "#666",
+                                "color": "#fff",
+                                "padding": "0.25rem 0.5rem",
+                                "borderRadius": "4px",
+                                "fontSize": "0.75rem",
+                                "fontWeight": "600",
+                            }
+                        ),
+                        html.Div(
+                            arrival_2_min,
+                            style={
+                                "backgroundColor": "#FF9800" if arrival_2_min != "N/A" and arrival_2_min != "Departed" else "#666",
+                                "color": "#fff",
+                                "padding": "0.25rem 0.5rem",
+                                "borderRadius": "4px",
+                                "fontSize": "0.75rem",
+                                "fontWeight": "600",
+                            }
+                        ) if arrival_2_min != "N/A" else None,
+                        html.Div(
+                            arrival_3_min,
+                            style={
+                                "backgroundColor": "#FF5722" if arrival_3_min != "N/A" and arrival_3_min != "Departed" else "#666",
+                                "color": "#fff",
+                                "padding": "0.25rem 0.5rem",
+                                "borderRadius": "4px",
+                                "fontSize": "0.75rem",
+                                "fontWeight": "600",
+                            }
+                        ) if arrival_3_min != "N/A" else None,
+                    ]
+                ),
+            ]
+        )
+        service_items.append(service_card)
+    
+    # Filter out None values
+    service_items = [item for item in service_items if item is not None]
+    
+    # Extract all service numbers for summary
+    service_numbers = [service.get('ServiceNo', 'N/A') for service in services]
+    service_summary = ", ".join(service_numbers)
+    
+    return html.Div(
+        children=[
+            html.Div(
+                f"Bus Stop: {bus_stop_code}",
+                style={
+                    "color": "#fff",
+                    "fontWeight": "600",
+                    "fontSize": "0.875rem",
+                    "marginBottom": "0.375rem",
+                }
+            ),
+            html.Div(
+                [
+                    html.Span(
+                        "Services: ",
+                        style={
+                            "color": "#999",
+                            "fontSize": "0.75rem",
+                            "fontWeight": "600",
+                        }
+                    ),
+                    html.Span(
+                        service_summary,
+                        style={
+                            "color": "#4169E1",
+                            "fontSize": "0.75rem",
+                            "fontWeight": "600",
+                        }
+                    ),
+                ],
+                style={
+                    "marginBottom": "0.625rem",
+                    "paddingBottom": "0.5rem",
+                    "borderBottom": "1px solid #5a6a7a",
+                }
+            ),
+            html.Div(service_items),
+        ]
+    )
 
 
 def fetch_bus_stops_data_async() -> Optional[Future]:
@@ -3974,4 +4272,69 @@ def register_transport_callbacks(app):
         markers = create_fixed_speed_camera_markers()
 
         return markers, count_value
+
+    # Bus arrival callback - handles clicks on bus stop buttons
+    @app.callback(
+        Output('bus-arrival-content', 'children'),
+        Input({'type': 'bus-stop-btn', 'index': dependencies.ALL}, 'n_clicks'),
+        State({'type': 'bus-stop-btn', 'index': dependencies.ALL}, 'id'),
+        prevent_initial_call=True
+    )
+    def update_bus_arrival_display(n_clicks_list, button_ids):
+        """Update bus arrival display when a bus stop button is clicked."""
+        
+        # Find which button was clicked
+        if not n_clicks_list or not any(n_clicks_list):
+            return html.P(
+                "Click on a bus stop marker to view bus arrival times",
+                style={
+                    "color": "#999",
+                    "textAlign": "center",
+                    "fontSize": "0.75rem",
+                    "fontStyle": "italic",
+                    "margin": "0.5rem 0",
+                }
+            )
+        
+        # Get the index of the clicked button
+        clicked_index = None
+        for i, clicks in enumerate(n_clicks_list):
+            if clicks and clicks > 0:
+                clicked_index = i
+                break
+        
+        if clicked_index is None or clicked_index >= len(button_ids):
+            return html.P(
+                "Error: Could not identify bus stop. Please try again.",
+                style={
+                    "color": "#ff6b6b",
+                    "textAlign": "center",
+                    "fontSize": "0.75rem",
+                    "margin": "0.5rem 0",
+                }
+            )
+        
+        # Extract bus stop code from button ID
+        button_id = button_ids[clicked_index]
+        if isinstance(button_id, dict):
+            bus_stop_code = button_id.get('index', '')
+        else:
+            bus_stop_code = str(button_id)
+        
+        if not bus_stop_code:
+            return html.P(
+                "Error: Invalid bus stop code. Please try again.",
+                style={
+                    "color": "#ff6b6b",
+                    "textAlign": "center",
+                    "fontSize": "0.75rem",
+                    "margin": "0.5rem 0",
+                }
+            )
+        
+        # Fetch bus arrival data
+        arrival_data = fetch_bus_arrival_data(bus_stop_code)
+        
+        # Format and return display
+        return format_bus_arrival_display(arrival_data, bus_stop_code)
 
