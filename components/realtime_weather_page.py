@@ -265,7 +265,7 @@ def realtime_weather_page():
                                         },
                                         children=[
                                             html.Span(
-                                                "💨 Wind Speed average across sensors",
+                                                "💨 Wind Speed averaged across sensors",
                                                 style={
                                                     "color": "#fff",
                                                     "fontWeight": "600",

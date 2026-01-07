@@ -2250,7 +2250,7 @@ def register_realtime_weather_callbacks(app):
                     speed_kmh = _convert_to_kmh(reading.get('value', 0), speed_unit)
                     icon = get_windspeed_icon(speed_kmh)
                     all_readings.append({
-                        'type': '💨 Wind Speed average across sensors',
+                        'type': '💨 Wind Speed averaged across sensors',
                         'location': name,
                         'value': f"{icon} {speed_kmh} km/h",
                         'color': '#4CAF50'
