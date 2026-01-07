@@ -243,9 +243,9 @@ def register_mrt_crowd_callbacks(app):
     def toggle_mrt_crowd_button_label(n_clicks, current_state):
         # Default state is False (disabled), so show "Show" by default
         if n_clicks is None or n_clicks == 0:
-            return "🚆 Show MRT Crowd Level"
+            return "🚆 Show MRT/LRT Station Crowd Level"
         is_visible = not current_state if current_state is not None else True
-        return "🚆 Hide MRT Crowd Level" if is_visible else "🚆 Show MRT Crowd Level"
+        return "🚆 Hide MRT/LRT Station Crowd Level" if is_visible else "🚆 Show MRT/LRT Station Crowd Level"
 
     # Toggle state update callback
     @app.callback(
