@@ -18,6 +18,8 @@ dependencies = [
     "pyproj>=3.6.0",
     "daal>=2021.4.0",
     "gunicorn>=21.2.0",
+    "langchain-core>=0.3.0",
+    "langchain-google-genai>=2.0.0",
 ]
 
 [build-system]
