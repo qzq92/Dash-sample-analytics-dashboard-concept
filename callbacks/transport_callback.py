@@ -19,6 +19,13 @@ import dash_leaflet as dl
 from utils.async_fetcher import fetch_url, fetch_url_2min_cached, run_in_thread
 from utils.data_download_helper import fetch_erp_gantry_data
 from utils.map_utils import SG_MAP_CENTER
+from utils.vision_analyzer import (
+    trigger_analysis,
+    get_cached_analysis,
+    get_status_color,
+    get_status_marker_url,
+    is_analysis_available,
+)
 from callbacks.map_callback import _haversine_distance_m
 from components.metric_card import create_metric_value_display
 
@@ -353,23 +360,28 @@ def parse_traffic_camera_data(data):
                 'image_url': camera.get('image', ''),
                 'lat': location.get('latitude'),
                 'lon': location.get('longitude'),
+                'md5': camera.get('image_metadata', {}).get('md5', ''),
             }
     
     return camera_dict
 
 
-def create_cctv_markers(camera_data):
+def create_cctv_markers(camera_data, traffic_analysis=None):
     """
     Create map markers for CCTV camera locations with image popups.
     
     Args:
         camera_data: Dictionary of camera metadata
+        traffic_analysis: Optional dict mapping camera_id to traffic status string.
+                         When provided, markers are color-coded by traffic condition.
     
     Returns:
         List of dl.Marker components with popups
     """
     markers = []
     camera_id_mapping = _load_lta_camera_id_mapping()
+    if traffic_analysis is None:
+        traffic_analysis = {}
     
     for camera_id, info in camera_data.items():
         lat = info.get('lat')
@@ -380,12 +392,10 @@ def create_cctv_markers(camera_data):
         if lat is None or lon is None:
             continue
         
-        # Format timestamp if available
         datetime_text = ""
         if timestamp:
             try:
                 if isinstance(timestamp, str):
-                    # Try to parse and format the timestamp
                     parsed_datetime = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                     datetime_text = parsed_datetime.strftime("%Y-%m-%d %H:%M:%S")
                 else:
@@ -393,21 +403,18 @@ def create_cctv_markers(camera_data):
             except (ValueError, AttributeError):
                 datetime_text = str(timestamp) if timestamp else ""
 
-        # Lookup human-friendly location description using camera ID mapping
         location_desc = camera_id_mapping.get(str(camera_id), f"Camera {camera_id}")
+        traffic_status = traffic_analysis.get(str(camera_id))
 
-        # Tooltip: location description + time only
+        tooltip_parts = [location_desc]
         if datetime_text:
-            tooltip_text = f"{location_desc}\nTime: {datetime_text}"
-        else:
-            tooltip_text = location_desc
+            tooltip_parts.append(f"Time: {datetime_text}")
+        if traffic_status and traffic_status != "unknown":
+            tooltip_parts.append(f"Traffic: {traffic_status.capitalize()}")
+        tooltip_text = "\n".join(tooltip_parts)
         
-        # Popup content: location description and time (no lat/lon), plus image
         popup_children = [
-            html.Strong(
-                location_desc,
-                style={"fontSize": "0.875rem"}
-            )
+            html.Strong(location_desc, style={"fontSize": "0.875rem"})
         ]
         
         if datetime_text:
@@ -415,6 +422,23 @@ def create_cctv_markers(camera_data):
                 html.Div(
                     f"Time: {datetime_text}",
                     style={"fontSize": "0.75rem", "color": "#888", "marginTop": "0.25rem"}
+                )
+            )
+
+        if traffic_status and traffic_status != "unknown":
+            popup_children.append(
+                html.Div(
+                    traffic_status.capitalize(),
+                    style={
+                        "fontSize": "0.75rem",
+                        "fontWeight": "600",
+                        "color": "#fff",
+                        "backgroundColor": get_status_color(traffic_status),
+                        "padding": "0.125rem 0.5rem",
+                        "borderRadius": "0.25rem",
+                        "marginTop": "0.375rem",
+                        "display": "inline-block",
+                    }
                 )
             )
         
@@ -428,6 +452,12 @@ def create_cctv_markers(camera_data):
                     "borderRadius": "0.25rem",
                 }
             )
+        )
+
+        icon_url = (
+            get_status_marker_url(traffic_status)
+            if traffic_status
+            else "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png"
         )
         
         markers.append(
@@ -444,7 +474,7 @@ def create_cctv_markers(camera_data):
                     ),
                 ],
                 icon={
-                    "iconUrl": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+                    "iconUrl": icon_url,
                     "shadowUrl": "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
                     "iconSize": [25, 41],
                     "iconAnchor": [12, 41],
@@ -3494,37 +3524,51 @@ def register_transport_callbacks(app):
 
     @app.callback(
         [Output('cctv-markers', 'children'),
-         Output('cctv-count-value', 'children')],
+         Output('cctv-count-value', 'children'),
+         Output('cctv-analysis-legend', 'style')],
         [Input('cctv-toggle-state', 'data'),
          Input('transport-interval', 'n_intervals')]
     )
     def update_cctv_display(show_cctv, n_intervals):
-        """Update CCTV markers and count display."""
-        _ = n_intervals  # Used for periodic refresh
-        
-        # Always fetch data to display counts
+        """Update CCTV markers and count display. Triggers and uses vision analysis."""
+        _ = n_intervals
+
         data = fetch_traffic_cameras()
         camera_data = parse_traffic_camera_data(data)
-        
-        # Extract count (always calculate)
+
+        if camera_data:
+            trigger_analysis(camera_data)
+
+        traffic_analysis = get_cached_analysis() if is_analysis_available() else {}
+
         camera_count = len(camera_data) if camera_data else 0
+
         count_value = html.Div(
             html.Span(f"{camera_count}", style={"color": "#4CAF50"}),
-                style={
+            style={
                 "backgroundColor": "rgb(58, 74, 90)",
                 "padding": "0.25rem 0.5rem",
                 "borderRadius": "0.25rem",
             }
         )
-        
-        # Only show markers if toggle is on
+
+        legend_base = {
+            "position": "absolute",
+            "top": "0.625rem",
+            "right": "0.625rem",
+            "backgroundColor": "rgba(26, 42, 58, 0.9)",
+            "borderRadius": "0.5rem",
+            "padding": "0.625rem",
+            "zIndex": "1000",
+            "boxShadow": "0 0.125rem 0.5rem rgba(0, 0, 0, 0.3)",
+        }
+        legend_style = {**legend_base, "display": "block" if show_cctv else "none"}
+
         if not show_cctv:
-            return [], count_value
-        
-        # Create markers
-        markers = create_cctv_markers(camera_data)
-        
-        return markers, count_value
+            return [], count_value, legend_style
+
+        markers = create_cctv_markers(camera_data, traffic_analysis or None)
+        return markers, count_value, legend_style
 
     @app.callback(
         [Output('erp-toggle-state', 'data'),
@@ -5105,6 +5149,9 @@ def register_traffic_conditions_callbacks(app):
                         }
                     )
                 )
+
+            trigger_analysis(camera_data)
+
         except Exception as e:
             print(f"Error fetching traffic camera data: {e}")
             import traceback
@@ -5122,13 +5169,10 @@ def register_traffic_conditions_callbacks(app):
             )
         
         try:
-            # Load camera ID mapping
             camera_id_mapping = _load_lta_camera_id_mapping()
-            
-            # Create camera cards in a 4-column grid
+            traffic_analysis = get_cached_analysis() if is_analysis_available() else {}
+
             camera_cards = []
-            
-            # Sort cameras by ID for consistent display
             sorted_cameras = sorted(camera_data.items(), key=lambda x: x[0])
             
             for camera_id, info in sorted_cameras:
@@ -5136,13 +5180,10 @@ def register_traffic_conditions_callbacks(app):
                     image_url = info.get('image_url', '')
                     timestamp = info.get('timestamp', '')
                     
-                    # Get location description from mapping
-                    # Try both string and integer key formats
                     location_desc = camera_id_mapping.get(str(camera_id)) or camera_id_mapping.get(camera_id)
                     if not location_desc:
                         location_desc = f"Camera {camera_id}"
                     
-                    # Format timestamp if available
                     datetime_text = ""
                     if timestamp:
                         try:
@@ -5153,8 +5194,77 @@ def register_traffic_conditions_callbacks(app):
                                 datetime_text = str(timestamp)
                         except (ValueError, AttributeError):
                             datetime_text = str(timestamp) if timestamp else ""
+
+                    traffic_status = traffic_analysis.get(str(camera_id))
+                    border_color = get_status_color(traffic_status) if traffic_status and traffic_status != "unknown" else "#3a4a5a"
+
+                    card_children = [
+                        html.Div(
+                            style={
+                                "width": "100%",
+                                "backgroundColor": "#000",
+                                "borderRadius": "0.25rem",
+                                "overflow": "hidden",
+                                "display": "flex",
+                                "alignItems": "center",
+                                "justifyContent": "center",
+                                "position": "relative",
+                            },
+                            children=[
+                                html.Img(
+                                    src=image_url if image_url else "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E",
+                                    alt=f"Camera {camera_id}",
+                                    style={
+                                        "width": "100%",
+                                        "height": "auto",
+                                        "display": "block",
+                                    }
+                                )
+                            ]
+                        ),
+                    ]
+
+                    if traffic_status and traffic_status != "unknown":
+                        card_children.append(
+                            html.Div(
+                                traffic_status.capitalize(),
+                                style={
+                                    "color": "#fff",
+                                    "fontSize": "0.6875rem",
+                                    "fontWeight": "600",
+                                    "textAlign": "center",
+                                    "backgroundColor": get_status_color(traffic_status),
+                                    "padding": "0.125rem 0.5rem",
+                                    "borderRadius": "0.25rem",
+                                }
+                            )
+                        )
+
+                    card_children.extend([
+                        html.Div(
+                            location_desc,
+                            style={
+                                "color": "#fff",
+                                "fontSize": "0.75rem",
+                                "fontWeight": "500",
+                                "textAlign": "center",
+                                "lineHeight": "1.3",
+                                "minHeight": "2.5rem",
+                                "display": "flex",
+                                "alignItems": "center",
+                                "justifyContent": "center",
+                            }
+                        ),
+                        html.Div(
+                            datetime_text if datetime_text else "Time: N/A",
+                            style={
+                                "color": "#999",
+                                "fontSize": "0.625rem",
+                                "textAlign": "center",
+                            }
+                        ),
+                    ])
                     
-                    # Create camera card
                     camera_card = html.Div(
                         style={
                             "backgroundColor": "#1a2a3a",
@@ -5163,58 +5273,9 @@ def register_traffic_conditions_callbacks(app):
                             "display": "flex",
                             "flexDirection": "column",
                             "gap": "0.5rem",
-                            "border": "0.0625rem solid #3a4a5a",
+                            "border": f"0.125rem solid {border_color}",
                         },
-                        children=[
-                            # Camera image
-                            html.Div(
-                                style={
-                                    "width": "100%",
-                                    "backgroundColor": "#000",
-                                    "borderRadius": "0.25rem",
-                                    "overflow": "hidden",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "position": "relative",
-                                },
-                                children=[
-                                    html.Img(
-                                        src=image_url if image_url else "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E",
-                                        alt=f"Camera {camera_id}",
-                                        style={
-                                            "width": "100%",
-                                            "height": "auto",
-                                            "display": "block",
-                                        }
-                                    )
-                                ]
-                            ),
-                            # Location description
-                            html.Div(
-                                location_desc,
-                                style={
-                                    "color": "#fff",
-                                    "fontSize": "0.75rem",
-                                    "fontWeight": "500",
-                                    "textAlign": "center",
-                                    "lineHeight": "1.3",
-                                    "minHeight": "2.5rem",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                }
-                            ),
-                            # Timestamp
-                            html.Div(
-                                datetime_text if datetime_text else "Time: N/A",
-                                style={
-                                    "color": "#999",
-                                    "fontSize": "0.625rem",
-                                    "textAlign": "center",
-                                }
-                            ),
-                        ]
+                        children=card_children,
                     )
                     
                     camera_cards.append(camera_card)
