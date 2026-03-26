@@ -913,6 +913,133 @@ def transport_page():
                                             ),
                                         ]
                                     ),
+                                    # CCTV Traffic Analysis Legend overlay
+                                    html.Div(
+                                        id="cctv-analysis-legend",
+                                        style={
+                                            "position": "absolute",
+                                            "top": "0.625rem",
+                                            "right": "0.625rem",
+                                            "backgroundColor": "rgba(26, 42, 58, 0.9)",
+                                            "borderRadius": "0.5rem",
+                                            "padding": "0.625rem",
+                                            "zIndex": "1000",
+                                            "boxShadow": "0 0.125rem 0.5rem rgba(0, 0, 0, 0.3)",
+                                            "display": "none",
+                                        },
+                                        children=[
+                                            html.Div(
+                                                style={
+                                                    "fontSize": "0.75rem",
+                                                    "fontWeight": "600",
+                                                    "color": "#fff",
+                                                    "marginBottom": "0.5rem",
+                                                    "borderBottom": "0.0625rem solid #4a5a6a",
+                                                    "paddingBottom": "0.25rem",
+                                                },
+                                                children="Traffic Condition"
+                                            ),
+                                            html.Div(
+                                                style={
+                                                    "display": "flex",
+                                                    "alignItems": "center",
+                                                    "marginBottom": "0.375rem",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        style={
+                                                            "width": "0.75rem",
+                                                            "height": "0.75rem",
+                                                            "borderRadius": "50%",
+                                                            "backgroundColor": "#FF4444",
+                                                            "marginRight": "0.5rem",
+                                                        }
+                                                    ),
+                                                    html.Span(
+                                                        "Heavy",
+                                                        style={
+                                                            "color": "#fff",
+                                                            "fontSize": "0.6875rem",
+                                                        }
+                                                    ),
+                                                ]
+                                            ),
+                                            html.Div(
+                                                style={
+                                                    "display": "flex",
+                                                    "alignItems": "center",
+                                                    "marginBottom": "0.375rem",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        style={
+                                                            "width": "0.75rem",
+                                                            "height": "0.75rem",
+                                                            "borderRadius": "50%",
+                                                            "backgroundColor": "#FFA500",
+                                                            "marginRight": "0.5rem",
+                                                        }
+                                                    ),
+                                                    html.Span(
+                                                        "Moderate",
+                                                        style={
+                                                            "color": "#fff",
+                                                            "fontSize": "0.6875rem",
+                                                        }
+                                                    ),
+                                                ]
+                                            ),
+                                            html.Div(
+                                                style={
+                                                    "display": "flex",
+                                                    "alignItems": "center",
+                                                    "marginBottom": "0.375rem",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        style={
+                                                            "width": "0.75rem",
+                                                            "height": "0.75rem",
+                                                            "borderRadius": "50%",
+                                                            "backgroundColor": "#4CAF50",
+                                                            "marginRight": "0.5rem",
+                                                        }
+                                                    ),
+                                                    html.Span(
+                                                        "Light",
+                                                        style={
+                                                            "color": "#fff",
+                                                            "fontSize": "0.6875rem",
+                                                        }
+                                                    ),
+                                                ]
+                                            ),
+                                            html.Div(
+                                                style={
+                                                    "display": "flex",
+                                                    "alignItems": "center",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        style={
+                                                            "width": "0.75rem",
+                                                            "height": "0.75rem",
+                                                            "borderRadius": "50%",
+                                                            "backgroundColor": "#2196F3",
+                                                            "marginRight": "0.5rem",
+                                                        }
+                                                    ),
+                                                    html.Span(
+                                                        "Clear",
+                                                        style={
+                                                            "color": "#fff",
+                                                            "fontSize": "0.6875rem",
+                                                        }
+                                                    ),
+                                                ]
+                                            ),
+                                        ]
+                                    ),
                                     # Bus Stop Zoom Message Overlay
                                     html.Div(
                                         id="transport-bus-stop-zoom-message",
