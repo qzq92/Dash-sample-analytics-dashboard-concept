@@ -4949,7 +4949,7 @@ def register_transport_callbacks(app):
                     
                     if count is not None and isinstance(count, int):
                         count_value = str(count)
-                        color = "#00E676"  # Green color for EV charging points
+                        color = "#87CEEB"  # Sky blue color for EV charging points
                     else:
                         count_value = "--"
                         color = "#999"
@@ -4985,12 +4985,12 @@ def register_transport_callbacks(app):
         new_state = not current_state
         
         if new_state:
-            # Active state - green background
+            # Active state - sky blue background
             style = {
-                "backgroundColor": "#00E676",
+                "backgroundColor": "#87CEEB",
                 "border": "none",
                 "borderRadius": "0.25rem",
-                "color": "#000",
+                "color": "#0f172a",
                 "cursor": "pointer",
                 "padding": "0.375rem 0.75rem",
                 "fontSize": "0.75rem",
@@ -5001,9 +5001,9 @@ def register_transport_callbacks(app):
             # Inactive state - outline
             style = {
                 "backgroundColor": "transparent",
-                "border": "0.125rem solid #00E676",
+                "border": "0.125rem solid #87CEEB",
                 "borderRadius": "0.25rem",
-                "color": "#00E676",
+                "color": "#87CEEB",
                 "cursor": "pointer",
                 "padding": "0.25rem 0.625rem",
                 "fontSize": "0.75rem",
