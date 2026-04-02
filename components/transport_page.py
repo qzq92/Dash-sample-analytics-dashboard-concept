@@ -332,7 +332,8 @@ def transport_page():
                                 card_id="ev-charging-points-card",
                                 label="🔌 EV Charging Points",
                                 value_id="ev-charging-points-count-value",
-                                initial_value="--"
+                                initial_value="--",
+                                value_color="#87CEEB",
                             ),
                             # Traffic Incidents card
                             html.Div(
@@ -591,9 +592,9 @@ def transport_page():
                                         n_clicks=0,
                                         style={
                                             "backgroundColor": "transparent",
-                                            "border": "0.125rem solid #00E676",
+                                            "border": "0.125rem solid #87CEEB",
                                             "borderRadius": "0.25rem",
-                                            "color": "#00E676",
+                                            "color": "#87CEEB",
                                             "cursor": "pointer",
                                             "padding": "0.25rem 0.625rem",
                                             "fontSize": "0.75rem",
