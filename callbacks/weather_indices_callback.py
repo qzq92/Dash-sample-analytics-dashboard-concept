@@ -6,15 +6,16 @@ Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
 import math
 import re
+import time
+from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 
 import numpy as np
 import plotly.graph_objects as go
 import dash_leaflet as dl
-import requests
 from dash import html, dcc, Input, Output, State
-from utils.async_fetcher import get_default_headers, fetch_url_2min_cached, run_in_thread
+from utils.async_fetcher import get_default_headers, fetch_url, fetch_url_2min_cached, run_in_thread
 from callbacks.transport_callback import fetch_taxi_availability
 from components.metric_card import create_metric_value_display
 
@@ -34,6 +35,15 @@ DENGUE_POLL_DOWNLOAD_URL = f"https://api-open.data.gov.sg/v1/public/api/datasets
 # Structure: {'data': <api_response>, 'timestamp': <time.time()>}
 _psi_cache = {'data': None, 'timestamp': 0}
 PSI_CACHE_TTL = 60  # Cache time-to-live in seconds
+
+# Cache disease cluster GeoJSON because several callbacks request the same
+# dataset repeatedly during a single refresh cycle.
+_cluster_data_cache = {
+    'zika': {'data': None, 'timestamp': 0},
+    'dengue': {'data': None, 'timestamp': 0},
+}
+_cluster_cache_lock = Lock()
+CLUSTER_CACHE_TTL = 600  # 10 minutes
 
 
 # PSI (Pollutant Standards Index) categories
@@ -229,24 +239,7 @@ def fetch_zika_cluster_data_async():
     """
     Fetch Zika cluster data asynchronously from Data.gov.sg poll-download API.
     """
-    try:
-        response = requests.get(ZIKA_POLL_DOWNLOAD_URL, timeout=30)
-        response.raise_for_status()
-        poll_response = response.json()
-        download_url = None
-        if isinstance(poll_response, dict):
-            if 'url' in poll_response:
-                download_url = poll_response['url']
-            elif 'data' in poll_response and isinstance(poll_response['data'], dict):
-                download_url = poll_response['data'].get('url')
-        if not download_url:
-            return None
-        data_response = requests.get(download_url, timeout=30)
-        data_response.raise_for_status()
-        return data_response.json()
-    except Exception as e:
-        print(f"Error fetching Zika cluster data: {e}")
-        return None
+    return _fetch_cluster_data_with_cache('zika', ZIKA_POLL_DOWNLOAD_URL)
 
 
 @run_in_thread
@@ -254,23 +247,56 @@ def fetch_dengue_cluster_data_async():
     """
     Fetch Dengue cluster data asynchronously from Data.gov.sg poll-download API.
     """
+    return _fetch_cluster_data_with_cache('dengue', DENGUE_POLL_DOWNLOAD_URL)
+
+
+def _fetch_cluster_data_with_cache(cache_key, poll_download_url):
+    """
+    Fetch disease cluster GeoJSON with a short in-memory TTL cache.
+
+    Data.gov poll-download requires two requests, so caching the final dataset
+    avoids duplicate work when multiple callbacks render counts and polygons.
+    """
+    current_time = time.time()
+    headers = get_default_headers()
+
+    with _cluster_cache_lock:
+        cached_item = _cluster_data_cache.get(cache_key)
+        if (
+            cached_item
+            and cached_item['data'] is not None
+            and current_time - cached_item['timestamp'] < CLUSTER_CACHE_TTL
+        ):
+            return cached_item['data']
+
     try:
-        response = requests.get(DENGUE_POLL_DOWNLOAD_URL, timeout=30)
-        response.raise_for_status()
-        poll_response = response.json()
+        poll_response = fetch_url(poll_download_url, headers=headers, timeout=30)
         download_url = None
         if isinstance(poll_response, dict):
             if 'url' in poll_response:
                 download_url = poll_response['url']
             elif 'data' in poll_response and isinstance(poll_response['data'], dict):
                 download_url = poll_response['data'].get('url')
+
         if not download_url:
-            return None
-        data_response = requests.get(download_url, timeout=30)
-        data_response.raise_for_status()
-        return data_response.json()
-    except Exception as e:
-        print(f"Error fetching Dengue cluster data: {e}")
+            raise ValueError(f"No download URL returned for {cache_key} cluster data")
+
+        data = fetch_url(download_url, headers=headers, timeout=30)
+        if data is None:
+            raise ValueError(f"No data returned for {cache_key} cluster data")
+
+        with _cluster_cache_lock:
+            _cluster_data_cache[cache_key] = {
+                'data': data,
+                'timestamp': current_time,
+            }
+        return data
+    except ValueError as e:
+        print(f"Error fetching {cache_key.capitalize()} cluster data: {e}")
+        with _cluster_cache_lock:
+            cached_item = _cluster_data_cache.get(cache_key)
+            if cached_item and cached_item['data'] is not None:
+                return cached_item['data']
         return None
 
 
