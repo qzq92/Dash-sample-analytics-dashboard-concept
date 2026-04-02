@@ -96,16 +96,22 @@ def analytics_forecast_page():
                         ]
                     ),
                     # Chart area
-                    html.Div(
-                        id="analytics-forecast-content",
-                        style={
-                            "flex": "1",
-                            "backgroundColor": "#2a3a4a",
-                            "borderRadius": "0.5rem",
-                            "padding": "1rem",
-                            "overflowY": "auto",
-                        },
-                        children=[]  # Will be populated by callback
+                    dcc.Loading(
+                        type="circle",
+                        color="#60A5FA",
+                        style={"flex": "1"},
+                        children=html.Div(
+                            id="analytics-forecast-content",
+                            style={
+                                "flex": "1",
+                                "backgroundColor": "#2a3a4a",
+                                "borderRadius": "0.5rem",
+                                "padding": "1rem",
+                                "overflowY": "auto",
+                                "height": "100%",
+                            },
+                            children=[]  # Will be populated by callback
+                        ),
                     ),
                 ]
             )
