@@ -10,7 +10,6 @@ from utils.map_utils import (
     SG_MAP_BOUNDS,
     ONEMAP_TILES_URL
 )
-from components.metric_card import create_metric_card
 from conf.page_layout_config import PAGE_PADDING, PAGE_HEIGHT, get_content_container_style, STANDARD_GAP
 
 
@@ -41,17 +40,24 @@ def bus_arrival_page():
             # Main content container
             html.Div(
                 id="bus-arrival-page-content",
-                style=get_content_container_style(gap=STANDARD_GAP),
+                style={
+                    **get_content_container_style(gap=STANDARD_GAP),
+                    "flexWrap": "wrap",
+                    "minWidth": "0",
+                },
                 children=[
                     # Left side: Bus search panel
                     html.Div(
                         id="bus-info-panel",
                         style={
-                            "flex": "1",
+                            "flex": "1 1 22rem",
                             "minWidth": "18.75rem",
+                            "maxWidth": "100%",
                             "display": "flex",
                             "flexDirection": "column",
                             "gap": "0.75rem",
+                            "minHeight": "0",
+                            "overflow": "hidden",
                         },
                         children=[
                             # Unified Header Section with both search inputs
@@ -63,18 +69,25 @@ def bus_arrival_page():
                                     "padding": "1rem",
                                     "display": "flex",
                                     "flexDirection": "row",
+                                    "flexWrap": "wrap",
                                     "gap": "1rem",
                                     "boxShadow": "0 0.125rem 0.5rem rgba(0, 0, 0, 0.3)",
                                     "border": "0.0625rem solid #4a5a6a",
+                                    "width": "100%",
+                                    "maxWidth": "100%",
+                                    "minWidth": "0",
+                                    "boxSizing": "border-box",
+                                    "overflow": "hidden",
                                 },
                                 children=[
                                     # Bus Arrival Search Section
                                     html.Div(
                                         style={
-                                            "flex": "1",
+                                            "flex": "1 1 16rem",
                                             "display": "flex",
                                             "flexDirection": "column",
                                             "gap": "0.5rem",
+                                            "minWidth": "0",
                                         },
                                         children=[
                                             html.Label(
@@ -90,8 +103,10 @@ def bus_arrival_page():
                                                 style={
                                                     "display": "flex",
                                                     "flexDirection": "row",
+                                                    "flexWrap": "wrap",
                                                     "gap": "0.5rem",
                                                     "alignItems": "center",
+                                                    "minWidth": "0",
                                                 },
                                                 children=[
                                                     dcc.Input(
@@ -100,6 +115,7 @@ def bus_arrival_page():
                                                         placeholder="Enter bus stop code or click on map",
                                                         style={
                                                             "flex": "1",
+                                                            "minWidth": "0",
                                                             "padding": "0.5rem 0.75rem",
                                                             "borderRadius": "0.375rem",
                                                             "border": "0.0625rem solid #5a6a7a",
@@ -123,27 +139,23 @@ def bus_arrival_page():
                                                             "fontWeight": "600",
                                                             "whiteSpace": "nowrap",
                                                             "transition": "background-color 0.2s",
+                                                            "flexShrink": "0",
                                                         },
                                                     ),
                                                 ]
                                             ),
                                         ]
                                     ),
-                                    # Divider
-                                    html.Div(
-                                        style={
-                                            "width": "0.0625rem",
-                                            "backgroundColor": "#4a5a6a",
-                                            "alignSelf": "stretch",
-                                        }
-                                    ),
                                     # Bus Service Search Section
                                     html.Div(
                                         style={
-                                            "flex": "1",
+                                            "flex": "1 1 16rem",
                                             "display": "flex",
                                             "flexDirection": "column",
                                             "gap": "0.5rem",
+                                            "minWidth": "0",
+                                            "paddingLeft": "1rem",
+                                            "borderLeft": "0.0625rem solid #4a5a6a",
                                         },
                                         children=[
                                             html.Label(
@@ -159,8 +171,10 @@ def bus_arrival_page():
                                                 style={
                                                     "display": "flex",
                                                     "flexDirection": "row",
+                                                    "flexWrap": "wrap",
                                                     "gap": "0.5rem",
                                                     "alignItems": "center",
+                                                    "minWidth": "0",
                                                 },
                                                 children=[
                                                     dcc.Input(
@@ -169,6 +183,7 @@ def bus_arrival_page():
                                                         placeholder="Enter service number (e.g., 21, 21A, CT8)",
                                                         style={
                                                             "flex": "1",
+                                                            "minWidth": "0",
                                                             "padding": "0.5rem 0.75rem",
                                                             "borderRadius": "0.375rem",
                                                             "border": "0.0625rem solid #5a6a7a",
@@ -192,6 +207,7 @@ def bus_arrival_page():
                                                             "fontWeight": "600",
                                                             "whiteSpace": "nowrap",
                                                             "transition": "background-color 0.2s",
+                                                            "flexShrink": "0",
                                                         },
                                                     ),
                                                 ]
