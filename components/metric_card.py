@@ -11,7 +11,8 @@ def create_metric_card(
     label: str,
     value_id: str,
     initial_value: str = "--",
-    additional_children: Optional[List] = None
+    additional_children: Optional[List] = None,
+    value_color: str = "#4169E1",
 ) -> html.Div:
     """
     Create a standardized metric card component.
@@ -22,6 +23,7 @@ def create_metric_card(
         value_id: ID for the value div (used by callbacks to update the metric)
         initial_value: Initial display value (default: "--")
         additional_children: Optional list of additional child components (e.g., disclaimers)
+        value_color: Accent color used for the metric value container
     
     Returns:
         HTML Div containing the metric card with consistent styling
@@ -55,7 +57,7 @@ def create_metric_card(
                 html.Div(
                     id=value_id,
                     style={
-                        "color": "#4169E1",
+                        "color": value_color,
                         "fontSize": "1.125rem",
                         "fontWeight": "700",
                     },
