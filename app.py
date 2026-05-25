@@ -1,8 +1,23 @@
+import logging
+import os
+import sys
+
+if sys.platform == "win32":
+    # Remove SSLKEYLOGFILE if set (typically by Avast antivirus)
+    # This variable points to an antivirus proxy and breaks OpenSSL initialization
+    if "SSLKEYLOGFILE" in os.environ:
+        del os.environ["SSLKEYLOGFILE"]
+
+    # Force Python's OpenSSL to initialize first by importing ssl and accessing
+    # OPENSSL_VERSION. This establishes the applink before C++ bindings load.
+    import ssl
+    import _ssl
+    _ = _ssl.OPENSSL_VERSION
+    _ = ssl.OPENSSL_VERSION  # Force initialization
+
 # Import packages
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
-import sys
-import logging
 from dotenv import load_dotenv
 # Load environment variables and logging
 load_dotenv(override=True)
@@ -826,7 +841,6 @@ if __name__ == '__main__':
     print("Checking HDB carpark data on startup...")
     if download_hdb_carpark_csv(skip_if_exists=True):
         # Check if file was actually downloaded (not skipped)
-        import os
         csv_path = os.path.join(os.path.dirname(__file__), 'data', 'HDBCarparkInformation.csv')
         if os.path.exists(csv_path):
             # File exists - clear cache to ensure fresh data is loaded
