@@ -1,7 +1,39 @@
 """
 Callback for handling tab navigation between dashboard pages.
 """
-from dash import Input, Output
+from dash import Input, Output, State, no_update
+
+from components.realtime_weather_page import realtime_weather_page
+from components.weather_indices_page import weather_indices_page
+from components.transport_page import transport_page
+from components.bus_arrival_page import bus_arrival_page
+from components.nearby_transport_page import nearby_transport_page
+from components.travel_times_page import travel_times_page
+from components.analytics_forecast_page import analytics_forecast_page
+from components.traffic_conditions_page import traffic_conditions_page
+
+# Ordered list of tab values and their corresponding page builder functions.
+# Index N in _TAB_KEYS maps to index N in _PAGE_BUILDERS.
+_TAB_KEYS = [
+    "realtime-weather",
+    "weather-indices",
+    "transport",
+    "bus-arrival",
+    "nearby-transport",
+    "travel-times",
+    "analytics-forecast",
+    "traffic-conditions",
+]
+_PAGE_BUILDERS = [
+    realtime_weather_page,
+    weather_indices_page,
+    transport_page,
+    bus_arrival_page,
+    nearby_transport_page,
+    travel_times_page,
+    analytics_forecast_page,
+    traffic_conditions_page,
+]
 
 
 def register_tab_navigation_callback(app):
@@ -119,6 +151,37 @@ def register_tab_navigation_callback(app):
 
         return (main_style, realtime_style, indices_style, transport_style,
                 bus_arrival_style, nearby_transport_style, travel_times_style, analytics_forecast_style, traffic_conditions_style, search_bar_style)
+
+    @app.callback(
+        [Output("realtime-weather-page", "children"),
+         Output("weather-indices-page", "children"),
+         Output("transport-page", "children"),
+         Output("bus-arrival-page", "children"),
+         Output("nearby-transport-page", "children"),
+         Output("travel-times-page", "children"),
+         Output("analytics-forecast-page", "children"),
+         Output("traffic-conditions-page", "children"),
+         Output("initialized-tabs", "data")],
+        Input("navigation-tabs", "value"),
+        State("initialized-tabs", "data"),
+        prevent_initial_call=True,
+    )
+    def lazy_load_tab(tab_value, initialized_tabs):
+        """
+        Populate a tab page's children the first time the user visits it.
+        Subsequent visits return no_update so the built layout is preserved.
+        """
+        if tab_value == "main" or tab_value in initialized_tabs:
+            return [no_update] * 9  # 8 page children + store
+
+        results = [no_update] * 8
+        if tab_value in _TAB_KEYS:
+            idx = _TAB_KEYS.index(tab_value)
+            # Build only the inner children, not the outer wrapper div
+            # (the wrapper div with its id already exists as the placeholder).
+            results[idx] = _PAGE_BUILDERS[idx]().children
+
+        return results + [initialized_tabs + [tab_value]]
 
     # Clientside callback to fix map rendering after tab switch
     # This triggers invalidateSize() on Leaflet maps when tabs change
