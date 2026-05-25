@@ -15,6 +15,12 @@ if sys.platform == "win32":
     _ = _ssl.OPENSSL_VERSION
     _ = ssl.OPENSSL_VERSION  # Force initialization
 
+    # Let requests/urllib3 verify certificates against the Windows certificate
+    # store. This keeps Avast/corporate TLS inspection roots trusted without
+    # disabling certificate verification.
+    import truststore
+    truststore.inject_into_ssl()
+
 # Import packages
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
