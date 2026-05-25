@@ -1,71 +1,41 @@
 # Create a traffic callback to extract latest traffic from link ID 2701 (causeway) and 4713 (second link ) via lta API
 
-from typing import Union, Dict
+from typing import Dict
 import base64
 import requests
 import numpy as np
 from datetime import datetime
-from utils.async_fetcher import run_in_thread
+from utils.async_fetcher import run_in_thread, fetch_url_2min_cached, get_default_headers
 
-@run_in_thread
-def api_query_async(api_link: str,  agent_id: str) -> Union[Dict,None]:
-    """Function which executes query via an api link using a provided agent_id as an identifier to avoid rejection of query request
+_TRAFFIC_IMAGES_URL = "https://api.data.gov.sg/v1/transport/traffic-images"
 
-    Args:
-        api_link (str): API Link which requests is to be made
-        agent_id (str): Id used for request header
+
+def query_traffic_metadata() -> Dict:
+    """
+    Fetch traffic camera metadata from the data.gov.sg API, served from the
+    shared 2-minute bucket cache so repeated calls within the same window
+    never hit the network more than once.
 
     Returns:
-        Dictioanry containing request content. None when exception are encountered.
+        Dict keyed by camera_id, each value containing timestamp, image_url,
+        lat, lon and md5.  Returns an empty dict on error.
     """
-    req_headers = {"User-agent": agent_id}
-    try:
-        res = requests.get(api_link,
-                            headers=req_headers,
-                            timeout=5)
-        # Raise if HTTPError occured
-        res.raise_for_status()
-
-        # Check the status code before extending the number of posts
-        if res.status_code == 200:
-            print("Request sucessful for traffic_callback")
-            the_json = res.json()
-            return the_json['items']
-        return None
-
-    except requests.exceptions.HTTPError as errh:
-        print(errh)
-    except requests.exceptions.ConnectionError as errc:
-        print(errc)
-    except requests.exceptions.Timeout as errt:
-        print(errt)
-    except requests.exceptions.RequestException as err:
-        print(err)
-    return None
-
-@run_in_thread
-def query_traffic_metadata_async():
-    api_link = "https://api.data.gov.sg/v1/transport/traffic-images"
-    agent_id = "test_qzq"
-    future = api_query_async(api_link=api_link, agent_id=agent_id)
-    cctv_feed = future.result() if future else None
-    all_traffic_metadata_dict = {}
-    if not cctv_feed:
-        print("No response received")
+    data = fetch_url_2min_cached(_TRAFFIC_IMAGES_URL, headers=get_default_headers())
+    if not data:
+        print("No response received for traffic camera metadata")
         return {}
-    number_of_cameras = len(cctv_feed[0]["cameras"])
-    print(number_of_cameras)
-    for i in range(number_of_cameras):
-        camera_feed = cctv_feed[0]["cameras"][i]
-
-        # Process information to dictionary
-        metadata_dict = {"timestamp" : camera_feed["timestamp"],
-                "image_url": camera_feed["image"],
-                "lat": camera_feed["location"]["latitude"],
-                "lon": camera_feed["location"]["longitude"],
-                "md5": camera_feed["image_metadata"]["md5"]
+    items = data.get("items", [])
+    if not items:
+        return {}
+    all_traffic_metadata_dict: Dict = {}
+    for camera_feed in items[0].get("cameras", []):
+        all_traffic_metadata_dict[camera_feed["camera_id"]] = {
+            "timestamp": camera_feed["timestamp"],
+            "image_url": camera_feed["image"],
+            "lat": camera_feed["location"]["latitude"],
+            "lon": camera_feed["location"]["longitude"],
+            "md5": camera_feed["image_metadata"]["md5"],
         }
-        all_traffic_metadata_dict[camera_feed["camera_id"]] = metadata_dict
     return all_traffic_metadata_dict
 
 
@@ -244,9 +214,10 @@ def register_camera_feed_callbacks(app):
         default_meta = "Metadata unavailable"
         
         try:
-            # Get metadata for all cameras
-            future_metadata = query_traffic_metadata_async()
-            metadata_dict = future_metadata.result() if future_metadata else None
+            # Metadata is served from the shared 2-minute cache — no extra
+            # HTTP call is made if another callback already fetched this URL
+            # in the current 2-minute window.
+            metadata_dict = query_traffic_metadata()
 
             if not metadata_dict:
                 return no_image_text, no_image_text, default_meta, default_meta
