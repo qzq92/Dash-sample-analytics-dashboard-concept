@@ -3,6 +3,7 @@ Component for the Transport Information page.
 Displays transport-related information including taxi availability.
 """
 from dash import html, dcc
+from conf.cache_config import INTERVAL_TRANSPORT_MS, INTERVAL_EV_CHARGING_MS
 import dash_leaflet as dl
 from utils.map_utils import (
     get_onemap_attribution,
@@ -1157,21 +1158,21 @@ def transport_page():
             # Interval for auto-refresh
             dcc.Interval(
                 id='transport-interval',
-                interval=2*60*1000,  # Update every 2 minutes
+                interval=INTERVAL_TRANSPORT_MS,
                 n_intervals=0
             ),
             # Interval for map invalidation (fixes grey tiles)
             dcc.Interval(
                 id='transport-map-invalidate-interval',
-                interval=300,  # 300ms
+                interval=300,  # 300 ms — intentionally short for map tile fix
                 n_intervals=0,
                 max_intervals=1,  # Only fire once per activation
                 disabled=True  # Start disabled
             ),
-            # Interval for EV charging points updates (every 5 minutes)
+            # Interval for EV charging points updates
             dcc.Interval(
                 id='ev-charging-interval',
-                interval=5*60*1000,  # Update every 5 minutes
+                interval=INTERVAL_EV_CHARGING_MS,
                 n_intervals=0
             ),
         ]

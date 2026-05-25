@@ -3,6 +3,7 @@ Component for the realtime weather metrics page.
 Displays live weather station data across Singapore.
 """
 from dash import html, dcc
+from conf.cache_config import INTERVAL_REALTIME_WEATHER_MS
 import dash_leaflet as dl
 from utils.map_utils import (
     get_onemap_attribution,
@@ -714,13 +715,13 @@ def realtime_weather_page():
             # Interval for auto-refresh
             dcc.Interval(
                 id='realtime-weather-interval',
-                interval=2*60*1000,  # Update every 2 minutes
+                interval=INTERVAL_REALTIME_WEATHER_MS,
                 n_intervals=0
             ),
             # Interval for map invalidation (fixes grey tiles)
             dcc.Interval(
                 id='realtime-weather-map-invalidate-interval',
-                interval=300,  # 300ms
+                interval=300,  # 300 ms — intentionally short for map tile fix
                 n_intervals=0,
                 max_intervals=1,  # Only fire once per activation
                 disabled=True  # Start disabled

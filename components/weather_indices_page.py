@@ -3,6 +3,7 @@ Component for the Daily Health and Environmental Watch page.
 Displays various exposure indexes across Singapore.
 """
 from dash import html, dcc
+from conf.cache_config import INTERVAL_WEATHER_INDICES_MS
 import dash_leaflet as dl
 from utils.map_utils import (
     get_onemap_attribution,
@@ -886,7 +887,7 @@ def weather_indices_page():
             # Interval for auto-refresh
             dcc.Interval(
                 id='weather-indices-interval',
-                interval=2*60*1000,  # Update every 2 minutes
+                interval=INTERVAL_WEATHER_INDICES_MS,
                 n_intervals=0
             ),
         ]

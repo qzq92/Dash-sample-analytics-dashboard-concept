@@ -11,6 +11,7 @@ import glob
 import requests
 from typing import Optional, Dict, Any
 from utils.async_fetcher import fetch_url
+from conf.cache_config import TTL_INITIATE_DOWNLOAD_DATASETS
 
 # Base URL for initiate-download API
 INITIATE_DOWNLOAD_BASE_URL = "https://api-open.data.gov.sg/v1/public/api/datasets"
@@ -23,8 +24,8 @@ DATASET_IDS = {
     'SPEED_CAMERA': 'd_983804de2bc016f53e44031d85d1ec8a',
 }
 
-# Default cache TTL (24 hours in seconds)
-DEFAULT_CACHE_TTL = 24 * 60 * 60
+# Default cache TTL — sourced from centralised config
+DEFAULT_CACHE_TTL: int = TTL_INITIATE_DOWNLOAD_DATASETS
 
 # Global cache storage: {dataset_id: {'data': ..., 'timestamp': ...}}
 _dataset_caches: Dict[str, Dict[str, Any]] = {}

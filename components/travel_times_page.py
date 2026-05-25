@@ -4,6 +4,7 @@ Displays expressway travel times from LTA DataMall API.
 """
 from dash import html, dcc
 from conf.page_layout_config import PAGE_PADDING, PAGE_HEIGHT
+from conf.cache_config import INTERVAL_TRAVEL_TIMES_MS
 
 
 def travel_times_page():
@@ -85,7 +86,7 @@ def travel_times_page():
                     # Interval for auto-refresh
                     dcc.Interval(
                         id="travel-times-interval",
-                        interval=2 * 60 * 1000,  # Update every 2 minutes
+                        interval=INTERVAL_TRAVEL_TIMES_MS,
                         n_intervals=0
                     ),
                 ]

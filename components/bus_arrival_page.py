@@ -2,6 +2,7 @@
 Component for the Bus Arrival & Services Search page.
 """
 from dash import html, dcc
+from conf.cache_config import INTERVAL_TRANSPORT_MS, INTERVAL_BUS_ARRIVAL_MS
 import dash_leaflet as dl
 from utils.map_utils import (
     get_onemap_attribution,
@@ -358,21 +359,21 @@ def bus_arrival_page():
             # Interval for auto-refresh
             dcc.Interval(
                 id='bus-arrival-page-interval',
-                interval=2*60*1000,  # Update every 2 minutes
+                interval=INTERVAL_TRANSPORT_MS,
                 n_intervals=0
             ),
             # Interval for map invalidation (fixes grey tiles)
             dcc.Interval(
                 id='bus-arrival-map-invalidate-interval',
-                interval=300,  # 300ms
+                interval=300,  # 300 ms — intentionally short for map tile fix
                 n_intervals=0,
                 max_intervals=1,  # Only fire once per activation
                 disabled=True  # Start disabled
             ),
-            # Interval for bus arrival updates (every 1 minute)
+            # Interval for bus arrival updates
             dcc.Interval(
                 id='bus-arrival-interval',
-                interval=60*1000,  # Update every 1 minute
+                interval=INTERVAL_BUS_ARRIVAL_MS,
                 n_intervals=0
             ),
             # Store for current bus stop code to enable auto-refresh

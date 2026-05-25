@@ -3,6 +3,7 @@ Component for the Nearby Transportation and Parking Info page.
 Displays nearby transportation options and parking facilities.
 """
 from dash import html, dcc
+from conf.cache_config import INTERVAL_NEARBY_TRANSPORT_MS
 import dash_leaflet as dl
 from utils.map_utils import (
     get_onemap_attribution,
@@ -558,7 +559,7 @@ def nearby_transport_page():
             # Interval for auto-refresh
             dcc.Interval(
                 id='nearby-transport-interval',
-                interval=2*60*1000,  # Update every 2 minutes
+                interval=INTERVAL_NEARBY_TRANSPORT_MS,
                 n_intervals=0
             ),
         ]

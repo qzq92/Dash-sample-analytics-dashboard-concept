@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
+from conf.cache_config import CACHE_TTL_2MIN, CACHE_TTL_10MIN
+
 # Shared thread pool for all async operations
 # Using max_workers=10 is reasonable for I/O-bound tasks
 _executor = ThreadPoolExecutor(max_workers=10)
@@ -29,12 +31,12 @@ _10min_dynamic_cache: Dict[str, Any] = {}
 
 def get_current_2min_bucket() -> int:
     """Get the current 2-minute bucket start time (Unix timestamp)."""
-    return int(time.time() // 120) * 120
+    return int(time.time() // CACHE_TTL_2MIN) * CACHE_TTL_2MIN
 
 
 def get_current_10min_bucket() -> int:
     """Get the current 10-minute bucket start time (Unix timestamp)."""
-    return int(time.time() // 600) * 600
+    return int(time.time() // CACHE_TTL_10MIN) * CACHE_TTL_10MIN
 
 
 def fetch_url_2min_cached(url: str, headers: Optional[Dict] = None, timeout: int = 10) -> Optional[dict]:

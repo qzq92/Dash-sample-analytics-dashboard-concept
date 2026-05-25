@@ -4,6 +4,7 @@ Displays all LTA traffic camera feeds in a grid layout.
 """
 from dash import html, dcc
 from conf.page_layout_config import PAGE_PADDING, PAGE_HEIGHT
+from conf.cache_config import INTERVAL_TRAFFIC_CONDITIONS_MS
 
 
 def traffic_conditions_page():
@@ -89,7 +90,7 @@ def traffic_conditions_page():
             # Interval for auto-refresh (every 2 minutes)
             dcc.Interval(
                 id='traffic-conditions-interval',
-                interval=2*60*1000,  # Update every 2 minutes
+                interval=INTERVAL_TRAFFIC_CONDITIONS_MS,
                 n_intervals=0
             ),
         ]

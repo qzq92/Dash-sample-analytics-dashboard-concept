@@ -11,6 +11,7 @@ from datetime import datetime
 from dash import Input, Output, html, dcc
 import plotly.graph_objects as go
 from utils.async_fetcher import fetch_url, run_in_thread
+from conf.cache_config import TTL_ANALYTICS_FORECAST_CALLBACKS
 
 
 # API URL
@@ -19,11 +20,7 @@ PCD_FORECAST_URL = "https://datamall2.mytransport.sg/ltaodataservice/PCDForecast
 # 24-hour cache for forecast data (updated daily)
 _FORECAST_CACHE: Dict[str, Dict[str, Any]] = {}
 _FORECAST_CACHE_LOCK = threading.Lock()
-FORECAST_CACHE_TTL = 24 * 60 * 60  # 24 hours in seconds
-
-
-# API URL
-PCD_FORECAST_URL = "https://datamall2.mytransport.sg/ltaodataservice/PCDForecast"
+FORECAST_CACHE_TTL: int = TTL_ANALYTICS_FORECAST_CALLBACKS
 
 # Train line display names
 TRAIN_LINE_NAMES = {

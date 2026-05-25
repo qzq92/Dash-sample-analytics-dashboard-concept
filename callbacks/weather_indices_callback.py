@@ -16,6 +16,7 @@ import plotly.graph_objects as go
 import dash_leaflet as dl
 from dash import html, dcc, Input, Output, State, no_update
 from utils.async_fetcher import get_default_headers, fetch_url, fetch_url_2min_cached, run_in_thread
+from conf.cache_config import TTL_DISEASE_CLUSTER_CALLBACKS
 from callbacks.transport_callback import fetch_taxi_availability
 from components.metric_card import create_metric_value_display
 
@@ -31,19 +32,15 @@ ZIKA_POLL_DOWNLOAD_URL = f"https://api-open.data.gov.sg/v1/public/api/datasets/{
 DENGUE_DATASET_ID = "d_dbfabf16158d1b0e1c420627c0819168"
 DENGUE_POLL_DOWNLOAD_URL = f"https://api-open.data.gov.sg/v1/public/api/datasets/{DENGUE_DATASET_ID}/poll-download"
 
-# Cache for PSI data to avoid redundant API calls
-# Structure: {'data': <api_response>, 'timestamp': <time.time()>}
-_psi_cache = {'data': None, 'timestamp': 0}
-PSI_CACHE_TTL = 60  # Cache time-to-live in seconds
-
 # Cache disease cluster GeoJSON because several callbacks request the same
 # dataset repeatedly during a single refresh cycle.
+# PSI is already served by fetch_url_2min_cached; no separate PSI cache needed.
 _cluster_data_cache = {
     'zika': {'data': None, 'timestamp': 0},
     'dengue': {'data': None, 'timestamp': 0},
 }
 _cluster_cache_lock = Lock()
-CLUSTER_CACHE_TTL = 600  # 10 minutes
+CLUSTER_CACHE_TTL: int = TTL_DISEASE_CLUSTER_CALLBACKS
 
 
 # PSI (Pollutant Standards Index) categories

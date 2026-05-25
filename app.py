@@ -13,6 +13,7 @@ from components.banner_component import build_dashboard_banner
 from components.mrt_line_status_banner import build_mrt_line_status_banner
 from components.map_component import map_component
 from components.metric_card import create_metric_card
+from conf.cache_config import INTERVAL_MAIN_MS, INTERVAL_FLOOD_MS
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
 from callbacks.weather_callback import register_weather_callbacks
@@ -802,13 +803,13 @@ app.layout = html.Div(
                 # Interval component to update images and weather periodically
                 dcc.Interval(
                     id='interval-component',
-                    interval=2*60*1000,  # Update every 2 minutes
+                    interval=INTERVAL_MAIN_MS,
                     n_intervals=0
                 ),
-                # Interval component for flood alerts (updates every 3 minutes)
+                # Interval component for flood alerts
                 dcc.Interval(
                     id='flood-alert-interval',
-                    interval=3*60*1000,  # Update every 3 minutes
+                    interval=INTERVAL_FLOOD_MS,
                     n_intervals=0
                 ),
             ],

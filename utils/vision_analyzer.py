@@ -28,6 +28,7 @@ from conf.llm_config import (
     VISION_MODEL_PARAMS,
     TRAFFIC_ANALYSIS_PROMPT,
 )
+from conf.cache_config import TTL_CCTV_VISION_ANALYSIS
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ _analysis_lock = threading.Lock()
 _analysis_running = False
 _analysis_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="vision-analysis")
 
-ANALYSIS_INTERVAL_SECONDS = 300  # 5 minutes
+ANALYSIS_INTERVAL_SECONDS: int = TTL_CCTV_VISION_ANALYSIS
 BATCH_SIZE = 20
 
 VALID_STATUSES = {"heavy", "moderate", "light", "clear"}
