@@ -5063,6 +5063,12 @@ def register_traffic_conditions_callbacks(app):
     Args:
         app: Dash app instance
     """
+    from callbacks.traffic_conditions_callback import (
+        register_traffic_conditions_callbacks as _register_traffic_conditions_callbacks,
+    )
+
+    return _register_traffic_conditions_callbacks(app)
+
     @app.callback(
         Output('traffic-conditions-content', 'children'),
         [Input('traffic-conditions-interval', 'n_intervals'),

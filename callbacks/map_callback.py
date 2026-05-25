@@ -431,12 +431,11 @@ def register_search_callbacks(app):
         if not show_incidents:
             return [], legend_style
 
-        # Import here to avoid circular imports
-        from callbacks.transport_callback import (
-            fetch_traffic_incidents_data_async,
+        from utils.transport.incidents import (
             fetch_faulty_traffic_lights_data_async,
-            create_traffic_incidents_markers
+            fetch_traffic_incidents_data_async,
         )
+        from utils.transport.markers import create_traffic_incidents_markers
 
         # Fetch data
         future_incidents = fetch_traffic_incidents_data_async()

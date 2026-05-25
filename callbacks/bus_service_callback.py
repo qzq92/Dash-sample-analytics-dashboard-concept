@@ -4,7 +4,7 @@ Callback functions for handling bus service information.
 from typing import Optional, Dict, List, Any
 from dash import Input, Output, State, html, ALL, MATCH, callback_context, no_update
 import dash_leaflet as dl
-from callbacks.transport_callback import (
+from utils.transport.bus import (
     fetch_bus_routes_data,
     fetch_bus_routes_data_async,
     fetch_bus_stops_data,

@@ -17,7 +17,7 @@ import dash_leaflet as dl
 from dash import html, dcc, Input, Output, State, no_update
 from utils.async_fetcher import get_default_headers, fetch_url, fetch_url_2min_cached, run_in_thread
 from conf.cache_config import TTL_DISEASE_CLUSTER_CALLBACKS
-from callbacks.transport_callback import fetch_taxi_availability
+from utils.transport.taxi import fetch_taxi_availability
 from components.metric_card import create_metric_value_display
 
 # Thread pool for async exposure index fetching

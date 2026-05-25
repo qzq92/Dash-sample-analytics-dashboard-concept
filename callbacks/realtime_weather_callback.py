@@ -8,72 +8,20 @@ References:
 
 Uses ThreadPoolExecutor for async API fetching to improve performance.
 """
-import os
 import time
 from datetime import datetime, timedelta
 from dash import Input, Output, State, html, callback_context, no_update
 import dash_leaflet as dl
 from conf.windspeed_icon import get_windspeed_icon, get_windspeed_description, WINDSPEED_THRESHOLDS
-from utils.async_fetcher import get_default_headers, fetch_url_2min_cached, _executor
-from callbacks.weather_indices_callback import fetch_wbgt_data_async, format_wbgt_display, create_wbgt_markers
-from callbacks.transport_callback import fetch_traffic_incidents_data_async, fetch_faulty_traffic_lights_data_async
+from utils.realtime_weather_api import (
+    fetch_flood_alerts_async,
+    fetch_lightning_data_async,
+    fetch_realtime_data,
+    fetch_realtime_data_async,
+)
+from utils.transport.incidents import fetch_faulty_traffic_lights_data_async, fetch_traffic_incidents_data_async
+from utils.weather_indices_wbgt import fetch_wbgt_data_async, format_wbgt_display, create_wbgt_markers
 from components.metric_card import create_metric_value_display
-
-# API URLs
-API_BASE = "https://api-open.data.gov.sg/v2/real-time/api"
-FLOOD_ALERTS_URL = f"{API_BASE}/weather/flood-alerts"
-LIGHTNING_URL = f"{API_BASE}/weather?api=lightning"
-SUPPORTED_ENDPOINTS = ['air-temperature', 'rainfall', 'relative-humidity', 'wind-speed']
-
-
-def fetch_flood_alerts_async():
-    """
-    Fetch flood alerts asynchronously (returns Future).
-    Call .result() to get the data when needed.
-    """
-    return _executor.submit(fetch_url_2min_cached, FLOOD_ALERTS_URL, get_default_headers())
-
-
-def fetch_realtime_data(endpoint):
-    """
-    Fetch realtime weather data from data.gov.sg v2 API.
-
-    Args:
-        endpoint: API endpoint (e.g., 'air-temperature', 'rainfall')
-
-    Returns:
-        Dictionary containing weather data or None if error
-    """
-    if endpoint not in SUPPORTED_ENDPOINTS:
-        print(f"Unsupported endpoint: {endpoint}")
-        return None
-
-    url = f"{API_BASE}/{endpoint}"
-    return fetch_url_2min_cached(url, get_default_headers())
-
-
-def fetch_realtime_data_async(endpoint):
-    """
-    Fetch realtime weather data asynchronously (returns Future).
-    Call .result() to get the data when needed.
-    """
-    if endpoint not in SUPPORTED_ENDPOINTS:
-        print(f"Unsupported endpoint: {endpoint}")
-        return None
-
-    url = f"{API_BASE}/{endpoint}"
-    return _executor.submit(fetch_url_2min_cached, url, get_default_headers())
-
-
-def fetch_lightning_data_async():
-    """
-    Fetch lightning data asynchronously (returns Future).
-    Call .result() to get the data when needed.
-    """
-    return _executor.submit(fetch_url_2min_cached, LIGHTNING_URL, get_default_headers())
-
-
-
 
 def build_station_lookup(data):
     """Build a lookup dictionary from station_id to station metadata."""

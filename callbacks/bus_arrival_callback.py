@@ -414,7 +414,8 @@ def register_bus_arrival_callbacks(app):
                 ), [], no_update
             
             # Fetch and format bus service data
-            from callbacks.bus_service_callback import fetch_bus_routes_data, format_bus_service_search_display
+            from callbacks.bus_service_callback import format_bus_service_search_display
+            from utils.transport.bus import fetch_bus_routes_data
             routes_data = fetch_bus_routes_data()
             formatted_service = format_bus_service_search_display(service_no, routes_data)
             return formatted_service, [], no_update
@@ -478,7 +479,7 @@ def register_bus_arrival_callbacks(app):
         
         # Coordinate lookup for bus stop
         lat, lon = None, None
-        from callbacks.transport_callback import fetch_bus_stops_data
+        from utils.transport.bus import fetch_bus_stops_data
         bus_stops_data = fetch_bus_stops_data()
         if bus_stops_data and 'value' in bus_stops_data:
             for bs in bus_stops_data['value']:

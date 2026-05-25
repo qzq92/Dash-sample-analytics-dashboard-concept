@@ -3,7 +3,7 @@ Callback functions for handling flood alerts API integration.
 Reference: https://data.gov.sg/datasets?formats=API&resultId=d_f1404e08587ce555b9ea3f565e2eb9a3
 """
 from dash import Input, Output, State, html, no_update
-from callbacks.realtime_weather_callback import fetch_flood_alerts_async
+from utils.realtime_weather_api import fetch_flood_alerts_async
 
 
 def format_flood_alerts(data):

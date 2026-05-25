@@ -51,14 +51,14 @@ from callbacks.train_service_alerts_callback import register_train_service_alert
 from callbacks.mrt_crowd_callback import register_mrt_crowd_callbacks
 from callbacks.travel_times_callback import register_travel_times_callbacks
 from callbacks.analytics_forecast_callback import register_analytics_forecast_callbacks
-from callbacks.transport_callback import register_traffic_conditions_callbacks
+from callbacks.traffic_conditions_callback import register_traffic_conditions_callbacks
+from utils.transport.ev import fetch_evc_batch_async
 from auth.onemap_api import initialize_onemap_token
 from utils.data_download_helper import (
     download_hdb_carpark_csv,
     download_speed_camera_csv
 )
 from callbacks.carpark_callback import clear_carpark_locations_cache
-from callbacks.transport_callback import fetch_evc_batch_async
 
 
 # Dash instantiation ---------------------------------------------------------#
