@@ -12,14 +12,6 @@ from conf.page_layout_config import MAIN_DASHBOARD_HEIGHT, get_content_container
 from components.banner_component import build_dashboard_banner
 from components.mrt_line_status_banner import build_mrt_line_status_banner
 from components.map_component import map_component
-from components.realtime_weather_page import realtime_weather_page
-from components.weather_indices_page import weather_indices_page
-from components.transport_page import transport_page
-from components.bus_arrival_page import bus_arrival_page
-from components.nearby_transport_page import nearby_transport_page
-from components.travel_times_page import travel_times_page
-from components.analytics_forecast_page import analytics_forecast_page
-from components.traffic_conditions_page import traffic_conditions_page
 from components.metric_card import create_metric_card
 from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
@@ -74,6 +66,19 @@ register_travel_times_callbacks(app)
 register_analytics_forecast_callbacks(app)
 register_traffic_conditions_callbacks(app)
 register_tab_navigation_callback(app)
+
+def _loading_placeholder():
+    """Spinner shown while a tab page's layout is being built server-side."""
+    return html.Div(
+        "Loading…",
+        style={
+            "color": "#aaa",
+            "textAlign": "center",
+            "padding": "3rem",
+            "fontSize": "0.875rem",
+        },
+    )
+
 
 # Dashboard app layout ------------------------------------------------------#
 app.layout = html.Div(
@@ -134,22 +139,25 @@ app.layout = html.Div(
                 "flexDirection": "column",
             },
             children=[
-                # Realtime weather page (hidden by default)
-                realtime_weather_page(),
-                # Weather indices page (hidden by default)
-                weather_indices_page(),
-                # Transport page (hidden by default)
-                transport_page(),
-                # Bus Arrival & Services page (hidden by default)
-                bus_arrival_page(),
-                # Nearby transport page (hidden by default)
-                nearby_transport_page(),
-                # Travel times page (hidden by default)
-                travel_times_page(),
-                # MRT/LRT Station Crowd Forecast page (hidden by default)
-                analytics_forecast_page(),
-                # Traffic conditions page (hidden by default)
-                traffic_conditions_page(),
+                # --- Lazy-loaded tab pages ---
+                # Each page is an empty placeholder; its children are populated on
+                # first visit by the lazy_load_tab callback in tab_navigation_callback.
+                html.Div(id="realtime-weather-page", style={"display": "none"},
+                         children=[_loading_placeholder()]),
+                html.Div(id="weather-indices-page", style={"display": "none"},
+                         children=[_loading_placeholder()]),
+                html.Div(id="transport-page", style={"display": "none"},
+                         children=[_loading_placeholder()]),
+                html.Div(id="bus-arrival-page", style={"display": "none"},
+                         children=[_loading_placeholder()]),
+                html.Div(id="nearby-transport-page", style={"display": "none"},
+                         children=[_loading_placeholder()]),
+                html.Div(id="travel-times-page", style={"display": "none"},
+                         children=[_loading_placeholder()]),
+                html.Div(id="analytics-forecast-page", style={"display": "none"},
+                         children=[_loading_placeholder()]),
+                html.Div(id="traffic-conditions-page", style={"display": "none"},
+                         children=[_loading_placeholder()]),
                 # Main content area with map and right panel side by side
                 html.Div(
                     id="main-content",
@@ -781,6 +789,8 @@ app.layout = html.Div(
                 ),
             ]
         ),
+                # Tracks which tab pages have had their layout built (lazy-load)
+                dcc.Store(id="initialized-tabs", data=[]),
                 # Store for 2H forecast toggle state
                 dcc.Store(id="2h-forecast-toggle-state", data=False),
                 # Store for Regional PSI Info toggle state
