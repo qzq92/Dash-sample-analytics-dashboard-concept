@@ -1758,6 +1758,40 @@ def format_traffic_incidents_indicator(data, faulty_lights_data=None):
     )
 
 
+def _format_wind_sensor_values(speed_data):
+    """Format wind sensor values for the detailed sensor list."""
+    if not speed_data or 'data' not in speed_data:
+        return _get_error_div()
+
+    api_data = speed_data['data']
+    if 'readings' not in api_data or not api_data['readings']:
+        return _get_error_div()
+
+    reading_item = api_data['readings'][0]
+    speed_readings = reading_item.get('data', [])
+    if not speed_readings:
+        return _get_error_div()
+
+    _ = build_station_lookup(speed_data)  # For station name lookup
+    speed_unit = api_data.get('readingUnit', 'km/h')
+
+    readings_sorted = []
+    for reading in speed_readings:
+        station_id = reading.get('stationId', '')
+        speed_kmh = _convert_to_kmh(reading.get('value', 0), speed_unit)
+        name = station_id  # Simplified for sensor values
+        readings_sorted.append((name, speed_kmh))
+    readings_sorted.sort(key=lambda x: x[0].lower())
+
+    reading_divs = []
+    for name, speed_kmh in readings_sorted:
+        icon = get_windspeed_icon(speed_kmh)
+        display = f"{icon} {speed_kmh} km/h"
+        reading_divs.append(_create_reading_div(name, display, "#4CAF50"))
+
+    return _build_grid_content(reading_divs, reading_item.get('timestamp', ''))
+
+
 def register_realtime_weather_callbacks(app):
     """
     Register callbacks for realtime weather readings.
@@ -1766,57 +1800,54 @@ def register_realtime_weather_callbacks(app):
         app: Dash app instance
     """
     @app.callback(
-        Output('temperature-readings-content', 'children'),
+        [Output('temperature-readings-content', 'children'),
+         Output('rainfall-readings-content', 'children'),
+         Output('humidity-readings-content', 'children'),
+         Output('wind-readings-content', 'children'),
+         Output('temp-sensor-content', 'children'),
+         Output('rainfall-sensor-content', 'children'),
+         Output('humidity-sensor-content', 'children'),
+         Output('wind-sensor-content', 'children'),
+         Output('lightning-indicator', 'children'),
+         Output('lightning-markers', 'children'),
+         Output('flood-indicator', 'children'),
+         Output('flood-markers', 'children')],
         Input('interval-component', 'n_intervals'),
         State('navigation-tabs', 'value')
     )
-    def update_temperature_readings(n_intervals, active_tab):
-        """Update temperature readings periodically."""
+    def update_realtime_weather_interval_content(n_intervals, active_tab):
+        """Refresh all realtime-weather content driven by the global interval."""
         _ = n_intervals
         if active_tab != 'realtime-weather':
-            return no_update
-        data = fetch_realtime_data('air-temperature')
-        return format_readings_grid(data, '°C', '#FF9800')
+            return [no_update] * 12
 
-    @app.callback(
-        Output('rainfall-readings-content', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_rainfall_readings(n_intervals, active_tab):
-        """Update rainfall readings periodically."""
-        _ = n_intervals
-        if active_tab != 'realtime-weather':
-            return no_update
-        data = fetch_realtime_data('rainfall')
-        # Pass default unit, but format_readings_grid will try to extract from API first
-        return format_readings_grid(data, 'mm', '#2196F3')
+        temp_data = fetch_realtime_data('air-temperature')
+        rain_data = fetch_realtime_data('rainfall')
+        humid_data = fetch_realtime_data('relative-humidity')
+        wind_data = fetch_realtime_data('wind-speed')
 
-    @app.callback(
-        Output('humidity-readings-content', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_humidity_readings(n_intervals, active_tab):
-        """Update humidity readings periodically."""
-        _ = n_intervals
-        if active_tab != 'realtime-weather':
-            return no_update
-        data = fetch_realtime_data('relative-humidity')
-        return format_readings_grid(data, '%', '#00BCD4')
+        future_lightning = fetch_lightning_data_async()
+        future_flood = fetch_flood_alerts_async()
+        lightning_data = future_lightning.result() if future_lightning else None
+        flood_data = future_flood.result() if future_flood else None
 
-    @app.callback(
-        Output('wind-readings-content', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_wind_readings(n_intervals, active_tab):
-        """Update wind readings periodically."""
-        _ = n_intervals
-        if active_tab != 'realtime-weather':
-            return no_update
-        speed_data = fetch_realtime_data('wind-speed')
-        return format_wind_readings(speed_data)
+        lightning_markers = create_lightning_markers(lightning_data) if lightning_data else []
+        flood_markers = create_flood_markers(flood_data) if flood_data else []
+
+        return (
+            format_readings_grid(temp_data, '°C', '#FF9800'),
+            format_readings_grid(rain_data, 'mm', '#2196F3'),
+            format_readings_grid(humid_data, '%', '#00BCD4'),
+            format_wind_readings(wind_data),
+            format_sensor_values_grid(temp_data, '°C', '#FF9800'),
+            format_sensor_values_grid(rain_data, 'mm', '#2196F3'),
+            format_sensor_values_grid(humid_data, '%', '#00BCD4'),
+            _format_wind_sensor_values(wind_data),
+            format_lightning_indicator(lightning_data),
+            lightning_markers,
+            format_flood_indicator(flood_data),
+            flood_markers,
+        )
 
     @app.callback(
         Output('lightning-readings-content', 'children'),
@@ -1845,18 +1876,6 @@ def register_realtime_weather_callbacks(app):
         future = fetch_flood_alerts_async()
         data = future.result() if future else None
         return format_flood_readings(data)
-
-    @app.callback(
-        Output('wind-speed-legend', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_wind_speed_legend(n_intervals, active_tab):
-        """Update wind speed legend periodically."""
-        _ = n_intervals
-        if active_tab != 'realtime-weather':
-            return no_update
-        return _create_wind_speed_legend()
 
     # Toggle callbacks for sensor values sections
     @app.callback(
@@ -2088,84 +2107,6 @@ def register_realtime_weather_callbacks(app):
             "fontWeight": "600",
         }
         return style, text, button_style
-
-    # Callbacks to populate sensor values when sections are visible
-    @app.callback(
-        Output('temp-sensor-content', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_temp_sensor_content(_n_intervals, active_tab):
-        """Update temperature sensor values."""
-        if active_tab != 'realtime-weather':
-            return no_update
-        data = fetch_realtime_data('air-temperature')
-        return format_sensor_values_grid(data, '°C', '#FF9800')
-
-    @app.callback(
-        Output('rainfall-sensor-content', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_rainfall_sensor_content(_n_intervals, active_tab):
-        """Update rainfall sensor values."""
-        if active_tab != 'realtime-weather':
-            return no_update
-        data = fetch_realtime_data('rainfall')
-        return format_sensor_values_grid(data, 'mm', '#2196F3')
-
-    @app.callback(
-        Output('humidity-sensor-content', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_humidity_sensor_content(_n_intervals, active_tab):
-        """Update humidity sensor values."""
-        if active_tab != 'realtime-weather':
-            return no_update
-        data = fetch_realtime_data('relative-humidity')
-        return format_sensor_values_grid(data, '%', '#00BCD4')
-
-    @app.callback(
-        Output('wind-sensor-content', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_wind_sensor_content(_n_intervals, active_tab):
-        """Update wind sensor values."""
-        if active_tab != 'realtime-weather':
-            return no_update
-        speed_data = fetch_realtime_data('wind-speed')
-        if not speed_data or 'data' not in speed_data:
-            return _get_error_div()
-
-        api_data = speed_data['data']
-        if 'readings' not in api_data or not api_data['readings']:
-            return _get_error_div()
-
-        reading_item = api_data['readings'][0]
-        speed_readings = reading_item.get('data', [])
-        if not speed_readings:
-            return _get_error_div()
-
-        _ = build_station_lookup(speed_data)  # For station name lookup
-        speed_unit = api_data.get('readingUnit', 'km/h')
-
-        readings_sorted = []
-        for reading in speed_readings:
-            station_id = reading.get('stationId', '')
-            speed_kmh = _convert_to_kmh(reading.get('value', 0), speed_unit)
-            name = station_id  # Simplified for sensor values
-            readings_sorted.append((name, speed_kmh))
-        readings_sorted.sort(key=lambda x: x[0].lower())
-
-        reading_divs = []
-        for name, speed_kmh in readings_sorted:
-            icon = get_windspeed_icon(speed_kmh)
-            display = f"{icon} {speed_kmh} km/h"
-            reading_divs.append(_create_reading_div(name, display, "#4CAF50"))
-
-        return _build_grid_content(reading_divs, reading_item.get('timestamp', ''))
 
     @app.callback(
         Output('lightning-sensor-content', 'children'),
@@ -2458,149 +2399,87 @@ def register_realtime_weather_callbacks(app):
                 return create_fn(data)
         return []
 
+    # Main page summary callbacks
     @app.callback(
-        Output('lightning-indicator', 'children'),
-        Input('interval-component', 'n_intervals'),
+        [Output('main-lightning-indicator-summary', 'children'),
+         Output('main-flood-indicator-summary', 'children'),
+         Output('main-traffic-incidents-indicator', 'children')],
+        [Input('interval-component', 'n_intervals'),
+         Input('flood-alert-interval', 'n_intervals')],
         State('navigation-tabs', 'value')
     )
-    def update_lightning_indicator(n_intervals, active_tab):
-        """Update lightning status indicator periodically."""
-        _ = n_intervals
-        if active_tab != 'realtime-weather':
-            return no_update
-        future = fetch_lightning_data_async()
-        data = future.result() if future else None
-        return format_lightning_indicator(data)
-
-    @app.callback(
-        Output('lightning-markers', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_lightning_markers(n_intervals, active_tab):
-        """Update lightning markers on map periodically."""
-        _ = n_intervals
-        if active_tab != 'realtime-weather':
-            return no_update
-        future = fetch_lightning_data_async()
-        data = future.result() if future else None
-        if data:
-            return create_lightning_markers(data)
-        return []
-
-    @app.callback(
-        Output('flood-indicator', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_flood_indicator(n_intervals, active_tab):
-        """Update flood status indicator periodically."""
-        _ = n_intervals
-        if active_tab != 'realtime-weather':
-            return no_update
-        future = fetch_flood_alerts_async()
-        data = future.result() if future else None
-        return format_flood_indicator(data)
-
-    @app.callback(
-        Output('flood-markers', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_flood_markers(n_intervals, active_tab):
-        """Update flood markers on map periodically."""
-        _ = n_intervals
-        if active_tab != 'realtime-weather':
-            return no_update
-        future = fetch_flood_alerts_async()
-        data = future.result() if future else None
-        if data:
-            return create_flood_markers(data)
-        return []
-
-    # Main page callbacks for lightning and flood indicators
-    @app.callback(
-        Output('main-lightning-indicator-summary', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_main_lightning_indicator(n_intervals, active_tab):
-        """Update lightning status indicator on main page periodically."""
-        _ = n_intervals
+    def update_main_dashboard_summaries(_main_interval, _flood_interval, active_tab):
+        """
+        Update main dashboard summaries while preserving their existing cadence:
+        lightning and traffic incidents on the global interval, flood on the
+        dedicated flood interval.
+        """
         if active_tab != 'main':
-            return no_update
-        future = fetch_lightning_data_async()
-        data = future.result() if future else None
-        
-        # Get count from format_lightning_summary
-        if not data or 'data' not in data:
-            count_value = "Error"
-        else:
-            records = data['data'].get('records', [])
-            if not records:
-                count_value = "0"
+            return no_update, no_update, no_update
+
+        triggered_id = callback_context.triggered[0]['prop_id'].split('.')[0] if callback_context.triggered else None
+        update_all = triggered_id not in {'interval-component', 'flood-alert-interval'}
+
+        lightning_summary = no_update
+        flood_summary = no_update
+        incidents_summary = no_update
+
+        if update_all or triggered_id == 'interval-component':
+            future_lightning = fetch_lightning_data_async()
+            lightning_data = future_lightning.result() if future_lightning else None
+
+            if not lightning_data or 'data' not in lightning_data:
+                lightning_count = "Error"
             else:
-                # Count lightning observations within last 5 minutes and within Singapore bounds
-                lightning_count = 0
-                for record in records:
-                    item = record.get('item', {})
+                records = lightning_data['data'].get('records', [])
+                if not records:
+                    lightning_count = "0"
+                else:
+                    count = 0
+                    for record in records:
+                        item = record.get('item', {})
+                        readings = item.get('readings', [])
+                        for reading in readings:
+                            location = reading.get('location', {})
+                            lat = location.get('latitude', '')
+                            lon = location.get('longtitude') or location.get('longitude', '')
+                            datetime_str = reading.get('datetime', '')
+                            if (
+                                lat
+                                and lon
+                                and _is_within_singapore_bounds(lat, lon)
+                                and _is_within_last_5_minutes(datetime_str)
+                            ):
+                                count += 1
+                    lightning_count = str(count)
+
+            lightning_summary = create_metric_value_display(lightning_count, color="#FFD700")
+
+            future_incidents = fetch_traffic_incidents_data_async()
+            future_faulty = fetch_faulty_traffic_lights_data_async()
+            incidents_data = future_incidents.result() if future_incidents else None
+            faulty_lights_data = future_faulty.result() if future_faulty else None
+            incidents_summary = format_traffic_incidents_indicator(incidents_data, faulty_lights_data)
+
+        if update_all or triggered_id == 'flood-alert-interval':
+            future_flood = fetch_flood_alerts_async()
+            flood_data = future_flood.result() if future_flood else None
+
+            if not flood_data or 'data' not in flood_data:
+                flood_count = "Error"
+            else:
+                records = flood_data['data'].get('records', [])
+                if not records:
+                    flood_count = "0"
+                else:
+                    first_record = records[0]
+                    item = first_record.get('item', {})
                     readings = item.get('readings', [])
-                    for reading in readings:
-                        location = reading.get('location', {})
-                        lat = location.get('latitude', '')
-                        lon = location.get('longtitude') or location.get('longitude', '')
-                        datetime_str = reading.get('datetime', '')
-                        if lat and lon and _is_within_singapore_bounds(lat, lon) and _is_within_last_5_minutes(datetime_str):
-                            lightning_count += 1
-                count_value = str(lightning_count)
-        
-        # Format to match metric card pattern with yellow color to match toggle tab
-        return create_metric_value_display(count_value, color="#FFD700")
+                    flood_count = str(len(readings)) if readings else "0"
 
-    @app.callback(
-        Output('main-flood-indicator-summary', 'children'),
-        Input('flood-alert-interval', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_main_flood_indicator(n_intervals, active_tab):
-        """Update flood status indicator on main page periodically (every 3 minutes)."""
-        _ = n_intervals
-        if active_tab != 'main':
-            return no_update
-        future = fetch_flood_alerts_async()
-        data = future.result() if future else None
-        
-        # Get count from format_flood_summary
-        if not data or 'data' not in data:
-            count_value = "Error"
-        else:
-            records = data['data'].get('records', [])
-            if not records:
-                count_value = "0"
-            else:
-                first_record = records[0]
-                item = first_record.get('item', {})
-                readings = item.get('readings', [])
-                count_value = str(len(readings)) if readings else "0"
-        
-        # Format to match metric card pattern
-        return create_metric_value_display(count_value)
+            flood_summary = create_metric_value_display(flood_count)
 
-    @app.callback(
-        Output('main-traffic-incidents-indicator', 'children'),
-        Input('interval-component', 'n_intervals'),
-        State('navigation-tabs', 'value')
-    )
-    def update_main_traffic_incidents_indicator(n_intervals, active_tab):
-        """Update traffic incidents indicator on main page periodically."""
-        _ = n_intervals
-        if active_tab != 'main':
-            return no_update
-        future_incidents = fetch_traffic_incidents_data_async()
-        future_faulty = fetch_faulty_traffic_lights_data_async()
-        incidents_data = future_incidents.result() if future_incidents else None
-        faulty_lights_data = future_faulty.result() if future_faulty else None
-        return format_traffic_incidents_indicator(incidents_data, faulty_lights_data)
+        return lightning_summary, flood_summary, incidents_summary
 
 
 def _get_btn_styles(active_type):
