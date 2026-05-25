@@ -61,10 +61,6 @@ TTL_ANALYTICS_FORECAST_CALLBACKS: int = _SECONDS_24_HOURS
 # ERP gantries, HDB carpark, speed camera and PUB CCTV batch datasets.
 TTL_INITIATE_DOWNLOAD_DATASETS: int = _SECONDS_24_HOURS
 
-# Gemini CCTV vision analysis:
-# minimum time between traffic-image analysis runs.
-TTL_CCTV_VISION_ANALYSIS: int = _SECONDS_5_MIN
-
 # ---------------------------------------------------------------------------
 # UI refresh cadences  (milliseconds, for dcc.Interval)
 # ---------------------------------------------------------------------------
@@ -83,7 +79,7 @@ INTERVAL_TRAFFIC_CONDITIONS_MS: int = (
     TTL_TRAFFIC_CONDITIONS_CALLBACKS * _MILLISECONDS
 )
 INTERVAL_NEARBY_TRANSPORT_MS: int = TTL_TRANSPORT_CALLBACKS * _MILLISECONDS
-INTERVAL_EV_CHARGING_MS: int = TTL_CCTV_VISION_ANALYSIS * _MILLISECONDS
+INTERVAL_EV_CHARGING_MS: int = _SECONDS_5_MIN * _MILLISECONDS
 
 # ---------------------------------------------------------------------------
 # Backwards-compatible aliases
@@ -99,4 +95,3 @@ CACHE_TTL_10MIN: int = TTL_MRT_CROWD_CALLBACKS
 CACHE_TTL_CLUSTER: int = TTL_DISEASE_CLUSTER_CALLBACKS
 CACHE_TTL_FORECAST: int = TTL_ANALYTICS_FORECAST_CALLBACKS
 CACHE_TTL_DATASET: int = TTL_INITIATE_DOWNLOAD_DATASETS
-ANALYSIS_INTERVAL: int = TTL_CCTV_VISION_ANALYSIS

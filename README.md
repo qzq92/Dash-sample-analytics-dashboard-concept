@@ -107,8 +107,8 @@ This analytics dashboard provides real-time information on:
 ### Road & Transport Metrics and Advisories Page
 - **Taxi Availability**: Real-time taxi locations (4,500+ taxis) displayed as yellow markers on map
 - **Traffic Cameras**: CCTV camera locations with live feed popups showing traffic conditions
-  - AI traffic condition analysis (Heavy/Moderate/Light/Clear) shown directly on CCTV markers
-  - Top-right map legend appears when "Show LTA Traffic Cameras Location" is enabled
+  - Camera markers open the latest available image feed in map popups
+  - Some feeds may become unavailable as LTA switches off most traffic condition video feeds
 - **ERP Gantries**: Electronic Road Pricing gantry locations displayed as red polylines on map
 - **Taxi Stands**: Taxi stand locations with detailed information (name, barrier-free access, ownership, type)
 - **MRT/LRT Line Operational Status**: Real-time status for all MRT and LRT lines
@@ -174,14 +174,7 @@ This analytics dashboard provides real-time information on:
 - **Live Camera Feeds**: Grid layout displaying all LTA traffic camera feeds
 - **Auto-refresh**: Updates automatically every 2 minutes
 - **Full Resolution Images**: Camera feeds displayed without cropping
-- **AI Status Badges**: Each camera card displays traffic condition status when analysis is available
-
-### Traffic Camera AI Analysis
-- **Model Strategy**: Uses Gemini 2.5 Flash as primary model with automatic fallback to Gemini 2.0 Flash when rate limits are hit
-- **Config Location**: Model names, prompt, and generation settings are centralized in `conf/llm_config.py`
-- **Runtime Engine**: Vision batching/caching logic is implemented in `utils/vision_analyzer.py`
-- **When Analysis Runs**: Triggered from Road & Transport and Traffic Conditions flows, with internal 5-minute throttling and md5-based change detection
-- **Failure Handling**: If API key is invalid or endpoint/model is unavailable, no traffic status is returned and no status color badge/bar is shown
+- **Feed Availability Notice**: Includes a banner noting that LTA is switching off most traffic condition video feeds, so some feeds may no longer load
 
 ## Application Structure
 
@@ -418,8 +411,6 @@ This will create a virtual environment (`.venv`) and install all dependencies. N
 - **numpy**: Numerical operations for UV Index graphing
 - **concurrent.futures**: ThreadPoolExecutor for async API fetching (via `@run_in_thread` decorator)
 - **gunicorn**: WSGI HTTP server for Plotly Cloud deployment
-- **langchain-core**: LLM framework primitives used for structured model invocation
-- **langchain-google-genai**: Gemini integration for traffic camera vision analysis
 
 All required packages will be installed, and the app will be able to run.
 
@@ -438,9 +429,6 @@ ONEMAP_EMAIL_PASSWORD=your_onemap_password_here
 
 # LTA DataMall API key (required for carpark availability)
 LTA_API_KEY=your_lta_api_key_here
-
-# Google API key (required for Gemini traffic camera analysis)
-GOOGLE_API_KEY=your_google_api_key_here
 ```
 
 ### Getting API Keys
@@ -464,10 +452,6 @@ GOOGLE_API_KEY=your_google_api_key_here
    - Fill in the application form with your details and intended usage
    - The API key will be sent to your email after approval
    - Required for: Real-time carpark availability (CarParkAvailabilityv2 API), train service alerts, faulty traffic lights, taxi stands data, and estimated travel times (EstTravelTimes API)
-
-4. **Google API Key (Gemini)**:
-   - Create an API key from [Google AI Studio](https://aistudio.google.com/apikey)
-   - Required for: Traffic camera AI condition analysis (Gemini 2.5 Flash with fallback to Gemini 2.0 Flash)
 
 ## Using this application
 

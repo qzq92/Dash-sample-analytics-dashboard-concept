@@ -19,13 +19,6 @@ import dash_leaflet as dl
 from utils.async_fetcher import fetch_url, fetch_url_2min_cached, run_in_thread
 from utils.data_download_helper import fetch_erp_gantry_data
 from utils.map_utils import SG_MAP_CENTER
-from utils.vision_analyzer import (
-    trigger_analysis,
-    get_cached_analysis,
-    get_status_color,
-    get_status_marker_url,
-    is_analysis_available,
-)
 from callbacks.map_callback import _haversine_distance_m
 from components.metric_card import create_metric_value_display
 
@@ -366,22 +359,18 @@ def parse_traffic_camera_data(data):
     return camera_dict
 
 
-def create_cctv_markers(camera_data, traffic_analysis=None):
+def create_cctv_markers(camera_data):
     """
     Create map markers for CCTV camera locations with image popups.
     
     Args:
         camera_data: Dictionary of camera metadata
-        traffic_analysis: Optional dict mapping camera_id to traffic status string.
-                         When provided, markers are color-coded by traffic condition.
     
     Returns:
         List of dl.Marker components with popups
     """
     markers = []
     camera_id_mapping = _load_lta_camera_id_mapping()
-    if traffic_analysis is None:
-        traffic_analysis = {}
     
     for camera_id, info in camera_data.items():
         lat = info.get('lat')
@@ -404,13 +393,10 @@ def create_cctv_markers(camera_data, traffic_analysis=None):
                 datetime_text = str(timestamp) if timestamp else ""
 
         location_desc = camera_id_mapping.get(str(camera_id), f"Camera {camera_id}")
-        traffic_status = traffic_analysis.get(str(camera_id))
 
         tooltip_parts = [location_desc]
         if datetime_text:
             tooltip_parts.append(f"Time: {datetime_text}")
-        if traffic_status and traffic_status != "unknown":
-            tooltip_parts.append(f"Traffic: {traffic_status.capitalize()}")
         tooltip_text = "\n".join(tooltip_parts)
         
         popup_children = [
@@ -425,23 +411,6 @@ def create_cctv_markers(camera_data, traffic_analysis=None):
                 )
             )
 
-        if traffic_status and traffic_status != "unknown":
-            popup_children.append(
-                html.Div(
-                    traffic_status.capitalize(),
-                    style={
-                        "fontSize": "0.75rem",
-                        "fontWeight": "600",
-                        "color": "#fff",
-                        "backgroundColor": get_status_color(traffic_status),
-                        "padding": "0.125rem 0.5rem",
-                        "borderRadius": "0.25rem",
-                        "marginTop": "0.375rem",
-                        "display": "inline-block",
-                    }
-                )
-            )
-        
         popup_children.append(
             html.Img(
                 src=image_url,
@@ -454,11 +423,7 @@ def create_cctv_markers(camera_data, traffic_analysis=None):
             )
         )
 
-        icon_url = (
-            get_status_marker_url(traffic_status)
-            if traffic_status
-            else "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png"
-        )
+        icon_url = "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png"
         
         markers.append(
             dl.Marker(
@@ -3527,25 +3492,19 @@ def register_transport_callbacks(app):
 
     @app.callback(
         [Output('cctv-markers', 'children'),
-         Output('cctv-count-value', 'children'),
-         Output('cctv-analysis-legend', 'style')],
+         Output('cctv-count-value', 'children')],
         [Input('cctv-toggle-state', 'data'),
          Input('transport-interval', 'n_intervals')],
         State('navigation-tabs', 'value')
     )
     def update_cctv_display(show_cctv, n_intervals, active_tab):
-        """Update CCTV markers and count display. Triggers and uses vision analysis."""
+        """Update CCTV markers and count display."""
         _ = n_intervals
         if active_tab != 'transport':
-            return no_update, no_update, no_update
+            return no_update, no_update
 
         data = fetch_traffic_cameras()
         camera_data = parse_traffic_camera_data(data)
-
-        if camera_data:
-            trigger_analysis(camera_data)
-
-        traffic_analysis = get_cached_analysis() if is_analysis_available() else {}
 
         camera_count = len(camera_data) if camera_data else 0
 
@@ -3558,23 +3517,11 @@ def register_transport_callbacks(app):
             }
         )
 
-        legend_base = {
-            "position": "absolute",
-            "top": "0.625rem",
-            "right": "0.625rem",
-            "backgroundColor": "rgba(26, 42, 58, 0.9)",
-            "borderRadius": "0.5rem",
-            "padding": "0.625rem",
-            "zIndex": "1000",
-            "boxShadow": "0 0.125rem 0.5rem rgba(0, 0, 0, 0.3)",
-        }
-        legend_style = {**legend_base, "display": "block" if show_cctv else "none"}
-
         if not show_cctv:
-            return [], count_value, legend_style
+            return [], count_value
 
-        markers = create_cctv_markers(camera_data, traffic_analysis or None)
-        return markers, count_value, legend_style
+        markers = create_cctv_markers(camera_data)
+        return markers, count_value
 
     @app.callback(
         [Output('erp-toggle-state', 'data'),
@@ -5171,8 +5118,6 @@ def register_traffic_conditions_callbacks(app):
                     )
                 )
 
-            trigger_analysis(camera_data)
-
         except Exception as e:
             print(f"Error fetching traffic camera data: {e}")
             import traceback
@@ -5191,7 +5136,6 @@ def register_traffic_conditions_callbacks(app):
         
         try:
             camera_id_mapping = _load_lta_camera_id_mapping()
-            traffic_analysis = get_cached_analysis() if is_analysis_available() else {}
 
             camera_cards = []
             sorted_cameras = sorted(camera_data.items(), key=lambda x: x[0])
@@ -5215,9 +5159,6 @@ def register_traffic_conditions_callbacks(app):
                                 datetime_text = str(timestamp)
                         except (ValueError, AttributeError):
                             datetime_text = str(timestamp) if timestamp else ""
-
-                    traffic_status = traffic_analysis.get(str(camera_id))
-                    border_color = get_status_color(traffic_status) if traffic_status and traffic_status != "unknown" else "#3a4a5a"
 
                     card_children = [
                         html.Div(
@@ -5244,22 +5185,6 @@ def register_traffic_conditions_callbacks(app):
                             ]
                         ),
                     ]
-
-                    if traffic_status and traffic_status != "unknown":
-                        card_children.append(
-                            html.Div(
-                                traffic_status.capitalize(),
-                                style={
-                                    "color": "#fff",
-                                    "fontSize": "0.6875rem",
-                                    "fontWeight": "600",
-                                    "textAlign": "center",
-                                    "backgroundColor": get_status_color(traffic_status),
-                                    "padding": "0.125rem 0.5rem",
-                                    "borderRadius": "0.25rem",
-                                }
-                            )
-                        )
 
                     card_children.extend([
                         html.Div(
@@ -5294,7 +5219,7 @@ def register_traffic_conditions_callbacks(app):
                             "display": "flex",
                             "flexDirection": "column",
                             "gap": "0.5rem",
-                            "border": f"0.125rem solid {border_color}",
+                            "border": "0.125rem solid #3a4a5a",
                         },
                         children=card_children,
                     )
