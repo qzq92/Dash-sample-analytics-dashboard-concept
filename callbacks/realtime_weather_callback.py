@@ -11,7 +11,7 @@ Uses ThreadPoolExecutor for async API fetching to improve performance.
 import os
 import time
 from datetime import datetime, timedelta
-from dash import Input, Output, State, html, callback_context
+from dash import Input, Output, State, html, callback_context, no_update
 import dash_leaflet as dl
 from conf.windspeed_icon import get_windspeed_icon, get_windspeed_description, WINDSPEED_THRESHOLDS
 from utils.async_fetcher import get_default_headers, fetch_url_2min_cached, _executor
@@ -1767,74 +1767,95 @@ def register_realtime_weather_callbacks(app):
     """
     @app.callback(
         Output('temperature-readings-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_temperature_readings(n_intervals):
+    def update_temperature_readings(n_intervals, active_tab):
         """Update temperature readings periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         data = fetch_realtime_data('air-temperature')
         return format_readings_grid(data, '°C', '#FF9800')
 
     @app.callback(
         Output('rainfall-readings-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_rainfall_readings(n_intervals):
+    def update_rainfall_readings(n_intervals, active_tab):
         """Update rainfall readings periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         data = fetch_realtime_data('rainfall')
         # Pass default unit, but format_readings_grid will try to extract from API first
         return format_readings_grid(data, 'mm', '#2196F3')
 
     @app.callback(
         Output('humidity-readings-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_humidity_readings(n_intervals):
+    def update_humidity_readings(n_intervals, active_tab):
         """Update humidity readings periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         data = fetch_realtime_data('relative-humidity')
         return format_readings_grid(data, '%', '#00BCD4')
 
     @app.callback(
         Output('wind-readings-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_wind_readings(n_intervals):
+    def update_wind_readings(n_intervals, active_tab):
         """Update wind readings periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         speed_data = fetch_realtime_data('wind-speed')
         return format_wind_readings(speed_data)
 
     @app.callback(
         Output('lightning-readings-content', 'children'),
-        Input('realtime-weather-interval', 'n_intervals')
+        Input('realtime-weather-interval', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_lightning_readings(n_intervals):
+    def update_lightning_readings(n_intervals, active_tab):
         """Update lightning readings periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         future = fetch_lightning_data_async()
         data = future.result() if future else None
         return format_lightning_readings(data)
 
     @app.callback(
         Output('flood-readings-content', 'children'),
-        Input('realtime-weather-interval', 'n_intervals')
+        Input('realtime-weather-interval', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_flood_readings(n_intervals):
+    def update_flood_readings(n_intervals, active_tab):
         """Update flood readings periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         future = fetch_flood_alerts_async()
         data = future.result() if future else None
         return format_flood_readings(data)
 
     @app.callback(
         Output('wind-speed-legend', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_wind_speed_legend(n_intervals):
+    def update_wind_speed_legend(n_intervals, active_tab):
         """Update wind speed legend periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         return _create_wind_speed_legend()
 
     # Toggle callbacks for sensor values sections
@@ -1997,10 +2018,13 @@ def register_realtime_weather_callbacks(app):
     # Callback to update WBGT average value
     @app.callback(
         Output('wbgt-readings-content', 'children'),
-        Input('realtime-weather-interval', 'n_intervals')
+        Input('realtime-weather-interval', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_wbgt_readings(_n_intervals):
+    def update_wbgt_readings(_n_intervals, active_tab):
         """Update WBGT average value display."""
+        if active_tab != 'realtime-weather':
+            return no_update
         future = fetch_wbgt_data_async()
         data = future.result() if future else None
         return format_wbgt_average(data)
@@ -2009,10 +2033,13 @@ def register_realtime_weather_callbacks(app):
     @app.callback(
         Output('wbgt-sensor-content', 'children'),
         [Input('wbgt-sensor-values', 'style'),
-         Input('realtime-weather-interval', 'n_intervals')]
+         Input('realtime-weather-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_wbgt_sensor_content(style, _n_intervals):
+    def update_wbgt_sensor_content(style, _n_intervals, active_tab):
         """Update WBGT sensor values when section is visible."""
+        if active_tab != 'realtime-weather':
+            return no_update
         if style and style.get('display') == 'none':
             return html.P("Loading...", style={
                 "color": "#999",
@@ -2065,37 +2092,49 @@ def register_realtime_weather_callbacks(app):
     # Callbacks to populate sensor values when sections are visible
     @app.callback(
         Output('temp-sensor-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_temp_sensor_content(_n_intervals):
+    def update_temp_sensor_content(_n_intervals, active_tab):
         """Update temperature sensor values."""
+        if active_tab != 'realtime-weather':
+            return no_update
         data = fetch_realtime_data('air-temperature')
         return format_sensor_values_grid(data, '°C', '#FF9800')
 
     @app.callback(
         Output('rainfall-sensor-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_rainfall_sensor_content(_n_intervals):
+    def update_rainfall_sensor_content(_n_intervals, active_tab):
         """Update rainfall sensor values."""
+        if active_tab != 'realtime-weather':
+            return no_update
         data = fetch_realtime_data('rainfall')
         return format_sensor_values_grid(data, 'mm', '#2196F3')
 
     @app.callback(
         Output('humidity-sensor-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_humidity_sensor_content(_n_intervals):
+    def update_humidity_sensor_content(_n_intervals, active_tab):
         """Update humidity sensor values."""
+        if active_tab != 'realtime-weather':
+            return no_update
         data = fetch_realtime_data('relative-humidity')
         return format_sensor_values_grid(data, '%', '#00BCD4')
 
     @app.callback(
         Output('wind-sensor-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_wind_sensor_content(_n_intervals):
+    def update_wind_sensor_content(_n_intervals, active_tab):
         """Update wind sensor values."""
+        if active_tab != 'realtime-weather':
+            return no_update
         speed_data = fetch_realtime_data('wind-speed')
         if not speed_data or 'data' not in speed_data:
             return _get_error_div()
@@ -2131,10 +2170,13 @@ def register_realtime_weather_callbacks(app):
     @app.callback(
         Output('lightning-sensor-content', 'children'),
         [Input('lightning-sensor-values', 'style'),
-         Input('realtime-weather-interval', 'n_intervals')]
+         Input('realtime-weather-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_lightning_sensor_content(style, _n_intervals):
+    def update_lightning_sensor_content(style, _n_intervals, active_tab):
         """Update lightning sensor values when section is visible."""
+        if active_tab != 'realtime-weather':
+            return no_update
         if style and style.get('display') == 'none':
             return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
         future = fetch_lightning_data_async()
@@ -2144,10 +2186,13 @@ def register_realtime_weather_callbacks(app):
     @app.callback(
         Output('flood-sensor-content', 'children'),
         [Input('flood-sensor-values', 'style'),
-         Input('realtime-weather-interval', 'n_intervals')]
+         Input('realtime-weather-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_flood_sensor_content(style, _n_intervals):
+    def update_flood_sensor_content(style, _n_intervals, active_tab):
         """Update flood sensor values when section is visible."""
+        if active_tab != 'realtime-weather':
+            return no_update
         if style and style.get('display') == 'none':
             return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
         future = fetch_flood_alerts_async()
@@ -2185,10 +2230,13 @@ def register_realtime_weather_callbacks(app):
     @app.callback(
         Output('readings-content', 'children'),
         Input('realtime-weather-interval', 'n_intervals'),
-        State('readings-toggle-state', 'data')
+        [State('readings-toggle-state', 'data'),
+         State('navigation-tabs', 'value')]
     )
-    def update_all_readings(_n_intervals, is_visible):
+    def update_all_readings(_n_intervals, is_visible, active_tab):
         """Update all readings content when section is visible."""
+        if active_tab != 'realtime-weather':
+            return no_update
         if not is_visible:
             return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
         
@@ -2412,22 +2460,28 @@ def register_realtime_weather_callbacks(app):
 
     @app.callback(
         Output('lightning-indicator', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_lightning_indicator(n_intervals):
+    def update_lightning_indicator(n_intervals, active_tab):
         """Update lightning status indicator periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         future = fetch_lightning_data_async()
         data = future.result() if future else None
         return format_lightning_indicator(data)
 
     @app.callback(
         Output('lightning-markers', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_lightning_markers(n_intervals):
+    def update_lightning_markers(n_intervals, active_tab):
         """Update lightning markers on map periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         future = fetch_lightning_data_async()
         data = future.result() if future else None
         if data:
@@ -2436,22 +2490,28 @@ def register_realtime_weather_callbacks(app):
 
     @app.callback(
         Output('flood-indicator', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_flood_indicator(n_intervals):
+    def update_flood_indicator(n_intervals, active_tab):
         """Update flood status indicator periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         future = fetch_flood_alerts_async()
         data = future.result() if future else None
         return format_flood_indicator(data)
 
     @app.callback(
         Output('flood-markers', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_flood_markers(n_intervals):
+    def update_flood_markers(n_intervals, active_tab):
         """Update flood markers on map periodically."""
         _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
         future = fetch_flood_alerts_async()
         data = future.result() if future else None
         if data:
@@ -2461,11 +2521,14 @@ def register_realtime_weather_callbacks(app):
     # Main page callbacks for lightning and flood indicators
     @app.callback(
         Output('main-lightning-indicator-summary', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_main_lightning_indicator(n_intervals):
+    def update_main_lightning_indicator(n_intervals, active_tab):
         """Update lightning status indicator on main page periodically."""
         _ = n_intervals
+        if active_tab != 'main':
+            return no_update
         future = fetch_lightning_data_async()
         data = future.result() if future else None
         
@@ -2496,11 +2559,14 @@ def register_realtime_weather_callbacks(app):
 
     @app.callback(
         Output('main-flood-indicator-summary', 'children'),
-        Input('flood-alert-interval', 'n_intervals')
+        Input('flood-alert-interval', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_main_flood_indicator(n_intervals):
+    def update_main_flood_indicator(n_intervals, active_tab):
         """Update flood status indicator on main page periodically (every 3 minutes)."""
         _ = n_intervals
+        if active_tab != 'main':
+            return no_update
         future = fetch_flood_alerts_async()
         data = future.result() if future else None
         
@@ -2522,11 +2588,14 @@ def register_realtime_weather_callbacks(app):
 
     @app.callback(
         Output('main-traffic-incidents-indicator', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_main_traffic_incidents_indicator(n_intervals):
+    def update_main_traffic_incidents_indicator(n_intervals, active_tab):
         """Update traffic incidents indicator on main page periodically."""
         _ = n_intervals
+        if active_tab != 'main':
+            return no_update
         future_incidents = fetch_traffic_incidents_data_async()
         future_faulty = fetch_faulty_traffic_lights_data_async()
         incidents_data = future_incidents.result() if future_incidents else None

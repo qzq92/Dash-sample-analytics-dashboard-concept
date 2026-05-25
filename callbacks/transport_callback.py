@@ -14,7 +14,7 @@ import pandas as pd
 from datetime import datetime
 from typing import Optional, Dict, List, Any, Tuple
 from concurrent.futures import Future
-from dash import Input, Output, State, html
+from dash import Input, Output, State, html, no_update
 import dash_leaflet as dl
 from utils.async_fetcher import fetch_url, fetch_url_2min_cached, run_in_thread
 from utils.data_download_helper import fetch_erp_gantry_data
@@ -3413,11 +3413,14 @@ def register_transport_callbacks(app):
          Output('taxi-count-value', 'children'),
          Output('taxi-legend', 'style')],
         [Input('taxi-toggle-state', 'data'),
-         Input('transport-interval', 'n_intervals')]
+         Input('transport-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_taxi_display(show_taxis, n_intervals):
+    def update_taxi_display(show_taxis, n_intervals, active_tab):
         """Update taxi locations and stands markers and count display."""
-        _ = n_intervals  # Used for periodic refresh
+        _ = n_intervals
+        if active_tab != 'transport':
+            return no_update, no_update, no_update
         
         # Always fetch data to display counts
         taxi_data = fetch_taxi_availability()
@@ -3527,11 +3530,14 @@ def register_transport_callbacks(app):
          Output('cctv-count-value', 'children'),
          Output('cctv-analysis-legend', 'style')],
         [Input('cctv-toggle-state', 'data'),
-         Input('transport-interval', 'n_intervals')]
+         Input('transport-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_cctv_display(show_cctv, n_intervals):
+    def update_cctv_display(show_cctv, n_intervals, active_tab):
         """Update CCTV markers and count display. Triggers and uses vision analysis."""
         _ = n_intervals
+        if active_tab != 'transport':
+            return no_update, no_update, no_update
 
         data = fetch_traffic_cameras()
         camera_data = parse_traffic_camera_data(data)
@@ -3615,11 +3621,14 @@ def register_transport_callbacks(app):
         [Output('erp-markers', 'children'),
          Output('erp-count-value', 'children')],
         [Input('erp-toggle-state', 'data'),
-         Input('transport-interval', 'n_intervals')]
+         Input('transport-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_erp_display(show_erp, n_intervals):
+    def update_erp_display(show_erp, n_intervals, active_tab):
         """Update ERP gantry markers and count display."""
-        _ = n_intervals  # Used for periodic refresh
+        _ = n_intervals
+        if active_tab != 'transport':
+            return no_update, no_update
 
         # Get parsed gantry data (uses cache)
         gantry_data = get_erp_gantry_data()
@@ -3692,11 +3701,14 @@ def register_transport_callbacks(app):
          Output('traffic-incidents-messages', 'style'),
          Output('traffic-incidents-legend', 'style')],
         [Input('traffic-incidents-toggle-state', 'data'),
-         Input('transport-interval', 'n_intervals')]
+         Input('transport-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_traffic_incidents_display(show_incidents, n_intervals):
+    def update_traffic_incidents_display(show_incidents, n_intervals, active_tab):
         """Update Traffic Incidents markers and count display."""
-        _ = n_intervals  # Used for periodic refresh
+        _ = n_intervals
+        if active_tab != 'transport':
+            return no_update, no_update, no_update, no_update, no_update
 
         # Always fetch data to display counts
         future_incidents = fetch_traffic_incidents_data_async()
@@ -4536,11 +4548,14 @@ def register_transport_callbacks(app):
         [Output('vms-markers', 'children'),
          Output('vms-count-value', 'children')],
         [Input('vms-toggle-state', 'data'),
-         Input('transport-interval', 'n_intervals')]
+         Input('transport-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_vms_display(show_vms: bool, n_intervals: int) -> Tuple[List[dl.CircleMarker], html.Div]:
+    def update_vms_display(show_vms: bool, n_intervals: int, active_tab: str) -> Tuple[List[dl.CircleMarker], html.Div]:
         """Update VMS markers and count display."""
-        _ = n_intervals  # Used for periodic refresh
+        _ = n_intervals
+        if active_tab != 'transport':
+            return no_update, no_update
 
         # Always fetch data to display counts (using async)
         future = fetch_vms_data_async()
@@ -4580,16 +4595,17 @@ def register_transport_callbacks(app):
          Input('bus-arrival-map', 'zoom'),
          Input('bus-arrival-map', 'center'),
          Input('bus-arrival-page-interval', 'n_intervals'),
-         Input('transport-interval', 'n_intervals')]
+         Input('transport-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_bus_stops_display(show_bus_stops: bool, zoom: Optional[int], center: Optional[List], _bus_interval: int, _transport_interval: int):
+    def update_bus_stops_display(show_bus_stops: bool, zoom: Optional[int], center: Optional[List], _bus_interval: int, _transport_interval: int, active_tab: str):
         """
         Update bus stops markers, count display, and zoom feedback.
         Only renders bus stops within the current viewport when zoomed to level 15+.
-        Always shows total count in the metric card.
         Updates from both bus-arrival-page-interval and transport-interval.
         """
-        # Used for periodic refresh from either interval
+        if active_tab not in ('bus-arrival', 'transport'):
+            return no_update, no_update, no_update, no_update, no_update
         
         # Default zoom and center if not available
         current_zoom = zoom if zoom is not None else 11
@@ -4765,10 +4781,13 @@ def register_transport_callbacks(app):
         [Output('speed-camera-markers', 'children'),
          Output('speed-camera-count-value', 'children')],
         [Input('speed-camera-toggle-state', 'data'),
-         Input('transport-interval', 'n_intervals')]
+         Input('transport-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_speed_camera_display(show_speed_camera: bool, n_intervals: int) -> Tuple[List[dl.CircleMarker], html.Div]:
+    def update_speed_camera_display(show_speed_camera: bool, n_intervals: int, active_tab: str) -> Tuple[List[dl.CircleMarker], html.Div]:
         """Update SPF Speed Camera markers and count display."""
+        if active_tab != 'transport':
+            return no_update, no_update
         _ = n_intervals  # Used for periodic refresh
 
         # Always calculate count
@@ -4799,13 +4818,17 @@ def register_transport_callbacks(app):
         [Input('transport-bus-stops-toggle-state', 'data'),
          Input('transport-map', 'zoom'),
          Input('transport-map', 'center'),
-         Input('transport-interval', 'n_intervals')]
+         Input('transport-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_transport_bus_stops_display(show_bus_stops: bool, zoom: Optional[int], center: Optional[List], _n_intervals: int):
+    def update_transport_bus_stops_display(show_bus_stops: bool, zoom: Optional[int], center: Optional[List], _n_intervals: int, active_tab: str):
         """
         Update bus stops markers on transport map.
-        Only renders bus stops within the current viewport when zoomed to level 15+.
         """
+        if active_tab != 'transport':
+            return no_update, no_update, no_update
+        #Only renders bus stops within the current viewport when zoomed to level 15+.
+
         _ = _n_intervals  # Used for periodic refresh
         
         # Default zoom and center if not available
@@ -5113,10 +5136,8 @@ def register_traffic_conditions_callbacks(app):
         _ = n_intervals  # Used for periodic refresh
         
         # Only update if the traffic conditions tab is active
-        # Handle None case (initial load) or when tab is not active
         if not tab_value or tab_value != 'traffic-conditions':
-            # Return empty div when tab is not active
-            return html.Div(children=[])
+            return no_update
         
         try:
             # Fetch traffic camera data

@@ -8,7 +8,7 @@ References:
 """
 import os
 import requests
-from dash import Input, Output, State, html
+from dash import Input, Output, State, html, no_update
 from dotenv import load_dotenv
 import dash_leaflet as dl
 from conf.weather_icons import get_weather_icon
@@ -397,20 +397,16 @@ def register_weather_callbacks(app):
     @app.callback(
         Output('weather-2h-markers', 'children'),
         Input('interval-component', 'n_intervals'),
-        State('2h-forecast-toggle-state', 'data')
+        [State('2h-forecast-toggle-state', 'data'),
+         State('navigation-tabs', 'value')]
     )
-    def update_weather_forecast_2h(_n_intervals, is_visible):
+    def update_weather_forecast_2h(_n_intervals, is_visible, active_tab):
         """
         Update 2-hour weather forecast markers on main map periodically.
-        Only updates when toggle is enabled.
-
-        Args:
-            n_intervals: Number of intervals (from dcc.Interval component)
-            is_visible: Whether the 2H forecast markers should be visible
-
-        Returns:
-            List of map markers
+        Only updates when toggle is enabled and the main tab is active.
         """
+        if active_tab != 'main':
+            return no_update
         # Only fetch data if toggle is enabled
         if not is_visible:
             return []
@@ -427,21 +423,15 @@ def register_weather_callbacks(app):
 
     @app.callback(
         Output('weather-24h-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_weather_forecast_24h_main(n_intervals):
+    def update_weather_forecast_24h_main(n_intervals, active_tab):
         """
         Update 24-hour weather forecast display on main dashboard periodically.
-
-        Args:
-            n_intervals: Number of intervals (from dcc.Interval component)
-
-        Returns:
-            HTML content for 24-hour forecast (temperature, humidity, forecast, wind)
         """
-        # n_intervals is required by the callback but not used directly
         _ = n_intervals
-
-        # Fetch and format 24-hour forecast
+        if active_tab != 'main':
+            return no_update
         future = fetch_and_format_weather_24h_async()
         return future.result() if future else html.P("Error loading forecast")

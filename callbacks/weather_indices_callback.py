@@ -14,7 +14,7 @@ from threading import Lock
 import numpy as np
 import plotly.graph_objects as go
 import dash_leaflet as dl
-from dash import html, dcc, Input, Output, State
+from dash import html, dcc, Input, Output, State, no_update
 from utils.async_fetcher import get_default_headers, fetch_url, fetch_url_2min_cached, run_in_thread
 from callbacks.transport_callback import fetch_taxi_availability
 from components.metric_card import create_metric_value_display
@@ -1581,10 +1581,13 @@ def register_weather_indices_callbacks(app):
     """
     @app.callback(
         Output('uv-index-content', 'children'),
-        Input('weather-indices-interval', 'n_intervals')
+        Input('weather-indices-interval', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_uv_index(_n_intervals):
+    def update_uv_index(_n_intervals, active_tab):
         """Update UV index display."""
+        if active_tab != 'weather-indices':
+            return no_update
         future = fetch_uv_data_async()
         data = future.result() if future else None
         return format_uv_display(data)
@@ -1595,10 +1598,13 @@ def register_weather_indices_callbacks(app):
          Output('psi-metrics-table-content', 'children'),
          Output('psi-metrics-table-container', 'style')],
         [Input('weather-indices-interval', 'n_intervals'),
-         Input('psi-display-mode-toggle-state', 'data')]
+         Input('psi-display-mode-toggle-state', 'data')],
+        State('navigation-tabs', 'value')
     )
-    def update_psi_markers(_n_intervals, show_table):
+    def update_psi_markers(_n_intervals, show_table, active_tab):
         """Update PSI markers on map or table based on toggle state."""
+        if active_tab != 'weather-indices':
+            return no_update, no_update, no_update
         future = fetch_psi_data_async()
         data = future.result() if future else None
         
@@ -1638,10 +1644,13 @@ def register_weather_indices_callbacks(app):
 
     @app.callback(
         Output('zika-clusters-content', 'children'),
-        Input('weather-indices-interval', 'n_intervals')
+        Input('weather-indices-interval', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_zika_clusters_display(_n_intervals):
+    def update_zika_clusters_display(_n_intervals, active_tab):
         """Update Zika clusters display."""
+        if active_tab != 'weather-indices':
+            return no_update
         future = fetch_zika_cluster_data_async()
         data = future.result()
         return format_zika_clusters_display(data)
@@ -1686,10 +1695,13 @@ def register_weather_indices_callbacks(app):
 
     @app.callback(
         Output('dengue-clusters-content', 'children'),
-        Input('weather-indices-interval', 'n_intervals')
+        Input('weather-indices-interval', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_dengue_clusters_display(_n_intervals):
+    def update_dengue_clusters_display(_n_intervals, active_tab):
         """Update Dengue clusters display."""
+        if active_tab != 'weather-indices':
+            return no_update
         future = fetch_dengue_cluster_data_async()
         data = future.result()
         return format_dengue_clusters_display(data)
@@ -1734,19 +1746,25 @@ def register_weather_indices_callbacks(app):
 
     @app.callback(
         Output('taxi-count-content', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_main_page_taxi_count(_n_intervals):
+    def update_main_page_taxi_count(_n_intervals, active_tab):
         """Update taxi count display on main page."""
+        if active_tab != 'main':
+            return no_update
         data = fetch_taxi_availability()
         return format_main_page_taxi_count(data)
 
     @app.callback(
         Output('disease-clusters-indicator', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_main_page_disease_clusters(_n_intervals):
+    def update_main_page_disease_clusters(_n_intervals, active_tab):
         """Update disease clusters display on main page with responsive layout."""
+        if active_tab != 'main':
+            return no_update
         # Fetch both dengue and zika data
         future_dengue = fetch_dengue_cluster_data_async()
         future_zika = fetch_zika_cluster_data_async()
@@ -1759,11 +1777,13 @@ def register_weather_indices_callbacks(app):
     @app.callback(
         Output('main-psi-markers', 'children'),
         [Input('interval-component', 'n_intervals'),
-         Input('psi-locations-toggle-state', 'data')]
+         Input('psi-locations-toggle-state', 'data')],
+        State('navigation-tabs', 'value')
     )
-    def update_main_psi_markers(_n_intervals, is_visible):
+    def update_main_psi_markers(_n_intervals, is_visible, active_tab):
         """Update PSI markers on main page map (showing only 24h PSI)."""
-        # Only show markers if toggle is enabled
+        if active_tab != 'main':
+            return no_update
         if not is_visible:
             return []
         future = fetch_psi_data_async()
@@ -1810,10 +1830,13 @@ def register_weather_indices_callbacks(app):
 
     @app.callback(
         Output('main-psi-24h-value', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_main_psi_24h_value(_n_intervals):
+    def update_main_psi_24h_value(_n_intervals, active_tab):
         """Update average 24h PSI display on main page with category."""
+        if active_tab != 'main':
+            return no_update
         future = fetch_psi_data_async()
         data = future.result() if future else None
         

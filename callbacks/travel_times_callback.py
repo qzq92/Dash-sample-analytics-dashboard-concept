@@ -5,7 +5,7 @@ Reference: https://datamall2.mytransport.sg/ltaodataservice/EstTravelTimes
 import os
 from collections import defaultdict
 from datetime import datetime
-from dash import Input, Output, html
+from dash import Input, Output, State, html, no_update
 from utils.async_fetcher import fetch_url_2min_cached, _executor
 
 
@@ -475,9 +475,12 @@ def register_travel_times_callbacks(app):
     @app.callback(
         [Output("travel-times-table-container", "children"),
          Output("travel-times-last-updated", "children")],
-        Input("travel-times-interval", "n_intervals")
+        Input("travel-times-interval", "n_intervals"),
+        State('navigation-tabs', 'value')
     )
-    def update_travel_times(_n_intervals):
+    def update_travel_times(_n_intervals, active_tab):
+        if active_tab != 'travel-times':
+            return no_update, no_update
         """
         Update the travel times table.
 

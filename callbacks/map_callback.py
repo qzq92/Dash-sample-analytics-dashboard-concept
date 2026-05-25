@@ -393,11 +393,14 @@ def register_search_callbacks(app):
         [Output('main-traffic-incidents-markers', 'children'),
          Output('main-traffic-incidents-legend', 'style')],
         [Input('main-traffic-incidents-toggle-state', 'data'),
-         Input('interval-component', 'n_intervals')]
+         Input('interval-component', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_main_traffic_incidents_markers(show_incidents, n_intervals):
+    def update_main_traffic_incidents_markers(show_incidents, n_intervals, active_tab):
         """Update traffic incidents markers on main map and show/hide legend."""
-        _ = n_intervals  # Used for periodic refresh
+        _ = n_intervals
+        if active_tab != 'main':
+            return no_update, no_update
 
         # Legend style based on toggle state
         if show_incidents:

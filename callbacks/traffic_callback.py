@@ -180,16 +180,17 @@ def register_camera_feed_callbacks(app):
     """
     Register callbacks for displaying camera feed images on the main page.
     """
-    from dash import Input, Output, html
+    from dash import Input, Output, State, html, no_update
 
     @app.callback(
         [Output('camera-feed-2701-container', 'children'),
          Output('camera-feed-4713-container', 'children'),
          Output('camera-2701-metadata', 'children'),
          Output('camera-4713-metadata', 'children')],
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_camera_feeds(n_intervals):
+    def update_camera_feeds(n_intervals, active_tab):
         """
         Update camera feed images periodically.
 
@@ -199,9 +200,10 @@ def register_camera_feed_callbacks(app):
         Returns:
             Tuple of (image_container_2701, image_container_4713, metadata_2701, metadata_4713)
         """
-        # n_intervals is required by the callback but not used directly
         _ = n_intervals
-        
+        if active_tab != 'main':
+            return no_update, no_update, no_update, no_update
+
         # Default error response
         no_image_text = html.Div(
             "Image not available",

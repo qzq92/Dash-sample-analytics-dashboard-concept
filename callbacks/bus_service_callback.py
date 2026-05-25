@@ -2,7 +2,7 @@
 Callback functions for handling bus service information.
 """
 from typing import Optional, Dict, List, Any
-from dash import Input, Output, State, html, ALL, MATCH, callback_context
+from dash import Input, Output, State, html, ALL, MATCH, callback_context, no_update
 import dash_leaflet as dl
 from callbacks.transport_callback import (
     fetch_bus_routes_data,
@@ -768,17 +768,16 @@ def register_bus_service_callbacks(app):
     @app.callback(
         Output('bus-services-count-value', 'children'),
         [Input('bus-arrival-page-interval', 'n_intervals'),
-         Input('transport-interval', 'n_intervals')]
+         Input('transport-interval', 'n_intervals')],
+        State('navigation-tabs', 'value')
     )
-    def update_bus_services_count(_bus_interval, _transport_interval):
+    def update_bus_services_count(_bus_interval, _transport_interval, active_tab):
         """
         Update bus services count display using async data fetching.
         Updates from both bus-arrival-page-interval and transport-interval.
-        
-        Returns:
-            HTML Div with bus services count
         """
-        # Used for periodic refresh from either interval
+        if active_tab not in ('transport', 'bus-arrival'):
+            return no_update
 
         # Fetch data asynchronously
         future = fetch_bus_routes_data_async()

@@ -5,7 +5,7 @@ Reference: https://datamall2.mytransport.sg/ltaodataservice/TrainServiceAlerts
 import os
 import re
 from collections import defaultdict
-from dash import Input, Output, html
+from dash import Input, Output, State, html, no_update
 from utils.async_fetcher import fetch_url_2min_cached, _executor
 from conf.mrt_line_config import MRT_LINES, LRT_LINES, ALL_TRAIN_LINES, LINE_INFO_MAP
 
@@ -542,12 +542,15 @@ def register_train_service_alerts_callbacks(app):
     """
     @app.callback(
         Output('train-service-alerts-status', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_train_service_alerts(_n_intervals):
+    def update_train_service_alerts(_n_intervals, active_tab):
         """
         Update train service alerts periodically.
         """
+        if active_tab != 'main':
+            return no_update
         alerts_display = html.P("Error loading train service alerts", style={
             "color": "#ff4444", "fontSize": "0.75rem"
         })
@@ -595,9 +598,12 @@ def register_train_service_alerts_callbacks(app):
     @app.callback(
         [Output('train-service-alerts-content', 'children'),
          Output('train-service-alerts-content', 'style')],
-        Input('transport-interval', 'n_intervals')
+        Input('transport-interval', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_transport_page_train_service_alerts(_n_intervals):
+    def update_transport_page_train_service_alerts(_n_intervals, active_tab):
+        if active_tab != 'transport':
+            return no_update, no_update
         """
         Update train service alerts display on Road & Transport Metrics and Advisories tab.
         Shows disrupted lines with details.

@@ -8,7 +8,7 @@ import re
 import threading
 from typing import Optional, Dict, Any
 from concurrent.futures import as_completed
-from dash import Input, Output, State, html
+from dash import Input, Output, State, html, no_update
 import dash_leaflet as dl
 from utils.async_fetcher import fetch_url_10min_cached, _executor, get_current_10min_bucket
 from utils.map_utils import SG_MAP_CENTER
@@ -263,9 +263,12 @@ def register_mrt_crowd_callbacks(app):
     @app.callback(
         Output('mrt-crowd-markers', 'children'),
         [Input('interval-component', 'n_intervals'),
-         Input('mrt-crowd-toggle-state', 'data')]
+         Input('mrt-crowd-toggle-state', 'data')],
+        State('navigation-tabs', 'value')
     )
-    def update_mrt_crowd_map_markers(_n_intervals, is_visible):
+    def update_mrt_crowd_map_markers(_n_intervals, is_visible, active_tab):
+        if active_tab != 'main':
+            return no_update
         if not is_visible:
             return []
 

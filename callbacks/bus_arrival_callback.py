@@ -366,20 +366,22 @@ def register_bus_arrival_callbacks(app):
         [State('bus-stop-search-input', 'value'),
          State('bus-service-search-input', 'value'),
          State('bus-stops-toggle-state', 'data'),
-         State('current-bus-stop-code', 'data')],
+         State('current-bus-stop-code', 'data'),
+         State('navigation-tabs', 'value')],
         prevent_initial_call=True
     )
-    def update_bus_search_display(_bus_stop_clicks, _bus_service_clicks, _marker_clicks, _interval_n, bus_stop_value, bus_service_value, _bus_stops_visible, stored_bus_stop_code):
+    def update_bus_search_display(_bus_stop_clicks, _bus_service_clicks, _marker_clicks, _interval_n, bus_stop_value, bus_service_value, _bus_stops_visible, stored_bus_stop_code, active_tab):
         """
-        Update bus search display when bus stop or bus service search is performed, 
+        Update bus search display when bus stop or bus service search is performed,
         a bus stop marker is clicked, or interval triggers.
-        Handles both bus arrival and bus service searches in unified results area.
-        Note: Map viewport is not auto-centered to allow user to freely navigate.
         """
-        # Determine which input triggered the callback
+        # Gate interval-only triggers on the active tab
         ctx = callback_context
         if not ctx.triggered:
             return no_update, [], no_update
+        trigger_id = ctx.triggered[0]['prop_id']
+        if 'bus-arrival-interval' in trigger_id and active_tab != 'bus-arrival':
+            return no_update, no_update, no_update
         
         trigger_id = ctx.triggered[0]['prop_id']
         trigger_value = ctx.triggered[0]['value']

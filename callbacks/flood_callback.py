@@ -2,7 +2,7 @@
 Callback functions for handling flood alerts API integration.
 Reference: https://data.gov.sg/datasets?formats=API&resultId=d_f1404e08587ce555b9ea3f565e2eb9a3
 """
-from dash import Input, Output, html
+from dash import Input, Output, State, html, no_update
 from callbacks.realtime_weather_callback import fetch_flood_alerts_async
 
 
@@ -96,20 +96,23 @@ def register_flood_callbacks(app):
     """
     @app.callback(
         Output('flood-alert-banner', 'children'),
-        Input('interval-component', 'n_intervals')
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_flood_alert_banner(n_intervals):
+    def update_flood_alert_banner(n_intervals, active_tab):
         """
         Update flood alert banner periodically.
 
         Args:
             n_intervals: Number of intervals (from dcc.Interval component)
+            active_tab: Currently active navigation tab
 
         Returns:
             HTML content for flood alert banner, or empty div if no alerts
         """
-        # n_intervals is required by the callback but not used directly
         _ = n_intervals
+        if active_tab != 'main':
+            return no_update
 
         # Fetch flood alerts asynchronously
         future = fetch_flood_alerts_async()
