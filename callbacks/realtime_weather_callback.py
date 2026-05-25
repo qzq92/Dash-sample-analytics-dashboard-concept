@@ -1756,9 +1756,7 @@ def register_realtime_weather_callbacks(app):
          Output('rainfall-sensor-content', 'children'),
          Output('humidity-sensor-content', 'children'),
          Output('wind-sensor-content', 'children'),
-         Output('lightning-indicator', 'children'),
          Output('lightning-markers', 'children'),
-         Output('flood-indicator', 'children'),
          Output('flood-markers', 'children')],
         Input('interval-component', 'n_intervals'),
         State('navigation-tabs', 'value')
@@ -1767,7 +1765,7 @@ def register_realtime_weather_callbacks(app):
         """Refresh all realtime-weather content driven by the global interval."""
         _ = n_intervals
         if active_tab != 'realtime-weather':
-            return [no_update] * 12
+            return [no_update] * 10
 
         temp_data = fetch_realtime_data('air-temperature')
         rain_data = fetch_realtime_data('rainfall')
@@ -1791,9 +1789,7 @@ def register_realtime_weather_callbacks(app):
             format_sensor_values_grid(rain_data, 'mm', '#2196F3'),
             format_sensor_values_grid(humid_data, '%', '#00BCD4'),
             _format_wind_sensor_values(wind_data),
-            format_lightning_indicator(lightning_data),
             lightning_markers,
-            format_flood_indicator(flood_data),
             flood_markers,
         )
 
