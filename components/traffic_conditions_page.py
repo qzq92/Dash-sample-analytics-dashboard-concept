@@ -31,6 +31,47 @@ def traffic_conditions_page():
                     "gap": "0.75rem",
                 },
                 children=[
+                    # LTA video feed discontinuation notice
+                    html.Div(
+                        style={
+                            "display": "flex",
+                            "alignItems": "flex-start",
+                            "gap": "0.75rem",
+                            "backgroundColor": "#2d2000",
+                            "border": "1px solid #b45309",
+                            "borderLeft": "4px solid #f59e0b",
+                            "borderRadius": "0.5rem",
+                            "padding": "0.875rem 1rem",
+                        },
+                        children=[
+                            html.Span(
+                                "⚠️",
+                                style={"fontSize": "1.1rem", "lineHeight": "1.5", "flexShrink": "0"},
+                            ),
+                            html.Div(
+                                children=[
+                                    html.Span(
+                                        "LTA Traffic Camera Feed Discontinuation — ",
+                                        style={
+                                            "fontWeight": "700",
+                                            "color": "#fbbf24",
+                                            "fontSize": "0.85rem",
+                                        },
+                                    ),
+                                    html.Span(
+                                        "The Land Transport Authority (LTA) has announced that it will be "
+                                        "switching off most traffic condition video feeds. Some camera feeds "
+                                        "displayed here may no longer be available or may show as unavailable.",
+                                        style={
+                                            "color": "#fde68a",
+                                            "fontSize": "0.85rem",
+                                            "lineHeight": "1.5",
+                                        },
+                                    ),
+                                ]
+                            ),
+                        ]
+                    ),
                     # Camera grid container
                     html.Div(
                         id="traffic-conditions-content",
