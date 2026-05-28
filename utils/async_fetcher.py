@@ -11,6 +11,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Callable, Any, Optional, Tuple
 from functools import wraps
 from dotenv import load_dotenv
+from pathlib import Path
+import threading
+
+try:
+    import diskcache
+except ImportError:  # pragma: no cover - fallback for environments without diskcache
+    diskcache = None
 
 load_dotenv(override=True)
 
@@ -27,6 +34,23 @@ _2min_dynamic_cache: Dict[str, Any] = {}
 # Global cache for 10-minute interval updates
 # Maps URL to {'data': json_dict, 'bucket': timestamp}
 _10min_dynamic_cache: Dict[str, Any] = {}
+
+# DiskCache backend (cross-process shared cache + simple in-flight lock)
+_DISKCACHE_GRACE_SECONDS = 15
+_DISKCACHE_LOCK_EXPIRE_SECONDS = 15
+_DISKCACHE_LOCK_WAIT_SECONDS = 1.5
+_DISKCACHE_LOCK_POLL_SECONDS = 0.075
+
+_diskcache_dir = os.getenv(
+    "DISKCACHE_DIR",
+    str((Path(__file__).resolve().parent.parent / ".diskcache_http").resolve()),
+)
+_diskcache_store = (
+    diskcache.Cache(_diskcache_dir)
+    if diskcache is not None
+    else None
+)
+_in_memory_lock = threading.Lock()
 
 
 def get_current_2min_bucket() -> int:
@@ -51,28 +75,15 @@ def fetch_url_2min_cached(url: str, headers: Optional[Dict] = None, timeout: int
     Returns:
         JSON response from cache or API
     """
-    global _2min_dynamic_cache
-    
-    current_bucket = get_current_2min_bucket()
-    
-    # Check cache
-    if url in _2min_dynamic_cache:
-        cached_item = _2min_dynamic_cache[url]
-        if cached_item['bucket'] == current_bucket:
-            # print(f"Serving from 2-minute cache: {url}")
-            return cached_item['data']
-            
-    # Fetch fresh data
-    # print(f"Fetching fresh data for 2-minute bucket: {url}")
-    data = fetch_url(url, headers, timeout)
-    
-    if data is not None:
-        _2min_dynamic_cache[url] = {
-            'data': data,
-            'bucket': current_bucket
-        }
-        
-    return data
+    return _fetch_with_bucket_cache(
+        namespace="2min",
+        url=url,
+        headers=headers,
+        timeout=timeout,
+        ttl_seconds=CACHE_TTL_2MIN,
+        current_bucket=get_current_2min_bucket(),
+        memory_cache=_2min_dynamic_cache,
+    )
 
 
 def fetch_url_10min_cached(url: str, headers: Optional[Dict] = None, timeout: int = 10) -> Optional[dict]:
@@ -87,27 +98,118 @@ def fetch_url_10min_cached(url: str, headers: Optional[Dict] = None, timeout: in
     Returns:
         JSON response from cache or API
     """
-    global _10min_dynamic_cache
+    return _fetch_with_bucket_cache(
+        namespace="10min",
+        url=url,
+        headers=headers,
+        timeout=timeout,
+        ttl_seconds=CACHE_TTL_10MIN,
+        current_bucket=get_current_10min_bucket(),
+        memory_cache=_10min_dynamic_cache,
+    )
 
-    current_bucket = get_current_10min_bucket()
 
-    # Check cache
-    if url in _10min_dynamic_cache:
-        cached_item = _10min_dynamic_cache[url]
-        if cached_item['bucket'] == current_bucket:
-            # print(f"Serving from 10-minute cache: {url}")
-            return cached_item['data']
+def _fetch_with_bucket_cache(
+    namespace: str,
+    url: str,
+    headers: Optional[Dict],
+    timeout: int,
+    ttl_seconds: int,
+    current_bucket: int,
+    memory_cache: Dict[str, Any],
+) -> Optional[dict]:
+    """Fetch with bucket cache, using diskcache lock when available."""
+    if _diskcache_store is None:
+        return _fetch_with_in_memory_cache(url, headers, timeout, current_bucket, memory_cache)
 
-    # Fetch fresh data
-    # print(f"Fetching fresh data for 10-minute bucket: {url}")
+    cache_key = f"http:{namespace}:{url}"
+    lock_key = f"lock:http:{namespace}:{url}:{current_bucket}"
+    lock_token = f"{os.getpid()}:{threading.get_ident()}:{time.time_ns()}"
+
+    cached_item = _diskcache_store.get(cache_key)
+    if isinstance(cached_item, dict) and cached_item.get("bucket") == current_bucket:
+        return cached_item.get("data")
+
+    if _diskcache_store.add(lock_key, lock_token, expire=_DISKCACHE_LOCK_EXPIRE_SECONDS):
+        return _owner_fetch_and_store(
+            cache_key=cache_key,
+            lock_key=lock_key,
+            lock_token=lock_token,
+            url=url,
+            headers=headers,
+            timeout=timeout,
+            current_bucket=current_bucket,
+            ttl_seconds=ttl_seconds,
+        )
+
+    wait_deadline = time.time() + _DISKCACHE_LOCK_WAIT_SECONDS
+    while time.time() < wait_deadline:
+        cached_item = _diskcache_store.get(cache_key)
+        if isinstance(cached_item, dict) and cached_item.get("bucket") == current_bucket:
+            return cached_item.get("data")
+        time.sleep(_DISKCACHE_LOCK_POLL_SECONDS)
+
+    # Fail-open path: don't block callbacks indefinitely if lock owner hangs/fails.
     data = fetch_url(url, headers, timeout)
-
     if data is not None:
-        _10min_dynamic_cache[url] = {
-            'data': data,
-            'bucket': current_bucket
-        }
+        _diskcache_store.set(
+            cache_key,
+            {"data": data, "bucket": current_bucket},
+            expire=ttl_seconds + _DISKCACHE_GRACE_SECONDS,
+        )
+    return data
 
+
+def _owner_fetch_and_store(
+    cache_key: str,
+    lock_key: str,
+    lock_token: str,
+    url: str,
+    headers: Optional[Dict],
+    timeout: int,
+    current_bucket: int,
+    ttl_seconds: int,
+) -> Optional[dict]:
+    """Owner path for lock-acquired fetch."""
+    try:
+        cached_item = _diskcache_store.get(cache_key)
+        if isinstance(cached_item, dict) and cached_item.get("bucket") == current_bucket:
+            return cached_item.get("data")
+
+        data = fetch_url(url, headers, timeout)
+        if data is not None:
+            _diskcache_store.set(
+                cache_key,
+                {"data": data, "bucket": current_bucket},
+                expire=ttl_seconds + _DISKCACHE_GRACE_SECONDS,
+            )
+        return data
+    finally:
+        current_token = _diskcache_store.get(lock_key)
+        if current_token == lock_token:
+            _diskcache_store.delete(lock_key)
+
+
+def _fetch_with_in_memory_cache(
+    url: str,
+    headers: Optional[Dict],
+    timeout: int,
+    current_bucket: int,
+    memory_cache: Dict[str, Any],
+) -> Optional[dict]:
+    """Fallback for environments without diskcache installed."""
+    with _in_memory_lock:
+        cached_item = memory_cache.get(url)
+        if cached_item and cached_item.get("bucket") == current_bucket:
+            return cached_item.get("data")
+
+    data = fetch_url(url, headers, timeout)
+    if data is not None:
+        with _in_memory_lock:
+            memory_cache[url] = {
+                "data": data,
+                "bucket": current_bucket,
+            }
     return data
 
 
