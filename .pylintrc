@@ -19,7 +19,7 @@ disable=
 # R0801: Duplicate code
 # W0611: Unused import
 # W0612: Unused variable
-enable=E,F,W0611,W0612,C0114,C0115,C0116,R0801
+enable=E,F,W0611,W0612,C0115,C0116,R0801
 
 [REPORTS]
 score=no
