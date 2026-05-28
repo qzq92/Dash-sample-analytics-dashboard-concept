@@ -315,19 +315,12 @@ def create_carpark_markers(nearby_carparks, availability_lookup=None):
         lon = carpark.get('longitude')
         carpark_number = carpark.get('carpark_number', '')
         address = carpark.get('address', 'N/A')
-        distance_km = carpark.get('distance_km', 0)
 
         if lat is None or lon is None:
             print(f"Skipping carpark {carpark_number}: missing lat/lon coordinates")
             continue
         
         print(f"Creating marker for {carpark_number} at ({lat}, {lon})")
-
-        # Format distance
-        if distance_km < 0.1:
-            distance_str = f"{distance_km * 1000:.0f}m"
-        else:
-            distance_str = f"{distance_km:.2f}km"
 
         # Build tooltip text with address and availability (bulleted)
         tooltip_parts = []

@@ -1443,8 +1443,6 @@ def create_bus_stops_markers(bus_stops_data: Optional[Dict[str, Any]]) -> List[d
             latitude = float(bus_stop.get('Latitude', 0))
             longitude = float(bus_stop.get('Longitude', 0))
             bus_stop_code = bus_stop.get('BusStopCode', 'N/A')
-            road_name = bus_stop.get('RoadName', 'N/A')
-            description = bus_stop.get('Description', 'N/A')
             
             if latitude == 0 or longitude == 0:
                 continue

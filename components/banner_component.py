@@ -1,3 +1,5 @@
+"""Top navigation banner component used across dashboard tabs."""
+
 from dash import html, dcc
 
 # Glossy tab styling
@@ -30,6 +32,7 @@ TAB_SELECTED_STYLE = {
 
 
 def build_dashboard_banner():
+    """Build and return the dashboard banner with tab navigation."""
     return html.Div(
         id="banner",
         className="banner",
