@@ -6,3 +6,4 @@ uv.lock
 .env
 api_key.py
 data/
+.diskcache_http/
