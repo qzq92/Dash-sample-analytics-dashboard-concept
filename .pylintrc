@@ -1,0 +1,47 @@
+[MAIN]
+jobs=0
+persistent=yes
+py-version=3.12
+ignore=.git,.venv,venv,__pycache__,.pytest_cache,.mypy_cache
+ignore-patterns=test_.*\.py
+
+[MESSAGES CONTROL]
+# Best-practice staged adoption:
+# 1) Gate CI on correctness first (E/F), 2) tighten style/refactor checks over time.
+disable=
+    all,
+    no-member,
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    duplicate-code,
+    fixme
+enable=E,F
+
+[REPORTS]
+score=no
+output-format=colorized
+
+[FORMAT]
+max-line-length=100
+max-module-lines=1400
+
+[BASIC]
+good-names=i,j,k,ex,Run,_,df,ax,id
+variable-rgx=[a-z_][a-z0-9_]{1,40}$
+argument-rgx=[a-z_][a-z0-9_]{1,40}$
+attr-rgx=[a-z_][a-z0-9_]{1,40}$
+const-rgx=([A-Z_][A-Z0-9_]{1,40}|__.*__)$
+
+[DESIGN]
+max-args=8
+max-locals=25
+max-returns=8
+max-branches=15
+max-statements=70
+min-public-methods=1
+
+[TYPECHECK]
+# Dash/plotly and dynamic payloads occasionally use generated attributes.
+generated-members=result
