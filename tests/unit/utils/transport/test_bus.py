@@ -26,7 +26,3 @@ class TestTransportBusViewportHelpers(unittest.TestCase):
         self.assertIn("10001", codes)
         self.assertNotIn("10002", codes)
         self.assertNotIn("10003", codes)
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -16,7 +16,3 @@ class TestRealtimeWeatherApiHelpers(unittest.TestCase):
         data = fetch_realtime_data("air-temperature")
         self.assertEqual(data, {"ok": True})
         mock_fetch.assert_called_once()
-
-
-if __name__ == "__main__":
-    unittest.main()

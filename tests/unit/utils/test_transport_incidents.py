@@ -16,7 +16,3 @@ class TestTransportIncidentsHelpers(unittest.TestCase):
         self.assertEqual(headers["AccountKey"], "abc123")
         self.assertIn("User-Agent", headers)
         self.assertEqual(headers["Content-Type"], "application/json")
-
-
-if __name__ == "__main__":
-    unittest.main()

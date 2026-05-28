@@ -23,7 +23,3 @@ class TestTransportBusCounts(unittest.TestCase):
     @patch("utils.transport.bus.fetch_bus_routes_data", return_value=None)
     def test_get_bus_services_count_no_data(self, _mock_routes):
         self.assertEqual(get_bus_services_count(), 0)
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -36,7 +36,3 @@ class TestRealtimeWeatherParsers(unittest.TestCase):
         self.assertTrue(is_within_last_5_minutes(recent))
         self.assertFalse(is_within_last_5_minutes(old))
         self.assertFalse(is_within_last_5_minutes(""))
-
-
-if __name__ == "__main__":
-    unittest.main()

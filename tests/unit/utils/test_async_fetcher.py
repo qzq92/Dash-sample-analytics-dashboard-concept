@@ -16,4 +16,3 @@ class TestAsyncFetcherBuckets(unittest.TestCase):
         bucket = get_current_10min_bucket()
         self.assertEqual(bucket % 600, 0)
         self.assertLessEqual(bucket, 1710000123)
-
