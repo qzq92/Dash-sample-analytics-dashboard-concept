@@ -6,7 +6,6 @@ from dash import Input, Output, State, html, ALL, MATCH, callback_context, no_up
 import dash_leaflet as dl
 from utils.transport.bus import (
     fetch_bus_routes_data,
-    fetch_bus_routes_data_async,
     fetch_bus_stops_data,
     fetch_bus_services_data_async
 )
@@ -779,19 +778,19 @@ def register_bus_service_callbacks(app):
         if active_tab not in ('transport', 'bus-arrival'):
             return no_update
 
-        # Fetch data asynchronously
-        future = fetch_bus_routes_data_async()
+        # Fetch bus services asynchronously (more time-sensitive than static stops).
+        future = fetch_bus_services_data_async()
         data: Optional[Dict[str, Any]] = future.result() if future else None
         
         # Calculate unique bus services count
         bus_services_count = 0
         if isinstance(data, dict):
-            routes_list = data.get('value', [])
-            if isinstance(routes_list, list):
+            services_list = data.get('value', [])
+            if isinstance(services_list, list):
                 # Extract unique service numbers
                 service_numbers = set()
-                for route in routes_list:
-                    service_no = route.get('ServiceNo', '')
+                for service in services_list:
+                    service_no = service.get('ServiceNo', '')
                     if service_no:
                         service_numbers.add(service_no)
                 bus_services_count = len(service_numbers)

@@ -6,7 +6,7 @@ from concurrent.futures import Future, as_completed
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from utils.async_fetcher import _executor, fetch_url, run_in_thread
+from utils.async_fetcher import _executor, fetch_url, fetch_url_10min_cached, run_in_thread
 from utils.transport.cache import _road_infra_cache
 from utils.transport.constants import BUS_ROUTES_URL, BUS_SERVICES_URL, BUS_STOPS_URL
 
@@ -112,17 +112,11 @@ def fetch_bus_routes_data_async() -> Future:
 
 @run_in_thread
 def fetch_bus_services_data_async() -> Optional[Dict[str, Any]]:
-    """Fetch bus services data from LTA DataMall."""
-    if _road_infra_cache.get("bus_services") is not None:
-        return _road_infra_cache["bus_services"]
-
+    """Fetch bus services data from LTA DataMall with shared 10-minute cache."""
     headers = _lta_headers()
     if headers is None:
         return None
-    data = fetch_url(BUS_SERVICES_URL, headers)
-    if data:
-        _road_infra_cache["bus_services"] = data
-    return data
+    return fetch_url_10min_cached(BUS_SERVICES_URL, headers=headers)
 
 
 def get_bus_services_count() -> int:
