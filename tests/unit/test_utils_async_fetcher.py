@@ -17,6 +17,3 @@ class TestAsyncFetcherBuckets(unittest.TestCase):
         self.assertEqual(bucket % 600, 0)
         self.assertLessEqual(bucket, 1710000123)
 
-
-if __name__ == "__main__":
-    unittest.main()
