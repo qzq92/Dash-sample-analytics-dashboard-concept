@@ -506,7 +506,7 @@ The application is fully configured for Plotly Cloud deployment. See [DEPLOYMENT
    ```bash
    git add .
    git commit -m "Ready for deployment"
-   git push origin main
+   git push origin main_v2
    ```
 
 2. **Connect to Plotly Cloud:**
