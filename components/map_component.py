@@ -1,3 +1,5 @@
+"""Reusable map and nearby-stats UI components for the main dashboard."""
+
 from dash import html, dcc
 import dash_daq as daq
 import dash_leaflet as dl
@@ -21,6 +23,7 @@ def search_bar():
 
 
 def nearest_mrt_panel():
+    """Return a placeholder container for nearest MRT station details."""
     return html.Div(
         id="nearest-mrt-panel",
         children=[],
@@ -159,11 +162,12 @@ def display_artefacts(id: str, label: str, value: str, size: int=50,):
 
 
 def display_nearby_artefacts(id: str, label: str, value: str, size: int = 50,):
-    # Wrapper to maintain existing references; delegates to display_artefacts
+    """Backward-compatible wrapper around `display_artefacts` for nearby metrics."""
     return display_artefacts(id=id, label=label, value=value, size=size)
 
 
 def show_descriptive_stats():
+    """Render LED artefacts summarizing nearby transport amenities."""
     return html.Div(
         id="Descriptive-stats",
         children=[

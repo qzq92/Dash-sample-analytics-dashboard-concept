@@ -40,6 +40,16 @@ def query_traffic_metadata() -> Dict:
 
 
 def get_camera_feed(metadata_dict: Dict, camera_id: str, agent_id: str="qzq_dev"):
+    """Fetch a traffic camera image stream for a specific camera ID.
+
+    Args:
+        metadata_dict: Camera metadata keyed by camera ID.
+        camera_id: Target camera ID to fetch.
+        agent_id: Base user-agent prefix for the outbound request.
+
+    Returns:
+        Raw response stream when successful, otherwise `None`.
+    """
     try:
         # Extract the camera id from metadata_dict to obtain its metadata of interest
         print(f"Extracting camera id: {camera_id}")
