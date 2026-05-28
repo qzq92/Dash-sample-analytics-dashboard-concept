@@ -16,8 +16,7 @@ from conf.windspeed_icon import get_windspeed_icon, get_windspeed_description, W
 from utils.realtime_weather_api import (
     fetch_flood_alerts_async,
     fetch_lightning_data_async,
-    fetch_realtime_data,
-    fetch_realtime_data_async,
+    fetch_realtime_data
 )
 from utils.transport.incidents import fetch_faulty_traffic_lights_data_async, fetch_traffic_incidents_data_async
 from utils.weather_indices_wbgt import fetch_wbgt_data_async, format_wbgt_display, create_wbgt_markers

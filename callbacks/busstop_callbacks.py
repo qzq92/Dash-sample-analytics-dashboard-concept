@@ -124,7 +124,6 @@ def create_bus_stop_markers(bus_stops):
     for idx, bus_stop in enumerate(bus_stops):
         lat = bus_stop.get('latitude')
         lon = bus_stop.get('longitude')
-        name = bus_stop.get('name', 'Bus Stop')
         code = bus_stop.get('code', '')
 
         if lat is None or lon is None:
@@ -132,13 +131,6 @@ def create_bus_stop_markers(bus_stops):
 
         # Get label letter
         label = _get_label_letter(idx)
-
-        # Extract road name from raw_data if available, otherwise use N/A
-        road_name = 'N/A'
-        if 'raw_data' in bus_stop:
-            raw = bus_stop['raw_data']
-            # OneMap API might have road name in different fields
-            road_name = raw.get('road', raw.get('roadName', raw.get('road_name', 'N/A')))
         
         # Build tooltip text with bus stop ID only
         tooltip_content = code if code else "N/A"

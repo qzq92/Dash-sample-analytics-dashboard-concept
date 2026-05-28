@@ -3,7 +3,6 @@ Helper functions for bicycle parking data fetching and processing.
 Used specifically for the Nearby Facilities tab.
 """
 import os
-from datetime import datetime
 from dash import html
 import dash_leaflet as dl
 import base64

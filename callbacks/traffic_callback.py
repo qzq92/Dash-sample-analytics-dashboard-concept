@@ -142,9 +142,6 @@ def format_metadata_text(metadata_dict, camera_id):
 
         camera_meta = metadata_dict[camera_id]
         timestamp = camera_meta.get('timestamp', 'N/A')
-        lat = camera_meta.get('lat')
-        lon = camera_meta.get('lon')
-
         location = "Causeway" if camera_id=="2701" else "Second Link"
 
         # Format timestamp (assuming ISO format like "2024-01-01T12:00:00+08:00")
