@@ -4536,11 +4536,11 @@ def register_transport_callbacks(app):
          Output('bus-stop-zoom-message', 'style'),
          Output('bus-stop-zoom-message', 'children'),
          Output('bus-stops-disclaimer', 'style')],
-        [Input('bus-stops-toggle-state', 'data'),
-         Input('bus-arrival-map', 'zoom'),
-         Input('bus-arrival-map', 'center'),
-         Input('bus-arrival-page-interval', 'n_intervals'),
-         Input('transport-interval', 'n_intervals')],
+        [Input('bus-stops-toggle-state', 'data', allow_optional=True),
+         Input('bus-arrival-map', 'zoom', allow_optional=True),
+         Input('bus-arrival-map', 'center', allow_optional=True),
+         Input('bus-arrival-page-interval', 'n_intervals', allow_optional=True),
+         Input('transport-interval', 'n_intervals', allow_optional=True)],
         State('navigation-tabs', 'value')
     )
     def update_bus_stops_display(show_bus_stops: bool, zoom: Optional[int], center: Optional[List], _bus_interval: int, _transport_interval: int, active_tab: str):
