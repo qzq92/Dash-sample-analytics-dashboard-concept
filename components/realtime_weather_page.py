@@ -718,6 +718,7 @@ def realtime_weather_page():
                 interval=INTERVAL_REALTIME_WEATHER_MS,
                 n_intervals=0
             ),
+            dcc.Store(id="realtime-weather-data-store", data=None),
             # Interval for map invalidation (fixes grey tiles)
             dcc.Interval(
                 id='realtime-weather-map-invalidate-interval',

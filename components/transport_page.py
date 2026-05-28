@@ -1028,6 +1028,7 @@ def transport_page():
             dcc.Store(id="traffic-incidents-toggle-state", data=False),
             dcc.Store(id="vms-toggle-state", data=False),
             dcc.Store(id="ev-charging-toggle-state", data=False),
+            dcc.Store(id="evc-batch-refresh-result", data=None),
             # Interval for auto-refresh
             dcc.Interval(
                 id='transport-interval',

@@ -4883,33 +4883,42 @@ def register_transport_callbacks(app):
         return new_state, button_style, button_text
 
     @app.callback(
-        Output('ev-charging-points-count-value', 'children'),
-        Input('ev-charging-interval', 'n_intervals')
+        Output('evc-batch-refresh-result', 'data'),
+        Input('ev-charging-interval', 'n_intervals'),
+        State('navigation-tabs', 'value')
     )
-    def update_ev_charging_points_count(n_intervals: int) -> html.Div:
-        """
-        Update EV charging points count display periodically (every 5 minutes).
-        Polls the EVCBatch API asynchronously to get fresh data and counts the total points.
-        Force overwrites the file every 5 minutes when interval triggers.
-        """
-        # Force overwrite when interval triggers (n_intervals > 0)
-        # Skip if exists only on initial load (n_intervals == 0)
+    def refresh_evc_batch_data(n_intervals: int, active_tab: str):
+        """Refresh EVCBatch file once per EV interval while transport tab is active."""
+        if active_tab != 'transport':
+            return no_update
+
         skip_if_exists = (n_intervals == 0)
-        
         try:
-            # Poll the EVCBatch API asynchronously (every 5 minutes)
-            # Force overwrite the file every 5 minutes to get the latest data
             download_future = fetch_evc_batch_async(skip_if_exists=skip_if_exists)
-            
-            # Wait for download to complete (non-blocking due to @run_in_thread)
-            if download_future:
-                try:
-                    download_result = download_future.result() if hasattr(download_future, "result") else download_future
-                    if download_result and isinstance(download_result, dict) and download_result.get('success'):
-                        print(f"EVCBatch file refreshed: {download_result.get('file_path')}")
-                except Exception as e:
-                    print(f"Error downloading EVCBatch file: {e}")
-            
+            download_result = (
+                download_future.result() if hasattr(download_future, "result") else download_future
+            ) if download_future else None
+            if isinstance(download_result, dict):
+                return download_result
+            return {"success": False, "error": "No refresh result returned"}
+        except Exception as error:
+            print(f"Error refreshing EVCBatch file: {error}")
+            return {"success": False, "error": str(error)}
+
+    @app.callback(
+        Output('ev-charging-points-count-value', 'children'),
+        Input('evc-batch-refresh-result', 'data'),
+        State('navigation-tabs', 'value')
+    )
+    def update_ev_charging_points_count(_refresh_result, active_tab: str) -> html.Div:
+        """
+        Update EV charging points count from the local EVCBatch file.
+        Download/refresh is handled centrally by refresh_evc_batch_data.
+        """
+        if active_tab != 'transport':
+            return no_update
+
+        try:
             # Count EV charging points from the file (async)
             count_future = count_ev_charging_points()
             
@@ -4986,42 +4995,26 @@ def register_transport_callbacks(app):
     @app.callback(
         Output('ev-charging-markers', 'children'),
         [Input('ev-charging-toggle-state', 'data'),
-         Input('ev-charging-interval', 'n_intervals')]
+         Input('evc-batch-refresh-result', 'data')],
+        State('navigation-tabs', 'value')
     )
-    def update_ev_charging_markers(show_ev_charging: bool, n_intervals: int) -> List[dl.Marker]:
+    def update_ev_charging_markers(show_ev_charging: bool, _refresh_result, active_tab: str) -> List[dl.Marker]:
         """
         Update EV charging points markers display based on toggle state.
         Loads data from EVCBatch file and creates markers.
-        Force overwrites the file every 5 minutes when interval triggers.
+        EVCBatch refresh is handled by refresh_evc_batch_data.
         Uses the same EV charger icon as nearby facilities but with green background.
         """
-        print(f"update_ev_charging_markers called: show_ev_charging={show_ev_charging}, n_intervals={n_intervals}")
-        
+        if active_tab != 'transport':
+            return no_update
+
+        print(f"update_ev_charging_markers called: show_ev_charging={show_ev_charging}")
+
         # Only show markers if toggle is on
         if not show_ev_charging:
             print("EV charging toggle is off, returning empty markers")
             return []
-        
-        # Force overwrite when interval triggers (n_intervals > 0)
-        # Skip if exists only on initial load (n_intervals == 0)
-        skip_if_exists = (n_intervals == 0)
-        
-        # Force refresh the EVCBatch file every 5 minutes
-        download_future = fetch_evc_batch_async(skip_if_exists=skip_if_exists)
-        
-        # Wait for download to complete before loading the file
-        if download_future:
-            try:
-                download_result = download_future.result() if hasattr(download_future, "result") else download_future
-                if download_result and isinstance(download_result, dict) and download_result.get('success'):
-                    print(f"EVCBatch file refreshed for markers: {download_result.get('file_path')}")
-                elif download_result:
-                    print(f"EVCBatch download result: {download_result}")
-            except Exception as e:
-                print(f"Error downloading EVCBatch file for markers: {e}")
-                import traceback
-                traceback.print_exc()
-        
+
         # Load EV charging points from file (async)
         print("Loading EV charging points from file...")
         ev_data_future = load_ev_charging_points_from_file()

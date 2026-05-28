@@ -1748,6 +1748,40 @@ def register_realtime_weather_callbacks(app):
         app: Dash app instance
     """
     @app.callback(
+        Output('realtime-weather-data-store', 'data'),
+        Input('interval-component', 'n_intervals'),
+        State('navigation-tabs', 'value')
+    )
+    def update_realtime_weather_data_store(n_intervals, active_tab):
+        """Fetch realtime weather payloads once and store for fan-out callbacks."""
+        _ = n_intervals
+        if active_tab != 'realtime-weather':
+            return no_update
+
+        temp_data = fetch_realtime_data('air-temperature')
+        rain_data = fetch_realtime_data('rainfall')
+        humid_data = fetch_realtime_data('relative-humidity')
+        wind_data = fetch_realtime_data('wind-speed')
+
+        future_lightning = fetch_lightning_data_async()
+        future_flood = fetch_flood_alerts_async()
+        future_wbgt = fetch_wbgt_data_async()
+
+        lightning_data = future_lightning.result() if future_lightning else None
+        flood_data = future_flood.result() if future_flood else None
+        wbgt_data = future_wbgt.result() if future_wbgt else None
+
+        return {
+            "temperature": temp_data,
+            "rainfall": rain_data,
+            "humidity": humid_data,
+            "wind": wind_data,
+            "lightning": lightning_data,
+            "flood": flood_data,
+            "wbgt": wbgt_data,
+        }
+
+    @app.callback(
         [Output('temperature-readings-content', 'children'),
          Output('rainfall-readings-content', 'children'),
          Output('humidity-readings-content', 'children'),
@@ -1758,24 +1792,22 @@ def register_realtime_weather_callbacks(app):
          Output('wind-sensor-content', 'children'),
          Output('lightning-markers', 'children'),
          Output('flood-markers', 'children')],
-        Input('interval-component', 'n_intervals'),
+        Input('realtime-weather-data-store', 'data'),
         State('navigation-tabs', 'value')
     )
-    def update_realtime_weather_interval_content(n_intervals, active_tab):
+    def update_realtime_weather_interval_content(weather_data, active_tab):
         """Refresh all realtime-weather content driven by the global interval."""
-        _ = n_intervals
         if active_tab != 'realtime-weather':
             return [no_update] * 10
+        if not weather_data:
+            return [no_update] * 10
 
-        temp_data = fetch_realtime_data('air-temperature')
-        rain_data = fetch_realtime_data('rainfall')
-        humid_data = fetch_realtime_data('relative-humidity')
-        wind_data = fetch_realtime_data('wind-speed')
-
-        future_lightning = fetch_lightning_data_async()
-        future_flood = fetch_flood_alerts_async()
-        lightning_data = future_lightning.result() if future_lightning else None
-        flood_data = future_flood.result() if future_flood else None
+        temp_data = weather_data.get("temperature")
+        rain_data = weather_data.get("rainfall")
+        humid_data = weather_data.get("humidity")
+        wind_data = weather_data.get("wind")
+        lightning_data = weather_data.get("lightning")
+        flood_data = weather_data.get("flood")
 
         lightning_markers = create_lightning_markers(lightning_data) if lightning_data else []
         flood_markers = create_flood_markers(flood_data) if flood_data else []
@@ -1795,30 +1827,26 @@ def register_realtime_weather_callbacks(app):
 
     @app.callback(
         Output('lightning-readings-content', 'children'),
-        Input('realtime-weather-interval', 'n_intervals'),
+        Input('realtime-weather-data-store', 'data'),
         State('navigation-tabs', 'value')
     )
-    def update_lightning_readings(n_intervals, active_tab):
+    def update_lightning_readings(weather_data, active_tab):
         """Update lightning readings periodically."""
-        _ = n_intervals
         if active_tab != 'realtime-weather':
             return no_update
-        future = fetch_lightning_data_async()
-        data = future.result() if future else None
+        data = weather_data.get("lightning") if weather_data else None
         return format_lightning_readings(data)
 
     @app.callback(
         Output('flood-readings-content', 'children'),
-        Input('realtime-weather-interval', 'n_intervals'),
+        Input('realtime-weather-data-store', 'data'),
         State('navigation-tabs', 'value')
     )
-    def update_flood_readings(n_intervals, active_tab):
+    def update_flood_readings(weather_data, active_tab):
         """Update flood readings periodically."""
-        _ = n_intervals
         if active_tab != 'realtime-weather':
             return no_update
-        future = fetch_flood_alerts_async()
-        data = future.result() if future else None
+        data = weather_data.get("flood") if weather_data else None
         return format_flood_readings(data)
 
     # Toggle callbacks for sensor values sections
@@ -1981,25 +2009,24 @@ def register_realtime_weather_callbacks(app):
     # Callback to update WBGT average value
     @app.callback(
         Output('wbgt-readings-content', 'children'),
-        Input('realtime-weather-interval', 'n_intervals'),
+        Input('realtime-weather-data-store', 'data'),
         State('navigation-tabs', 'value')
     )
-    def update_wbgt_readings(_n_intervals, active_tab):
+    def update_wbgt_readings(weather_data, active_tab):
         """Update WBGT average value display."""
         if active_tab != 'realtime-weather':
             return no_update
-        future = fetch_wbgt_data_async()
-        data = future.result() if future else None
+        data = weather_data.get("wbgt") if weather_data else None
         return format_wbgt_average(data)
 
     # Callback to update WBGT sensor values (detailed list)
     @app.callback(
         Output('wbgt-sensor-content', 'children'),
         [Input('wbgt-sensor-values', 'style'),
-         Input('realtime-weather-interval', 'n_intervals')],
+         Input('realtime-weather-data-store', 'data')],
         State('navigation-tabs', 'value')
     )
-    def update_wbgt_sensor_content(style, _n_intervals, active_tab):
+    def update_wbgt_sensor_content(style, weather_data, active_tab):
         """Update WBGT sensor values when section is visible."""
         if active_tab != 'realtime-weather':
             return no_update
@@ -2009,8 +2036,7 @@ def register_realtime_weather_callbacks(app):
                 "fontSize": "12px",
                 "textAlign": "center"
             })
-        future = fetch_wbgt_data_async()
-        data = future.result() if future else None
+        data = weather_data.get("wbgt") if weather_data else None
         return format_wbgt_display(data)
 
     # Toggle callback for WBGT sensor values
@@ -2055,33 +2081,31 @@ def register_realtime_weather_callbacks(app):
     @app.callback(
         Output('lightning-sensor-content', 'children'),
         [Input('lightning-sensor-values', 'style'),
-         Input('realtime-weather-interval', 'n_intervals')],
+         Input('realtime-weather-data-store', 'data')],
         State('navigation-tabs', 'value')
     )
-    def update_lightning_sensor_content(style, _n_intervals, active_tab):
+    def update_lightning_sensor_content(style, weather_data, active_tab):
         """Update lightning sensor values when section is visible."""
         if active_tab != 'realtime-weather':
             return no_update
         if style and style.get('display') == 'none':
             return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
-        future = fetch_lightning_data_async()
-        data = future.result() if future else None
+        data = weather_data.get("lightning") if weather_data else None
         return format_lightning_indicator(data)
 
     @app.callback(
         Output('flood-sensor-content', 'children'),
         [Input('flood-sensor-values', 'style'),
-         Input('realtime-weather-interval', 'n_intervals')],
+         Input('realtime-weather-data-store', 'data')],
         State('navigation-tabs', 'value')
     )
-    def update_flood_sensor_content(style, _n_intervals, active_tab):
+    def update_flood_sensor_content(style, weather_data, active_tab):
         """Update flood sensor values when section is visible."""
         if active_tab != 'realtime-weather':
             return no_update
         if style and style.get('display') == 'none':
             return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
-        future = fetch_flood_alerts_async()
-        data = future.result() if future else None
+        data = weather_data.get("flood") if weather_data else None
         return format_flood_indicator(data)
 
     @app.callback(
@@ -2114,22 +2138,24 @@ def register_realtime_weather_callbacks(app):
 
     @app.callback(
         Output('readings-content', 'children'),
-        Input('realtime-weather-interval', 'n_intervals'),
+        Input('realtime-weather-data-store', 'data'),
         [State('readings-toggle-state', 'data'),
          State('navigation-tabs', 'value')]
     )
-    def update_all_readings(_n_intervals, is_visible, active_tab):
+    def update_all_readings(weather_data, is_visible, active_tab):
         """Update all readings content when section is visible."""
         if active_tab != 'realtime-weather':
             return no_update
         if not is_visible:
             return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
-        
-        # Fetch all readings data
-        temp_data = fetch_realtime_data('air-temperature')
-        rain_data = fetch_realtime_data('rainfall')
-        humid_data = fetch_realtime_data('relative-humidity')
-        wind_data = fetch_realtime_data('wind-speed')
+
+        if not weather_data:
+            return html.P("Loading...", style={"color": "#999", "fontSize": "12px", "textAlign": "center"})
+
+        temp_data = weather_data.get("temperature")
+        rain_data = weather_data.get("rainfall")
+        humid_data = weather_data.get("humidity")
+        wind_data = weather_data.get("wind")
         
         # Format all readings
         all_readings = []
