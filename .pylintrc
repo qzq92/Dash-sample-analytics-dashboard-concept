@@ -47,3 +47,11 @@ min-public-methods=1
 [TYPECHECK]
 # Dash/plotly and dynamic payloads occasionally use generated attributes.
 generated-members=result
+
+[SIMILARITIES]
+# Keep duplicate-code checks, but avoid flagging small intentional UI scaffolding repeats.
+min-similarity-lines=40
+ignore-comments=yes
+ignore-docstrings=yes
+ignore-imports=yes
+ignore-signatures=yes
