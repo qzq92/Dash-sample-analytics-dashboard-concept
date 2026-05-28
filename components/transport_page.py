@@ -5,6 +5,7 @@ Displays transport-related information including taxi availability.
 from dash import html, dcc
 from conf.cache_config import INTERVAL_TRANSPORT_MS, INTERVAL_EV_CHARGING_MS
 import dash_leaflet as dl
+from utils.transport.bus import get_bus_stops_count
 from utils.map_utils import (
     get_onemap_attribution,
     SG_MAP_CENTER,
@@ -31,6 +32,10 @@ def transport_page():
     fixed_zoom = SG_MAP_DEFAULT_ZOOM
     onemap_attribution = get_onemap_attribution()
     sg_bounds = SG_MAP_BOUNDS
+    try:
+        initial_bus_stops_count = str(get_bus_stops_count())
+    except Exception:
+        initial_bus_stops_count = "--"
 
     return html.Div(
         id="transport-page",
@@ -94,7 +99,7 @@ def transport_page():
                                                 },
                                                 children=[
                                                     html.Div(
-                                                        html.Span("--", style={"color": "#999"}),
+                                                        html.Span(initial_bus_stops_count, style={"color": "#4169E1" if initial_bus_stops_count != "--" else "#999"}),
                                                         style={
                                                             "backgroundColor": "rgb(58, 74, 90)",
                                                             "padding": "0.25rem 0.5rem",

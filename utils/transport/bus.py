@@ -133,6 +133,15 @@ def get_bus_services_count() -> int:
     return len({route.get("ServiceNo", "") for route in routes_data.get("value", []) if route.get("ServiceNo")})
 
 
+def get_bus_stops_count() -> int:
+    """Return the total number of bus stops from cached/monthly bus-stop data."""
+    stops_data = fetch_bus_stops_data()
+    if not stops_data or "value" not in stops_data:
+        return 0
+    stops = stops_data.get("value", [])
+    return len(stops) if isinstance(stops, list) else 0
+
+
 def calculate_bus_stop_viewport_bounds(
     center: List[float],
     zoom: int,
