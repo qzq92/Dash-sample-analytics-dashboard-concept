@@ -11,13 +11,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Callable, Any, Optional, Tuple
 from functools import wraps
 from dotenv import load_dotenv
-from pathlib import Path
 import threading
-
-try:
-    import diskcache
-except ImportError:  # pragma: no cover - fallback for environments without diskcache
-    diskcache = None
+from collections import OrderedDict
 
 load_dotenv(override=True)
 
@@ -27,29 +22,14 @@ from conf.cache_config import CACHE_TTL_2MIN, CACHE_TTL_10MIN
 # Using max_workers=10 is reasonable for I/O-bound tasks
 _executor = ThreadPoolExecutor(max_workers=10)
 
-# Global cache for 2-minute interval updates
-# Maps URL to {'data': json_dict, 'bucket': timestamp}
-_2min_dynamic_cache: Dict[str, Any] = {}
+# Bounded in-memory LRU caches (URL -> {'data': ..., 'bucket': ...})
+_MAX_CACHE_ENTRIES = int(os.getenv("ASYNC_FETCHER_MAX_CACHE_ENTRIES", "256"))
+_MAX_INFLIGHT_KEYS = int(os.getenv("ASYNC_FETCHER_MAX_INFLIGHT_KEYS", "512"))
+_INFLIGHT_WAIT_SECONDS = float(os.getenv("ASYNC_FETCHER_INFLIGHT_WAIT_SECONDS", "1.5"))
 
-# Global cache for 10-minute interval updates
-# Maps URL to {'data': json_dict, 'bucket': timestamp}
-_10min_dynamic_cache: Dict[str, Any] = {}
-
-# DiskCache backend (cross-process shared cache + simple in-flight lock)
-_DISKCACHE_GRACE_SECONDS = 15
-_DISKCACHE_LOCK_EXPIRE_SECONDS = 15
-_DISKCACHE_LOCK_WAIT_SECONDS = 1.5
-_DISKCACHE_LOCK_POLL_SECONDS = 0.075
-
-_diskcache_dir = os.getenv(
-    "DISKCACHE_DIR",
-    str((Path(__file__).resolve().parent.parent / ".diskcache_http").resolve()),
-)
-_diskcache_store = (
-    diskcache.Cache(_diskcache_dir)
-    if diskcache is not None
-    else None
-)
+_2min_dynamic_cache: "OrderedDict[str, Any]" = OrderedDict()
+_10min_dynamic_cache: "OrderedDict[str, Any]" = OrderedDict()
+_inflight_events: "OrderedDict[str, threading.Event]" = OrderedDict()
 _in_memory_lock = threading.Lock()
 
 
@@ -80,7 +60,6 @@ def fetch_url_2min_cached(url: str, headers: Optional[Dict] = None, timeout: int
         url=url,
         headers=headers,
         timeout=timeout,
-        ttl_seconds=CACHE_TTL_2MIN,
         current_bucket=get_current_2min_bucket(),
         memory_cache=_2min_dynamic_cache,
     )
@@ -103,7 +82,6 @@ def fetch_url_10min_cached(url: str, headers: Optional[Dict] = None, timeout: in
         url=url,
         headers=headers,
         timeout=timeout,
-        ttl_seconds=CACHE_TTL_10MIN,
         current_bucket=get_current_10min_bucket(),
         memory_cache=_10min_dynamic_cache,
     )
@@ -114,103 +92,74 @@ def _fetch_with_bucket_cache(
     url: str,
     headers: Optional[Dict],
     timeout: int,
-    ttl_seconds: int,
     current_bucket: int,
     memory_cache: Dict[str, Any],
 ) -> Optional[dict]:
-    """Fetch with bucket cache, using diskcache lock when available."""
-    if _diskcache_store is None:
-        return _fetch_with_in_memory_cache(url, headers, timeout, current_bucket, memory_cache)
-
-    cache_key = f"http:{namespace}:{url}"
-    lock_key = f"lock:http:{namespace}:{url}:{current_bucket}"
-    lock_token = f"{os.getpid()}:{threading.get_ident()}:{time.time_ns()}"
-
-    cached_item = _diskcache_store.get(cache_key)
-    if isinstance(cached_item, dict) and cached_item.get("bucket") == current_bucket:
-        return cached_item.get("data")
-
-    if _diskcache_store.add(lock_key, lock_token, expire=_DISKCACHE_LOCK_EXPIRE_SECONDS):
-        return _owner_fetch_and_store(
-            cache_key=cache_key,
-            lock_key=lock_key,
-            lock_token=lock_token,
-            url=url,
-            headers=headers,
-            timeout=timeout,
-            current_bucket=current_bucket,
-            ttl_seconds=ttl_seconds,
-        )
-
-    wait_deadline = time.time() + _DISKCACHE_LOCK_WAIT_SECONDS
-    while time.time() < wait_deadline:
-        cached_item = _diskcache_store.get(cache_key)
-        if isinstance(cached_item, dict) and cached_item.get("bucket") == current_bucket:
-            return cached_item.get("data")
-        time.sleep(_DISKCACHE_LOCK_POLL_SECONDS)
-
-    # Fail-open path: don't block callbacks indefinitely if lock owner hangs/fails.
-    data = fetch_url(url, headers, timeout)
-    if data is not None:
-        _diskcache_store.set(
-            cache_key,
-            {"data": data, "bucket": current_bucket},
-            expire=ttl_seconds + _DISKCACHE_GRACE_SECONDS,
-        )
-    return data
-
-
-def _owner_fetch_and_store(
-    cache_key: str,
-    lock_key: str,
-    lock_token: str,
-    url: str,
-    headers: Optional[Dict],
-    timeout: int,
-    current_bucket: int,
-    ttl_seconds: int,
-) -> Optional[dict]:
-    """Owner path for lock-acquired fetch."""
-    try:
-        cached_item = _diskcache_store.get(cache_key)
-        if isinstance(cached_item, dict) and cached_item.get("bucket") == current_bucket:
-            return cached_item.get("data")
-
-        data = fetch_url(url, headers, timeout)
-        if data is not None:
-            _diskcache_store.set(
-                cache_key,
-                {"data": data, "bucket": current_bucket},
-                expire=ttl_seconds + _DISKCACHE_GRACE_SECONDS,
-            )
-        return data
-    finally:
-        current_token = _diskcache_store.get(lock_key)
-        if current_token == lock_token:
-            _diskcache_store.delete(lock_key)
+    """Fetch with bounded in-memory cache and in-flight dedupe."""
+    return _fetch_with_in_memory_cache(namespace, url, headers, timeout, current_bucket, memory_cache)
 
 
 def _fetch_with_in_memory_cache(
+    namespace: str,
     url: str,
     headers: Optional[Dict],
     timeout: int,
     current_bucket: int,
-    memory_cache: Dict[str, Any],
+    memory_cache: "OrderedDict[str, Any]",
 ) -> Optional[dict]:
-    """Fallback for environments without diskcache installed."""
+    """Bounded LRU cache with in-flight request dedupe."""
+    inflight_key = f"{namespace}:{current_bucket}:{url}"
+
     with _in_memory_lock:
         cached_item = memory_cache.get(url)
         if cached_item and cached_item.get("bucket") == current_bucket:
+            memory_cache.move_to_end(url)
             return cached_item.get("data")
+        owner_event = _inflight_events.get(inflight_key)
+        if owner_event is None:
+            owner_event = threading.Event()
+            _inflight_events[inflight_key] = owner_event
+            _evict_oldest_entries(_inflight_events, _MAX_INFLIGHT_KEYS)
+            is_owner = True
+        else:
+            _inflight_events.move_to_end(inflight_key)
+            is_owner = False
 
-    data = fetch_url(url, headers, timeout)
-    if data is not None:
+    if not is_owner:
+        owner_event.wait(_INFLIGHT_WAIT_SECONDS)
         with _in_memory_lock:
-            memory_cache[url] = {
-                "data": data,
-                "bucket": current_bucket,
-            }
-    return data
+            cached_item = memory_cache.get(url)
+            if cached_item and cached_item.get("bucket") == current_bucket:
+                memory_cache.move_to_end(url)
+                return cached_item.get("data")
+        # Fail-open if owner did not populate cache in time.
+        data = fetch_url(url, headers, timeout)
+        if data is not None:
+            with _in_memory_lock:
+                memory_cache[url] = {"data": data, "bucket": current_bucket}
+                memory_cache.move_to_end(url)
+                _evict_oldest_entries(memory_cache, _MAX_CACHE_ENTRIES)
+        return data
+
+    try:
+        data = fetch_url(url, headers, timeout)
+        if data is not None:
+            with _in_memory_lock:
+                memory_cache[url] = {"data": data, "bucket": current_bucket}
+                memory_cache.move_to_end(url)
+                _evict_oldest_entries(memory_cache, _MAX_CACHE_ENTRIES)
+        return data
+    finally:
+        with _in_memory_lock:
+            event = _inflight_events.pop(inflight_key, None)
+            if event is not None:
+                event.set()
+
+
+def _evict_oldest_entries(cache: "OrderedDict[str, Any]", max_entries: int) -> None:
+    """Trim ordered mapping to stay within a maximum entry limit."""
+    while len(cache) > max_entries:
+        cache.popitem(last=False)
 
 
 def get_default_headers() -> Dict[str, str]:
