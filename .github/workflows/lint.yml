@@ -23,7 +23,7 @@ jobs:
           python-version: "3.12"
 
       - name: Sync dependencies
-        run: uv sync --frozen --all-groups
+        run: uv sync --all-groups
 
       - name: Pylint check
         run: uv run pylint callbacks components conf utils app.py
