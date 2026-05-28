@@ -229,13 +229,13 @@ def register_camera_feed_callbacks(app):
             img_4713 = None
             try:
                 future_2701 = get_camera_image_base64_async(metadata_dict, "2701")
-                img_2701 = future_2701.result() if future_2701 else None
+                img_2701 = future_2701.result() if hasattr(future_2701, "result") else future_2701
             except Exception as e:
                 print(f"Error fetching image for camera 2701: {e}")
             
             try:
                 future_4713 = get_camera_image_base64_async(metadata_dict, "4713")
-                img_4713 = future_4713.result() if future_4713 else None
+                img_4713 = future_4713.result() if hasattr(future_4713, "result") else future_4713
             except Exception as e:
                 print(f"Error fetching image for camera 4713: {e}")
 

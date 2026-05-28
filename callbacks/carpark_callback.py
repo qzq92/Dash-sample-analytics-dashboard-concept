@@ -475,7 +475,7 @@ def register_carpark_callbacks(app):
         
         # Fetch availability data from API
         future = fetch_carpark_availability_async()
-        api_data = future.result() if future else None
+        api_data = future.result() if hasattr(future, "result") else future
         
         if not api_data:
             return html.Div(
@@ -769,7 +769,7 @@ def register_carpark_callbacks(app):
 
         # Fetch availability data from API
         future = fetch_carpark_availability_async()
-        api_data = future.result() if future else None
+        api_data = future.result() if hasattr(future, "result") else future
 
         if not api_data:
             return [
