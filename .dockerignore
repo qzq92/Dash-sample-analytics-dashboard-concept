@@ -46,7 +46,7 @@ notebooks/
 Thumbs.db
 
 # Docker
-Dockerfile
+docker/
 .dockerignore
 docker-compose.yml
 
