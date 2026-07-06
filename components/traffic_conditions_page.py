@@ -52,7 +52,7 @@ def traffic_conditions_page():
                             html.Div(
                                 children=[
                                     html.Span(
-                                        "LTA Traffic Camera Feed Discontinuation — ",
+                                        "LTA Traffic Camera Feed Cessation — ",
                                         style={
                                             "fontWeight": "700",
                                             "color": "#fbbf24",
@@ -60,9 +60,9 @@ def traffic_conditions_page():
                                         },
                                     ),
                                     html.Span(
-                                        "The Land Transport Authority (LTA) has announced that it will be "
-                                        "switching off most traffic condition video feeds. Some camera feeds "
-                                        "displayed here may no longer be available or may show as unavailable.",
+                                        "The Land Transport Authority (LTA) has ceased public traffic condition "
+                                        "video feeds as of 30th June 2026. Live camera feeds are no longer "
+                                        "available on this dashboard.",
                                         style={
                                             "color": "#fde68a",
                                             "fontSize": "0.85rem",
