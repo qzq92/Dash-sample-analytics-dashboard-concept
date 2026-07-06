@@ -14,8 +14,9 @@ from threading import Lock
 import numpy as np
 import plotly.graph_objects as go
 import dash_leaflet as dl
+import requests
 from dash import html, dcc, Input, Output, State, no_update
-from utils.async_fetcher import get_default_headers, fetch_url, fetch_url_2min_cached, run_in_thread
+from utils.async_fetcher import get_default_headers, fetch_url_2min_cached, run_in_thread
 from conf.cache_config import TTL_DISEASE_CLUSTER_CALLBACKS
 from utils.transport.taxi import fetch_taxi_availability
 from components.metric_card import create_metric_value_display
@@ -36,11 +37,124 @@ DENGUE_POLL_DOWNLOAD_URL = f"https://api-open.data.gov.sg/v1/public/api/datasets
 # dataset repeatedly during a single refresh cycle.
 # PSI is already served by fetch_url_2min_cached; no separate PSI cache needed.
 _cluster_data_cache = {
-    'zika': {'data': None, 'timestamp': 0},
-    'dengue': {'data': None, 'timestamp': 0},
+    'zika': {'data': None, 'timestamp': 0, 'retry_after': 0},
+    'dengue': {'data': None, 'timestamp': 0, 'retry_after': 0},
 }
 _cluster_cache_lock = Lock()
 CLUSTER_CACHE_TTL: int = TTL_DISEASE_CLUSTER_CALLBACKS
+CLUSTER_RETRY_ON_429_SECONDS: int = 5 * 60
+
+
+def _parse_retry_after_seconds(retry_after_header) -> int:
+    """Parse Retry-After header and return cooldown seconds."""
+    if retry_after_header is None:
+        return CLUSTER_RETRY_ON_429_SECONDS
+    try:
+        value = int(str(retry_after_header).strip())
+        return max(1, value)
+    except (ValueError, TypeError):
+        return CLUSTER_RETRY_ON_429_SECONDS
+
+
+def _fetch_cluster_json(url, headers, timeout):
+    """
+    Fetch JSON from cluster endpoints while exposing HTTP status for 429 handling.
+
+    Returns:
+        tuple(json_data_or_none, status_code, retry_after_seconds_or_none)
+    """
+    response = requests.get(url, headers=headers, timeout=timeout)
+    if response.status_code == 429:
+        retry_after_seconds = _parse_retry_after_seconds(response.headers.get("Retry-After"))
+        return None, 429, retry_after_seconds
+
+    if 200 <= response.status_code < 300:
+        try:
+            return response.json(), response.status_code, None
+        except ValueError as error:
+            raise ValueError(f"Invalid JSON from cluster API: {error}") from error
+
+    raise ValueError(f"Cluster API request failed: status={response.status_code}")
+
+
+def _set_cluster_rate_limit_state(cache_key, retry_after_seconds):
+    """Store 429 retry window for cluster cache key."""
+    with _cluster_cache_lock:
+        cached_item = _cluster_data_cache.setdefault(
+            cache_key,
+            {'data': None, 'timestamp': 0, 'retry_after': 0},
+        )
+        cached_item['retry_after'] = time.time() + max(1, int(retry_after_seconds))
+
+
+def _get_cluster_retry_notice_data(cache_key):
+    """Return active retry notice metadata for a cluster key, if any."""
+    with _cluster_cache_lock:
+        cached_item = _cluster_data_cache.get(cache_key, {})
+        retry_after = float(cached_item.get('retry_after', 0) or 0)
+
+    current_time = time.time()
+    if retry_after <= current_time:
+        return None
+
+    remaining_seconds = max(1, int(retry_after - current_time))
+    next_retry_text = datetime.fromtimestamp(retry_after).strftime("%H:%M:%S")
+    return {
+        "remaining_seconds": remaining_seconds,
+        "next_retry_text": next_retry_text,
+    }
+
+
+def _build_cluster_retry_notice(cache_key, label):
+    """Create warning banner for cluster card during 429 cooldown window."""
+    retry_data = _get_cluster_retry_notice_data(cache_key)
+    if not retry_data:
+        return None
+
+    remaining_seconds = retry_data["remaining_seconds"]
+    remaining_minutes = max(1, math.ceil(remaining_seconds / 60))
+    next_retry_text = retry_data["next_retry_text"]
+    return html.Div(
+        f"Rate limited (429). {label} data will auto-retry in ~{remaining_minutes} min "
+        f"(next at {next_retry_text}).",
+        style={
+            "color": "#fbbf24",
+            "fontSize": "0.6875rem",
+            "textAlign": "center",
+            "padding": "0.375rem 0.5rem",
+            "marginBottom": "0.375rem",
+            "border": "0.0625rem solid #b45309",
+            "borderRadius": "0.25rem",
+            "backgroundColor": "rgba(180, 83, 9, 0.15)",
+        },
+    )
+
+
+def _build_combined_cluster_retry_notice():
+    """Create a combined retry notice for the main dashboard disease section."""
+    notices = []
+    for cache_key, label in (("dengue", "Dengue"), ("zika", "Zika")):
+        retry_data = _get_cluster_retry_notice_data(cache_key)
+        if retry_data:
+            notices.append(f"{label}: {retry_data['next_retry_text']}")
+
+    if not notices:
+        return None
+
+    return html.Div(
+        "Disease cluster API rate limited (429). Auto-repoll scheduled in 5 minutes. "
+        f"Next retry - {' | '.join(notices)}",
+        style={
+            "color": "#fbbf24",
+            "fontSize": "0.6875rem",
+            "textAlign": "center",
+            "padding": "0.375rem 0.5rem",
+            "marginTop": "0.375rem",
+            "border": "0.0625rem solid #b45309",
+            "borderRadius": "0.25rem",
+            "backgroundColor": "rgba(180, 83, 9, 0.15)",
+        },
+    )
 
 
 # PSI (Pollutant Standards Index) categories
@@ -265,9 +379,24 @@ def _fetch_cluster_data_with_cache(cache_key, poll_download_url):
             and current_time - cached_item['timestamp'] < CLUSTER_CACHE_TTL
         ):
             return cached_item['data']
+        if cached_item and current_time < float(cached_item.get('retry_after', 0) or 0):
+            # During active 429 cooldown, avoid hammering upstream API.
+            return cached_item.get('data')
 
     try:
-        poll_response = fetch_url(poll_download_url, headers=headers, timeout=30)
+        poll_response, poll_status, poll_retry_after = _fetch_cluster_json(
+            poll_download_url,
+            headers=headers,
+            timeout=30,
+        )
+        if poll_status == 429:
+            _set_cluster_rate_limit_state(cache_key, poll_retry_after or CLUSTER_RETRY_ON_429_SECONDS)
+            with _cluster_cache_lock:
+                cached_item = _cluster_data_cache.get(cache_key)
+                if cached_item and cached_item['data'] is not None:
+                    return cached_item['data']
+            return None
+
         download_url = None
         if isinstance(poll_response, dict):
             if 'url' in poll_response:
@@ -278,23 +407,51 @@ def _fetch_cluster_data_with_cache(cache_key, poll_download_url):
         if not download_url:
             raise ValueError(f"No download URL returned for {cache_key} cluster data")
 
-        data = fetch_url(download_url, headers=headers, timeout=30)
-        if data is None:
-            raise ValueError(f"No data returned for {cache_key} cluster data")
+        data, data_status, data_retry_after = _fetch_cluster_json(
+            download_url,
+            headers=headers,
+            timeout=30,
+        )
+        if data_status == 429:
+            _set_cluster_rate_limit_state(cache_key, data_retry_after or CLUSTER_RETRY_ON_429_SECONDS)
+            with _cluster_cache_lock:
+                cached_item = _cluster_data_cache.get(cache_key)
+                if cached_item and cached_item['data'] is not None:
+                    return cached_item['data']
+            return None
 
         with _cluster_cache_lock:
             _cluster_data_cache[cache_key] = {
                 'data': data,
                 'timestamp': current_time,
+                'retry_after': 0,
             }
         return data
-    except ValueError as e:
+    except (ValueError, requests.exceptions.RequestException) as e:
         print(f"Error fetching {cache_key.capitalize()} cluster data: {e}")
         with _cluster_cache_lock:
             cached_item = _cluster_data_cache.get(cache_key)
             if cached_item and cached_item['data'] is not None:
                 return cached_item['data']
         return None
+
+
+def initialize_disease_cluster_cache():
+    """
+    Warm disease-cluster cache once during service startup.
+
+    This reduces burst polling across callbacks immediately after launch and
+    keeps subsequent refreshes bounded by the once-daily TTL.
+    """
+    try:
+        _fetch_cluster_data_with_cache('zika', ZIKA_POLL_DOWNLOAD_URL)
+    except Exception as error:  # pragma: no cover - defensive startup guard
+        print(f"Startup warm-cache warning (zika): {error}")
+
+    try:
+        _fetch_cluster_data_with_cache('dengue', DENGUE_POLL_DOWNLOAD_URL)
+    except Exception as error:  # pragma: no cover - defensive startup guard
+        print(f"Startup warm-cache warning (dengue): {error}")
 
 
 def _parse_timestamp(timestamp_str):
@@ -1256,10 +1413,17 @@ def create_zika_cluster_polygons(data):
 
 def format_zika_clusters_display(data):
     """Format Zika cluster data for display."""
+    retry_notice = _build_cluster_retry_notice("zika", "Zika")
+
     if not data:
-        return html.P(
-            "Error retrieving Zika cluster data",
-            style={"color": "#ff6b6b", "textAlign": "center"}
+        return html.Div(
+            [
+                retry_notice,
+                html.P(
+                    "Error retrieving Zika cluster data",
+                    style={"color": "#ff6b6b", "textAlign": "center"},
+                ),
+            ]
         )
     
     # Handle FeatureCollection format (GeoJSON) or old format
@@ -1277,9 +1441,14 @@ def format_zika_clusters_display(data):
             features = data['result']['records']
     
     if not features:
-        return html.P(
-            "No Zika cluster data available",
-            style={"color": "#ccc", "textAlign": "center"}
+        return html.Div(
+            [
+                retry_notice,
+                html.P(
+                    "No Zika cluster data available",
+                    style={"color": "#ccc", "textAlign": "center"},
+                ),
+            ]
         )
     
     # Create list of clusters
@@ -1348,7 +1517,7 @@ def format_zika_clusters_display(data):
             )
         )
     
-    return html.Div(
+    list_container = html.Div(
         children=cluster_items,
         style={
             "display": "flex",
@@ -1357,8 +1526,9 @@ def format_zika_clusters_display(data):
             "overflowY": "auto",
             "overflowX": "hidden",
             "minHeight": "0",
-        }
+        },
     )
+    return html.Div([retry_notice, list_container])
 
 
 def _process_single_dengue_feature(feature):
@@ -1486,10 +1656,17 @@ def create_dengue_cluster_polygons(data):
 
 def format_dengue_clusters_display(data):
     """Format Dengue cluster data for display."""
+    retry_notice = _build_cluster_retry_notice("dengue", "Dengue")
+
     if not data:
-        return html.P(
-            "Error retrieving Dengue cluster data",
-            style={"color": "#ff6b6b", "textAlign": "center"}
+        return html.Div(
+            [
+                retry_notice,
+                html.P(
+                    "Error retrieving Dengue cluster data",
+                    style={"color": "#ff6b6b", "textAlign": "center"},
+                ),
+            ]
         )
     
     # Handle FeatureCollection format (GeoJSON) or old format
@@ -1507,9 +1684,14 @@ def format_dengue_clusters_display(data):
             features = data['result']['records']
     
     if not features:
-        return html.P(
-            "No Dengue cluster data available",
-            style={"color": "#ccc", "textAlign": "center"}
+        return html.Div(
+            [
+                retry_notice,
+                html.P(
+                    "No Dengue cluster data available",
+                    style={"color": "#ccc", "textAlign": "center"},
+                ),
+            ]
         )
     
     # Create list of clusters
@@ -1556,7 +1738,7 @@ def format_dengue_clusters_display(data):
             )
         )
     
-    return html.Div(
+    list_container = html.Div(
         children=cluster_items,
         style={
             "display": "flex",
@@ -1565,8 +1747,9 @@ def format_dengue_clusters_display(data):
             "overflowY": "auto",
             "overflowX": "hidden",
             "minHeight": "0",
-        }
+        },
     )
+    return html.Div([retry_notice, list_container])
 
 
 def register_weather_indices_callbacks(app):
@@ -1959,6 +2142,7 @@ def format_main_page_disease_clusters(dengue_data, zika_data):
     # Count clusters for each type
     dengue_count = count_clusters(dengue_data)
     zika_count = count_clusters(zika_data)
+    retry_notice = _build_combined_cluster_retry_notice()
     
     # Create metric cards for types with count > 0
     metric_cards = []
@@ -1986,16 +2170,19 @@ def format_main_page_disease_clusters(dengue_data, zika_data):
     # If no clusters, show a message
     if not metric_cards:
         return html.Div(
-            html.P(
-                "No active disease clusters",
-                style={
-                    "fontSize": "0.75rem",
-                    "color": "#999",
-                    "textAlign": "center",
-                    "margin": "0",
-                    "fontStyle": "italic",
-                }
-            )
+            [
+                html.P(
+                    "No active disease clusters",
+                    style={
+                        "fontSize": "0.75rem",
+                        "color": "#999",
+                        "textAlign": "center",
+                        "margin": "0",
+                        "fontStyle": "italic",
+                    },
+                ),
+                retry_notice,
+            ]
         )
     
     # Determine number of distinct disease types
@@ -2011,12 +2198,17 @@ def format_main_page_disease_clusters(dengue_data, zika_data):
     
     # Return container with metric cards in responsive grid layout
     return html.Div(
-        metric_cards,
-        style={
-            "display": "grid",
-            "gridTemplateColumns": grid_columns,
-            "gap": "0.5rem",
-        }
+        [
+            html.Div(
+                metric_cards,
+                style={
+                    "display": "grid",
+                    "gridTemplateColumns": grid_columns,
+                    "gap": "0.5rem",
+                },
+            ),
+            retry_notice,
+        ]
     )
 
 

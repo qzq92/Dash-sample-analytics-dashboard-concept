@@ -766,7 +766,7 @@ def register_bus_service_callbacks(app):
     """
     @app.callback(
         Output('bus-services-count-value', 'children'),
-        [Input('bus-arrival-page-interval', 'n_intervals'),
+        [Input('bus-arrival-page-interval', 'n_intervals', allow_optional=True),
          Input('transport-interval', 'n_intervals')],
         State('navigation-tabs', 'value')
     )

@@ -4539,17 +4539,17 @@ def register_transport_callbacks(app):
         [Input('bus-stops-toggle-state', 'data', allow_optional=True),
          Input('bus-arrival-map', 'zoom', allow_optional=True),
          Input('bus-arrival-map', 'center', allow_optional=True),
-         Input('bus-arrival-page-interval', 'n_intervals', allow_optional=True),
-         Input('transport-interval', 'n_intervals', allow_optional=True)],
-        State('navigation-tabs', 'value')
+         Input('bus-arrival-page-interval', 'n_intervals', allow_optional=True)],
+        State('navigation-tabs', 'value'),
+        prevent_initial_call=True
     )
-    def update_bus_stops_display(show_bus_stops: bool, zoom: Optional[int], center: Optional[List], _bus_interval: int, _transport_interval: int, active_tab: str):
+    def update_bus_stops_display(show_bus_stops: bool, zoom: Optional[int], center: Optional[List], _bus_interval: int, active_tab: str):
         """
         Update bus stops markers, count display, and zoom feedback.
         Only renders bus stops within the current viewport when zoomed to level 15+.
-        Updates from both bus-arrival-page-interval and transport-interval.
+        Updates from bus-arrival-page-interval.
         """
-        if active_tab not in ('bus-arrival', 'transport'):
+        if active_tab != 'bus-arrival':
             return no_update, no_update, no_update, no_update, no_update
         
         # Default zoom and center if not available

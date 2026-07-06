@@ -40,7 +40,10 @@ from callbacks.map_callback import register_search_callbacks
 from callbacks.traffic_callback import register_camera_feed_callbacks
 from callbacks.weather_callback import register_weather_callbacks
 from callbacks.realtime_weather_callback import register_realtime_weather_callbacks
-from callbacks.weather_indices_callback import register_weather_indices_callbacks
+from callbacks.weather_indices_callback import (
+    register_weather_indices_callbacks,
+    initialize_disease_cluster_cache,
+)
 from callbacks.mrt_callback import register_mrt_callbacks
 from callbacks.busstop_callbacks import register_busstop_callbacks
 from callbacks.carpark_callback import register_carpark_callbacks
@@ -89,6 +92,10 @@ register_travel_times_callbacks(app)
 register_analytics_forecast_callbacks(app)
 register_traffic_conditions_callbacks(app)
 register_tab_navigation_callback(app)
+
+# Warm disease cluster datasets once at startup to reduce poll-download bursts
+# and avoid repeated 429 responses from upstream API.
+initialize_disease_cluster_cache()
 
 def _loading_placeholder():
     """Spinner shown while a tab page's layout is being built server-side."""

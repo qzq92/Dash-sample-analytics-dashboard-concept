@@ -61,8 +61,9 @@ def traffic_conditions_page():
                                     ),
                                     html.Span(
                                         "The Land Transport Authority (LTA) has ceased public traffic condition "
-                                        "video feeds as of 30th June 2026. Live camera feeds are no longer "
-                                        "available on this dashboard.",
+                                        "video feeds as of 30th June 2026. Live camera feeds (except for "
+                                        "Sentosa and areas near checkpoint) are no longer available on this "
+                                        "dashboard.",
                                         style={
                                             "color": "#fde68a",
                                             "fontSize": "0.85rem",

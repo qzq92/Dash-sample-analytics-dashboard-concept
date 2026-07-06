@@ -51,17 +51,21 @@ def transport_page():
                 id="transport-content",
                 style=get_content_container_style(gap=STANDARD_GAP),
                 children=[
-                    # Left side: Transport info panel
-                    html.Div(
-                        id="transport-info-panel",
-                        style={
-                            "flex": "1",
-                            "minWidth": "18.75rem",
-                            "display": "flex",
-                            "flexDirection": "column",
-                            "gap": "0.9375rem",
-                        },
-                        children=[
+                    # Left side: Road & Transport metrics panel
+                    dcc.Loading(
+                        id="transport-metrics-loading",
+                        type="circle",
+                        color="#60a5fa",
+                        children=html.Div(
+                            id="transport-info-panel",
+                            style={
+                                "flex": "1",
+                                "minWidth": "18.75rem",
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "gap": "0.9375rem",
+                            },
+                            children=[
                             # Taxi Availability card
                             html.Div(
                                 id="taxi-availability-card",
@@ -473,7 +477,8 @@ def transport_page():
                                 value_id="bus-services-count-value",
                                 initial_value="--"
                             ),
-                        ]
+                            ]
+                        )
                     ),
                     # Middle: Map
                     html.Div(
@@ -771,21 +776,25 @@ def transport_page():
                             ),
                         ]
                     ),
-                    # Right side: Train Service Alerts
-                    html.Div(
-                        id="train-advisory-panel",
-                        style={
-                            "flex": "1",
-                            "minWidth": "18.75rem",
-                            "backgroundColor": "#4a5a6a",
-                            "borderRadius": "0.5rem",
-                            "padding": "0.9375rem",
-                            "display": "flex",
-                            "flexDirection": "column",
-                            "gap": "0.75rem",
-                            "overflowY": "auto",
-                        },
-                        children=[
+                    # Right side: Train Service Alerts/Advisory panel
+                    dcc.Loading(
+                        id="train-advisory-loading",
+                        type="circle",
+                        color="#60a5fa",
+                        children=html.Div(
+                            id="train-advisory-panel",
+                            style={
+                                "flex": "1",
+                                "minWidth": "18.75rem",
+                                "backgroundColor": "#4a5a6a",
+                                "borderRadius": "0.5rem",
+                                "padding": "0.9375rem",
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "gap": "0.75rem",
+                                "overflowY": "auto",
+                            },
+                            children=[
                             # Train Service Alerts card
                             html.Div(
                                 id="train-service-alerts-card",
@@ -846,7 +855,8 @@ def transport_page():
                                     ),
                                 ]
                             ),
-                        ]
+                            ]
+                        )
                     ),
                 ]
             ),
