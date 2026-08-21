@@ -45,6 +45,10 @@ TTL_TRANSPORT_CALLBACKS: int = _SECONDS_2_MIN
 # all-LTA-camera metadata and displayed camera grid refreshes.
 TTL_TRAFFIC_CONDITIONS_CALLBACKS: int = _SECONDS_2_MIN
 
+# Nearby facilities geospatial overlays:
+# Parks@SG and SportsFields@SG poll-download datasets.
+TTL_NEARBY_FACILITIES_CALLBACKS: int = _SECONDS_24_HOURS
+
 # MRT/LRT station crowd callbacks:
 # realtime per-line crowd levels and the combined all-lines crowd cache.
 TTL_MRT_CROWD_CALLBACKS: int = _SECONDS_10_MIN
