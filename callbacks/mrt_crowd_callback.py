@@ -261,16 +261,35 @@ def register_mrt_crowd_callbacks(app):
 
     # Main map markers callback
     @app.callback(
-        Output('mrt-crowd-markers', 'children'),
+        [Output('mrt-crowd-markers', 'children'),
+         Output('mrt-crowd-legend', 'style')],
         [Input('interval-component', 'n_intervals'),
-         Input('mrt-crowd-toggle-state', 'data')],
+         Input('mrt-crowd-toggle-state', 'data'),
+         Input('sg-map', 'zoom')],
         State('navigation-tabs', 'value')
     )
-    def update_mrt_crowd_map_markers(_n_intervals, is_visible, active_tab):
+    def update_mrt_crowd_map_markers(_n_intervals, is_visible, zoom_level, active_tab):
+        legend_hidden_style = {
+            "position": "absolute",
+            "top": "0.625rem",
+            "left": "0.625rem",
+            "backgroundColor": "rgba(26, 42, 58, 0.92)",
+            "borderRadius": "0.5rem",
+            "padding": "0.5rem 0.625rem",
+            "zIndex": "1000",
+            "boxShadow": "0 0.125rem 0.5rem rgba(0, 0, 0, 0.3)",
+            "display": "none",
+            "minWidth": "8.5rem",
+        }
+        legend_visible_style = {
+            **legend_hidden_style,
+            "display": "block",
+        }
+
         if active_tab != 'main':
-            return no_update
+            return no_update, no_update
         if not is_visible:
-            return []
+            return [], legend_hidden_style
 
         # Fetch crowd data
         crowd_data = fetch_all_station_crowd_data()
@@ -304,7 +323,7 @@ def register_mrt_crowd_callbacks(app):
                     dl.Tooltip("Loading MRT/LRT station crowd data...")
                 ]
             )
-            return [loading_marker]
+            return [loading_marker], legend_visible_style
 
         # Load station locations
         station_locs = _load_station_locations()
@@ -337,7 +356,7 @@ def register_mrt_crowd_callbacks(app):
                     dl.Tooltip("Loading station location data...")
                 ]
             )
-            return [loading_marker]
+            return [loading_marker], legend_visible_style
 
         markers = []
         # Group stations by location to handle multi-code stations (e.g., Jurong East EW24/NS1)
@@ -371,7 +390,7 @@ def register_mrt_crowd_callbacks(app):
 
             color = CROWD_COLORS.get(worst_level, '#888888')
             label = CROWD_LABELS.get(worst_level, 'Not Available')
-            icon = CROWD_ICONS.get(worst_level, '⚪')
+            marker_badge = worst_level.upper() if worst_level in ('l', 'm', 'h') else "?"
             
             # Create tooltip text
             codes_str = "/".join(info['codes'])
@@ -383,25 +402,25 @@ def register_mrt_crowd_callbacks(app):
                 html.Span(f"Crowd: {label}", style={'color': color, 'fontWeight': 'bold'})
             ]
 
-            # Create icon HTML with color-coded crowd icon
-            # Use people/crowd icons with colored background circle
-            container_style = (
-                f"display: flex; "
-                f"align-items: center; "
-                f"justify-content: center; "
-                f"width: 32px; "
-                f"height: 32px; "
-                f"background-color: {color}; "
-                f"border-radius: 50%; "
-                f"border: 2px solid white; "
-                f"box-shadow: 0 0 5px rgba(0,0,0,0.5), 0 0 3px {color};"
-            )
-            icon_style = (
-                f"font-size: 18px; "
-                f"line-height: 1; "
-                f"text-shadow: 0 0 2px #000;"
-            )
-            icon_html = f'<div style="{container_style}"><span style="{icon_style}">{icon}</span></div>'
+            # Use lighter visual markers at low zoom and concise crowd badges at high zoom.
+            if isinstance(zoom_level, (int, float)) and zoom_level < 12:
+                icon_html = (
+                    f"<div style='width:14px;height:14px;border-radius:50%;"
+                    f"background:{color};border:2px solid #fff;"
+                    f"box-shadow:0 0 4px rgba(0,0,0,0.45);'></div>"
+                )
+                icon_size = [14, 14]
+                icon_anchor = [7, 7]
+            else:
+                icon_html = (
+                    f"<div style='display:flex;align-items:center;justify-content:center;"
+                    f"width:24px;height:24px;background:{color};border-radius:999px;"
+                    f"border:2px solid #fff;box-shadow:0 0 5px rgba(0,0,0,0.45);"
+                    f"font-size:11px;font-weight:700;color:#111;'>"
+                    f"{marker_badge}</div>"
+                )
+                icon_size = [24, 24]
+                icon_anchor = [12, 12]
             
             # Use DivMarker with color-coded crowd icon
             marker = dl.DivMarker(
@@ -409,8 +428,8 @@ def register_mrt_crowd_callbacks(app):
                 iconOptions={
                     'className': 'mrt-crowd-icon-marker',
                     'html': icon_html,
-                    'iconSize': [32, 32],
-                    'iconAnchor': [16, 16],
+                    'iconSize': icon_size,
+                    'iconAnchor': icon_anchor,
                 },
                 children=[
                     dl.Tooltip(html.Div(tooltip_content)),
@@ -419,4 +438,4 @@ def register_mrt_crowd_callbacks(app):
             )
             markers.append(marker)
 
-        return markers
+        return [dl.MarkerClusterGroup(children=markers)], legend_visible_style

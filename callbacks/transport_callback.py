@@ -9,18 +9,23 @@ References:
 import re
 import os
 import math
+import time
+import html as html_lib
 import base64
+import threading
 import pandas as pd
 from datetime import datetime
 from typing import Optional, Dict, List, Any, Tuple
 from concurrent.futures import Future
 from dash import Input, Output, State, html, no_update
 import dash_leaflet as dl
+import requests
 from utils.async_fetcher import fetch_url, fetch_url_2min_cached, run_in_thread
 from utils.data_download_helper import fetch_erp_gantry_data
 from utils.map_utils import SG_MAP_CENTER
 from callbacks.map_callback import _haversine_distance_m
 from components.metric_card import create_metric_value_display
+from conf.cache_config import TTL_NEARBY_FACILITIES_CALLBACKS
 
 # API URLs
 TAXI_API_URL = "https://api.data.gov.sg/v1/transport/taxi-availability"
@@ -34,6 +39,16 @@ EVC_BATCH_URL = "https://datamall2.mytransport.sg/ltaodataservice/EVCBatch"
 BUS_STOPS_URL = "https://datamall2.mytransport.sg/ltaodataservice/BusStops"
 BUS_ROUTES_URL = "https://datamall2.mytransport.sg/ltaodataservice/BusRoutes"
 BUS_SERVICES_URL = "https://datamall2.mytransport.sg/ltaodataservice/BusServices"
+PARKS_DATASET_ID = "d_99b71f5d34cf57a3a592fbfdef1f42b6"
+SPORTS_FIELDS_DATASET_ID = "d_f71b449b4b43a69b5ecfe411b440d249"
+PARKS_POLL_DOWNLOAD_URL = (
+    f"https://api-open.data.gov.sg/v1/public/api/datasets/{PARKS_DATASET_ID}/poll-download"
+)
+SPORTS_FIELDS_POLL_DOWNLOAD_URL = (
+    f"https://api-open.data.gov.sg/v1/public/api/datasets/{SPORTS_FIELDS_DATASET_ID}/poll-download"
+)
+NEARBY_FACILITIES_RETRY_ON_429_SECONDS = 5 * 60
+NEARBY_FACILITIES_MIN_ZOOM = 12
 
 # In-memory cache for static road infrastructure data
 # These represent physical infrastructure that rarely changes
@@ -54,6 +69,12 @@ _road_infra_cache: Dict[str, Optional[Any]] = {
 # In-memory cache for LTA traffic camera ID → location description mapping
 _LTA_CAMERA_ID_MAPPING: Dict[str, str] = {}
 _LTA_CAMERA_ID_MAPPING_LOADED: bool = False
+
+_nearby_facilities_cache: Dict[str, Dict[str, Any]] = {
+    "parks": {"points": [], "timestamp": 0.0, "retry_after": 0.0},
+    "sports_fields": {"points": [], "timestamp": 0.0, "retry_after": 0.0},
+}
+_nearby_facilities_cache_lock = threading.Lock()
 
 
 def clear_road_infra_cache():
@@ -76,6 +97,395 @@ def clear_road_infra_cache():
         'bus_services': None,
     }
     print("Road infrastructure cache cleared")
+
+
+def _parse_retry_after_seconds(retry_after_header: Optional[str]) -> int:
+    """Parse Retry-After header and return fallback-safe seconds."""
+    if retry_after_header is None:
+        return NEARBY_FACILITIES_RETRY_ON_429_SECONDS
+    try:
+        parsed_value = int(str(retry_after_header).strip())
+        return max(1, parsed_value)
+    except (TypeError, ValueError):
+        return NEARBY_FACILITIES_RETRY_ON_429_SECONDS
+
+
+def _request_json_with_429(url: str, timeout: int = 30) -> Tuple[Optional[Dict[str, Any]], Optional[int], Optional[int]]:
+    """
+    Fetch JSON and expose 429 metadata.
+
+    Returns:
+        tuple: (json_data, status_code, retry_after_seconds)
+    """
+    response = requests.get(
+        url,
+        headers={"User-Agent": "Mozilla/5.0"},
+        timeout=timeout,
+    )
+    if response.status_code == 429:
+        retry_after = _parse_retry_after_seconds(response.headers.get("Retry-After"))
+        return None, 429, retry_after
+    if 200 <= response.status_code < 300:
+        try:
+            return response.json(), response.status_code, None
+        except ValueError as error:
+            raise ValueError(f"Invalid JSON response from {url}: {error}") from error
+    raise ValueError(f"Request failed ({response.status_code}) for {url}")
+
+
+def _clean_description_text(raw_value: str) -> str:
+    """Strip HTML tags and compact whitespace from description fields."""
+    if not raw_value:
+        return ""
+    no_tags = re.sub(r"<[^>]+>", " ", str(raw_value))
+    unescaped = html_lib.unescape(no_tags)
+    return re.sub(r"\s+", " ", unescaped).strip()
+
+
+def _extract_field_from_description(description_html: str, field_name: str) -> str:
+    """Extract a field from KML-style description table HTML."""
+    if not description_html:
+        return ""
+    pattern = rf"<th>{field_name}</th>\s*<td>(.*?)</td>"
+    match = re.search(pattern, description_html, flags=re.IGNORECASE | re.DOTALL)
+    if not match:
+        return ""
+    return _clean_description_text(match.group(1))
+
+
+def _normalize_facility_points(raw_data: Dict[str, Any], facility_kind: str) -> List[Dict[str, Any]]:
+    """Normalize FeatureCollection points into lightweight marker/list records."""
+    if not isinstance(raw_data, dict):
+        return []
+    features = raw_data.get("features", [])
+    if not isinstance(features, list):
+        return []
+
+    normalized_points: List[Dict[str, Any]] = []
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+        geometry = feature.get("geometry", {})
+        coordinates = geometry.get("coordinates", [])
+        if not isinstance(coordinates, (list, tuple)) or len(coordinates) < 2:
+            continue
+
+        try:
+            lon = float(coordinates[0])
+            lat = float(coordinates[1])
+        except (TypeError, ValueError):
+            continue
+
+        properties = feature.get("properties", {}) or {}
+        description_html = str(properties.get("Description", ""))
+        name = (
+            _extract_field_from_description(description_html, "NAME")
+            or _clean_description_text(properties.get("Name", ""))
+            or ("Park" if facility_kind == "parks" else "Sports Field")
+        )
+        address = (
+            _extract_field_from_description(description_html, "ADDRESSSTREETNAME")
+            or _clean_description_text(properties.get("Address", ""))
+        )
+        details = (
+            _extract_field_from_description(description_html, "DESCRIPTION")
+            or _clean_description_text(properties.get("DescriptionText", ""))
+        )
+
+        normalized_points.append(
+            {
+                "name": name,
+                "address": address,
+                "details": details,
+                "lat": lat,
+                "lon": lon,
+            }
+        )
+
+    return normalized_points
+
+
+def _fetch_nearby_facility_points_with_cache(cache_key: str, poll_download_url: str) -> List[Dict[str, Any]]:
+    """
+    Fetch and cache nearby facility points with daily TTL and 429 cooldown support.
+    """
+    current_time = time.time()
+    with _nearby_facilities_cache_lock:
+        cached_item = _nearby_facilities_cache.get(cache_key, {})
+        cached_points = cached_item.get("points", [])
+        cached_timestamp = float(cached_item.get("timestamp", 0.0) or 0.0)
+        retry_after = float(cached_item.get("retry_after", 0.0) or 0.0)
+
+        if cached_points and current_time - cached_timestamp < TTL_NEARBY_FACILITIES_CALLBACKS:
+            return cached_points
+        if retry_after > current_time:
+            return cached_points
+
+    try:
+        poll_response, poll_status, poll_retry_after = _request_json_with_429(poll_download_url, timeout=30)
+        if poll_status == 429:
+            with _nearby_facilities_cache_lock:
+                _nearby_facilities_cache[cache_key]["retry_after"] = current_time + (
+                    poll_retry_after or NEARBY_FACILITIES_RETRY_ON_429_SECONDS
+                )
+                return _nearby_facilities_cache[cache_key].get("points", [])
+
+        download_url = None
+        if isinstance(poll_response, dict):
+            if "url" in poll_response:
+                download_url = poll_response["url"]
+            elif isinstance(poll_response.get("data"), dict):
+                download_url = poll_response["data"].get("url")
+
+        if not download_url:
+            raise ValueError(f"No download URL returned for {cache_key}")
+
+        dataset_response, data_status, data_retry_after = _request_json_with_429(download_url, timeout=30)
+        if data_status == 429:
+            with _nearby_facilities_cache_lock:
+                _nearby_facilities_cache[cache_key]["retry_after"] = current_time + (
+                    data_retry_after or NEARBY_FACILITIES_RETRY_ON_429_SECONDS
+                )
+                return _nearby_facilities_cache[cache_key].get("points", [])
+
+        normalized_points = _normalize_facility_points(dataset_response or {}, cache_key)
+        with _nearby_facilities_cache_lock:
+            _nearby_facilities_cache[cache_key] = {
+                "points": normalized_points,
+                "timestamp": current_time,
+                "retry_after": 0.0,
+            }
+        return normalized_points
+    except Exception as error:
+        print(f"Error fetching {cache_key} facilities: {error}")
+        with _nearby_facilities_cache_lock:
+            return _nearby_facilities_cache.get(cache_key, {}).get("points", [])
+
+
+def _get_facility_retry_notice(cache_key: str, label: str) -> Optional[str]:
+    """Return retry notice message when facility dataset is under 429 cooldown."""
+    with _nearby_facilities_cache_lock:
+        retry_after = float(_nearby_facilities_cache.get(cache_key, {}).get("retry_after", 0.0) or 0.0)
+    now = time.time()
+    if retry_after <= now:
+        return None
+
+    remaining_seconds = max(1, int(retry_after - now))
+    remaining_minutes = max(1, math.ceil(remaining_seconds / 60))
+    retry_at_text = datetime.fromtimestamp(retry_after).strftime("%H:%M:%S")
+    return (
+        f"Rate limited (429). {label} data will auto-retry in ~{remaining_minutes} min "
+        f"(next at {retry_at_text})."
+    )
+
+
+@run_in_thread
+def fetch_parks_data_async() -> List[Dict[str, Any]]:
+    """Fetch normalized Parks@SG points with cache and 429 cooldown logic."""
+    return _fetch_nearby_facility_points_with_cache("parks", PARKS_POLL_DOWNLOAD_URL)
+
+
+@run_in_thread
+def fetch_sports_fields_data_async() -> List[Dict[str, Any]]:
+    """Fetch normalized SportsFields@SG points with cache and 429 cooldown logic."""
+    return _fetch_nearby_facility_points_with_cache("sports_fields", SPORTS_FIELDS_POLL_DOWNLOAD_URL)
+
+
+def _resolve_nearby_center(viewport: Optional[Dict[str, Any]], location_data: Optional[Dict[str, Any]]) -> Optional[Tuple[float, float]]:
+    """Resolve map center from viewport first, then selected location store."""
+    if isinstance(viewport, dict):
+        center = viewport.get("center")
+        if isinstance(center, (list, tuple)) and len(center) == 2:
+            try:
+                return float(center[0]), float(center[1])
+            except (TypeError, ValueError):
+                pass
+
+    if isinstance(location_data, dict):
+        try:
+            return float(location_data.get("lat")), float(location_data.get("lon"))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _build_facility_list_column(
+    title: str,
+    points: List[Dict[str, Any]],
+    center: Optional[Tuple[float, float]],
+    notice_text: Optional[str],
+) -> List[html.Div]:
+    """Build nearby facility list panel content."""
+    title_component = html.H4(
+        title,
+        style={
+            "textAlign": "center",
+            "marginBottom": "0.625rem",
+            "color": "#fff",
+            "fontWeight": "700",
+            "fontSize": "0.875rem",
+        },
+    )
+
+    if center is None:
+        return [
+            title_component,
+            html.P(
+                "Select a location to view nearest locations",
+                style={
+                    "textAlign": "center",
+                    "padding": "0.9375rem",
+                    "color": "#999",
+                    "fontSize": "0.75rem",
+                    "fontStyle": "italic",
+                },
+            ),
+        ]
+
+    if not points:
+        children: List[html.Div] = [
+            title_component,
+            html.P(
+                "No data available",
+                style={
+                    "textAlign": "center",
+                    "padding": "0.9375rem",
+                    "color": "#999",
+                    "fontSize": "0.75rem",
+                    "fontStyle": "italic",
+                },
+            ),
+        ]
+        if notice_text:
+            children.append(
+                html.Div(
+                    notice_text,
+                    style={
+                        "color": "#fbbf24",
+                        "fontSize": "0.6875rem",
+                        "textAlign": "center",
+                        "padding": "0.375rem 0.5rem",
+                        "marginTop": "0.375rem",
+                        "border": "0.0625rem solid #b45309",
+                        "borderRadius": "0.25rem",
+                        "backgroundColor": "rgba(180, 83, 9, 0.15)",
+                    },
+                )
+            )
+        return children
+
+    center_lat, center_lon = center
+    nearest_points = sorted(
+        points,
+        key=lambda item: _haversine_distance_m(center_lat, center_lon, item["lat"], item["lon"]),
+    )[:5]
+
+    list_cards: List[html.Div] = []
+    for item in nearest_points:
+        distance_m = _haversine_distance_m(center_lat, center_lon, item["lat"], item["lon"])
+        distance_text = f"{int(distance_m)}m" if distance_m < 1000 else f"{distance_m / 1000:.2f}km"
+        details_text = item.get("address") or item.get("details") or "No additional details"
+
+        list_cards.append(
+            html.Div(
+                [
+                    html.Div(
+                        item.get("name", "Unnamed location"),
+                        style={
+                            "fontSize": "0.8125rem",
+                            "color": "#fff",
+                            "fontWeight": "600",
+                            "marginBottom": "0.25rem",
+                        },
+                    ),
+                    html.Div(
+                        f"Distance: {distance_text}",
+                        style={
+                            "fontSize": "0.75rem",
+                            "color": "#60a5fa",
+                            "fontWeight": "500",
+                            "marginBottom": "0.125rem",
+                        },
+                    ),
+                    html.Div(
+                        details_text,
+                        style={
+                            "fontSize": "0.7rem",
+                            "color": "#ccc",
+                        },
+                    ),
+                ],
+                style={
+                    "padding": "0.625rem 0.75rem",
+                    "borderBottom": "0.0625rem solid #444",
+                    "marginBottom": "0.375rem",
+                    "backgroundColor": "#1a1a1a",
+                    "borderRadius": "0.25rem",
+                },
+            )
+        )
+
+    output_children: List[html.Div] = [title_component, *list_cards]
+    if notice_text:
+        output_children.append(
+            html.Div(
+                notice_text,
+                style={
+                    "color": "#fbbf24",
+                    "fontSize": "0.6875rem",
+                    "textAlign": "center",
+                    "padding": "0.375rem 0.5rem",
+                    "marginTop": "0.375rem",
+                    "border": "0.0625rem solid #b45309",
+                    "borderRadius": "0.25rem",
+                    "backgroundColor": "rgba(180, 83, 9, 0.15)",
+                },
+            )
+        )
+    return output_children
+
+
+def _build_facility_markers(
+    points: List[Dict[str, Any]],
+    marker_color: str,
+    zoom: Optional[int],
+) -> List[Any]:
+    """Build marker cluster for nearby facilities with zoom gating."""
+    current_zoom = int(zoom) if isinstance(zoom, (int, float)) else 11
+    if current_zoom < NEARBY_FACILITIES_MIN_ZOOM:
+        return []
+
+    markers: List[dl.DivMarker] = []
+    for item in points:
+        details_text = item.get("address") or item.get("details") or "No additional details"
+        popup_content = html.Div(
+            [
+                html.B(item.get("name", "Unnamed location")),
+                html.Br(),
+                html.Span(details_text, style={"fontSize": "0.75rem"}),
+            ],
+            style={"maxWidth": "16rem"},
+        )
+        markers.append(
+            dl.DivMarker(
+                position=[item["lat"], item["lon"]],
+                iconOptions={
+                    "html": (
+                        f"<div style='width:14px;height:14px;border-radius:50%;"
+                        f"background:{marker_color};border:2px solid #fff;"
+                        f"box-shadow:0 0 4px rgba(0,0,0,0.45);'></div>"
+                    ),
+                    "className": "nearby-facility-dot-marker",
+                    "iconSize": [14, 14],
+                    "iconAnchor": [7, 7],
+                },
+                children=[dl.Tooltip(item.get("name", "Unnamed location")), dl.Popup(popup_content)],
+            )
+        )
+
+    if not markers:
+        return []
+    return [dl.MarkerClusterGroup(children=markers)]
 
 
 def _load_lta_camera_id_mapping() -> Dict[str, str]:
@@ -4446,6 +4856,158 @@ def register_transport_callbacks(app):
             ),
             *charging_items
         ], markers
+
+    @app.callback(
+        [Output("nearby-parks-toggle-state", "data"),
+         Output("nearby-parks-toggle-btn", "style"),
+         Output("nearby-parks-toggle-btn", "children")],
+        Input("nearby-parks-toggle-btn", "n_clicks"),
+        State("nearby-parks-toggle-state", "data"),
+        prevent_initial_call=True,
+    )
+    def toggle_nearby_parks(_n_clicks: Optional[int], current_state: bool) -> Tuple[bool, Dict[str, Any], str]:
+        """Toggle Parks@SG map overlay on nearby transport page."""
+        new_state = not bool(current_state)
+        if new_state:
+            return (
+                True,
+                {
+                    "backgroundColor": "#22c55e",
+                    "border": "0.125rem solid #22c55e",
+                    "borderRadius": "0.25rem",
+                    "color": "#fff",
+                    "cursor": "pointer",
+                    "padding": "0.25rem 0.625rem",
+                    "fontSize": "0.75rem",
+                    "fontWeight": "600",
+                },
+                "Hide Parks@SG",
+            )
+        return (
+            False,
+            {
+                "backgroundColor": "transparent",
+                "border": "0.125rem solid #22c55e",
+                "borderRadius": "0.25rem",
+                "color": "#22c55e",
+                "cursor": "pointer",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
+                "fontWeight": "600",
+            },
+            "Show Parks@SG",
+        )
+
+    @app.callback(
+        [Output("nearby-sports-fields-toggle-state", "data"),
+         Output("nearby-sports-fields-toggle-btn", "style"),
+         Output("nearby-sports-fields-toggle-btn", "children")],
+        Input("nearby-sports-fields-toggle-btn", "n_clicks"),
+        State("nearby-sports-fields-toggle-state", "data"),
+        prevent_initial_call=True,
+    )
+    def toggle_nearby_sports_fields(_n_clicks: Optional[int], current_state: bool) -> Tuple[bool, Dict[str, Any], str]:
+        """Toggle SportsFields@SG map overlay on nearby transport page."""
+        new_state = not bool(current_state)
+        if new_state:
+            return (
+                True,
+                {
+                    "backgroundColor": "#a78bfa",
+                    "border": "0.125rem solid #a78bfa",
+                    "borderRadius": "0.25rem",
+                    "color": "#fff",
+                    "cursor": "pointer",
+                    "padding": "0.25rem 0.625rem",
+                    "fontSize": "0.75rem",
+                    "fontWeight": "600",
+                },
+                "Hide SportsFields@SG",
+            )
+        return (
+            False,
+            {
+                "backgroundColor": "transparent",
+                "border": "0.125rem solid #a78bfa",
+                "borderRadius": "0.25rem",
+                "color": "#a78bfa",
+                "cursor": "pointer",
+                "padding": "0.25rem 0.625rem",
+                "fontSize": "0.75rem",
+                "fontWeight": "600",
+            },
+            "Show SportsFields@SG",
+        )
+
+    @app.callback(
+        [
+            Output("nearby-parks-markers", "children"),
+            Output("nearby-sports-fields-markers", "children"),
+            Output("nearby-transport-parks-column", "children"),
+            Output("nearby-transport-sports-fields-column", "children"),
+        ],
+        [
+            Input("nearby-parks-toggle-state", "data"),
+            Input("nearby-sports-fields-toggle-state", "data"),
+            Input("nearby-transport-map", "viewport"),
+            Input("nearby-transport-location-store", "data"),
+            Input("nearby-transport-interval", "n_intervals"),
+        ],
+        State("navigation-tabs", "value"),
+    )
+    def update_nearby_green_facilities(
+        show_parks: bool,
+        show_sports_fields: bool,
+        viewport: Optional[Dict[str, Any]],
+        location_data: Optional[Dict[str, Any]],
+        _n_intervals: int,
+        active_tab: str,
+    ):
+        """
+        Update nearby Parks@SG and SportsFields@SG panels and optional map overlays.
+
+        Uses daily cache and 429 cooldown-aware fetch to avoid repeated upstream polling.
+        """
+        if active_tab != "nearby-transport":
+            return no_update, no_update, no_update, no_update
+
+        _ = _n_intervals  # Trigger for cache eligibility checks.
+        center = _resolve_nearby_center(viewport, location_data)
+        zoom = viewport.get("zoom") if isinstance(viewport, dict) else None
+
+        parks_future = fetch_parks_data_async()
+        sports_future = fetch_sports_fields_data_async()
+        parks_points = parks_future.result() if parks_future else []
+        sports_points = sports_future.result() if sports_future else []
+
+        parks_notice = _get_facility_retry_notice("parks", "Parks@SG")
+        sports_notice = _get_facility_retry_notice("sports_fields", "SportsFields@SG")
+
+        parks_column = _build_facility_list_column(
+            title="Nearby Parks (Top 5)",
+            points=parks_points,
+            center=center,
+            notice_text=parks_notice,
+        )
+        sports_column = _build_facility_list_column(
+            title="Nearby Sports Fields (Top 5)",
+            points=sports_points,
+            center=center,
+            notice_text=sports_notice,
+        )
+
+        parks_markers = (
+            _build_facility_markers(parks_points, marker_color="#22c55e", zoom=zoom)
+            if show_parks
+            else []
+        )
+        sports_markers = (
+            _build_facility_markers(sports_points, marker_color="#a78bfa", zoom=zoom)
+            if show_sports_fields
+            else []
+        )
+
+        return parks_markers, sports_markers, parks_column, sports_column
 
     # VMS (Variable Message Signs) callbacks
     @app.callback(

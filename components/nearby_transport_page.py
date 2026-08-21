@@ -229,6 +229,56 @@ def nearby_transport_page():
                                             )
                                         ]
                                     ),
+                                    # Row 7: Parks@SG
+                                    html.Div(
+                                        id="nearby-transport-parks-column",
+                                        style={
+                                            "width": "100%",
+                                            "backgroundColor": "#2c3e50",
+                                            "borderRadius": "0.3125rem",
+                                            "padding": "0.9375rem",
+                                            "minHeight": "9.375rem",
+                                            "overflowY": "auto",
+                                            "overflowX": "hidden"
+                                        },
+                                        children=[
+                                            html.P(
+                                                "Select a location to view nearby parks",
+                                                style={
+                                                    "textAlign": "center",
+                                                    "color": "#999",
+                                                    "fontSize": "0.75rem",
+                                                    "fontStyle": "italic",
+                                                    "padding": "0.9375rem"
+                                                }
+                                            )
+                                        ]
+                                    ),
+                                    # Row 8: SportsFields@SG
+                                    html.Div(
+                                        id="nearby-transport-sports-fields-column",
+                                        style={
+                                            "width": "100%",
+                                            "backgroundColor": "#2c3e50",
+                                            "borderRadius": "0.3125rem",
+                                            "padding": "0.9375rem",
+                                            "minHeight": "9.375rem",
+                                            "overflowY": "auto",
+                                            "overflowX": "hidden"
+                                        },
+                                        children=[
+                                            html.P(
+                                                "Select a location to view nearby sports fields",
+                                                style={
+                                                    "textAlign": "center",
+                                                    "color": "#999",
+                                                    "fontSize": "0.75rem",
+                                                    "fontStyle": "italic",
+                                                    "padding": "0.9375rem"
+                                                }
+                                            )
+                                        ]
+                                    ),
                                 ]
                             ),
                         ]
@@ -261,6 +311,47 @@ def nearby_transport_page():
                                         optionHeight=40,
                                         maxHeight=240,
                                     )
+                                ]
+                            ),
+                            html.Div(
+                                id="nearby-transport-overlay-controls",
+                                style={
+                                    "display": "flex",
+                                    "gap": "0.5rem",
+                                    "flexWrap": "wrap",
+                                    "marginBottom": "0.25rem",
+                                },
+                                children=[
+                                    html.Button(
+                                        "Show Parks@SG",
+                                        id="nearby-parks-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "0.125rem solid #22c55e",
+                                            "borderRadius": "0.25rem",
+                                            "color": "#22c55e",
+                                            "cursor": "pointer",
+                                            "padding": "0.25rem 0.625rem",
+                                            "fontSize": "0.75rem",
+                                            "fontWeight": "600",
+                                        },
+                                    ),
+                                    html.Button(
+                                        "Show SportsFields@SG",
+                                        id="nearby-sports-fields-toggle-btn",
+                                        n_clicks=0,
+                                        style={
+                                            "backgroundColor": "transparent",
+                                            "border": "0.125rem solid #a78bfa",
+                                            "borderRadius": "0.25rem",
+                                            "color": "#a78bfa",
+                                            "cursor": "pointer",
+                                            "padding": "0.25rem 0.625rem",
+                                            "fontSize": "0.75rem",
+                                            "fontWeight": "600",
+                                        },
+                                    ),
                                 ]
                             ),
                             # Map container
@@ -300,6 +391,8 @@ def nearby_transport_page():
                                     dl.LayerGroup(id="nearby-carpark-markers"),
                                     dl.LayerGroup(id="nearby-bicycle-markers"),
                                     dl.LayerGroup(id="nearby-ev-charging-markers"),
+                                    dl.LayerGroup(id="nearby-parks-markers"),
+                                    dl.LayerGroup(id="nearby-sports-fields-markers"),
                                         ],
                                         zoomControl=True,
                                         dragging=True,
@@ -546,6 +639,56 @@ def nearby_transport_page():
                                                     ),
                                                 ]
                                             ),
+                                            html.Div(
+                                                style={
+                                                    "display": "flex",
+                                                    "alignItems": "center",
+                                                    "marginTop": "0.375rem",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        style={
+                                                            "width": "0.75rem",
+                                                            "height": "0.75rem",
+                                                            "borderRadius": "50%",
+                                                            "backgroundColor": "#22c55e",
+                                                            "marginRight": "0.5rem",
+                                                        }
+                                                    ),
+                                                    html.Span(
+                                                        "Parks@SG",
+                                                        style={
+                                                            "color": "#fff",
+                                                            "fontSize": "0.6875rem",
+                                                        }
+                                                    ),
+                                                ]
+                                            ),
+                                            html.Div(
+                                                style={
+                                                    "display": "flex",
+                                                    "alignItems": "center",
+                                                    "marginTop": "0.375rem",
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        style={
+                                                            "width": "0.75rem",
+                                                            "height": "0.75rem",
+                                                            "borderRadius": "50%",
+                                                            "backgroundColor": "#a78bfa",
+                                                            "marginRight": "0.5rem",
+                                                        }
+                                                    ),
+                                                    html.Span(
+                                                        "SportsFields@SG",
+                                                        style={
+                                                            "color": "#fff",
+                                                            "fontSize": "0.6875rem",
+                                                        }
+                                                    ),
+                                                ]
+                                            ),
                                         ]
                                     ),
                                 ]
@@ -556,6 +699,8 @@ def nearby_transport_page():
             ),
             # Store for search location
             dcc.Store(id="nearby-transport-location-store", data=None),
+            dcc.Store(id="nearby-parks-toggle-state", data=False),
+            dcc.Store(id="nearby-sports-fields-toggle-state", data=False),
             # Interval for auto-refresh
             dcc.Interval(
                 id='nearby-transport-interval',

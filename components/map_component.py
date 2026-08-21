@@ -106,8 +106,55 @@ def map_component(lat=None, lon=None):
                 dl.LayerGroup(id="mrt-crowd-markers"),
                 dl.LayerGroup(id="main-traffic-incidents-markers"),
             ],
-        )
-    ], style={"width": "100%", "height": "100%", "display": "flex", "flexDirection": "column"})
+        ),
+        html.Div(
+            id="mrt-crowd-legend",
+            style={
+                "position": "absolute",
+                "top": "0.625rem",
+                "left": "0.625rem",
+                "backgroundColor": "rgba(26, 42, 58, 0.92)",
+                "borderRadius": "0.5rem",
+                "padding": "0.5rem 0.625rem",
+                "zIndex": "1000",
+                "boxShadow": "0 0.125rem 0.5rem rgba(0, 0, 0, 0.3)",
+                "display": "none",
+                "minWidth": "8.5rem",
+            },
+            children=[
+                html.Div(
+                    "MRT/LRT Crowd",
+                    style={
+                        "fontSize": "0.75rem",
+                        "fontWeight": "600",
+                        "color": "#fff",
+                        "marginBottom": "0.375rem",
+                    },
+                ),
+                html.Div(
+                    style={"display": "flex", "alignItems": "center", "gap": "0.375rem", "marginBottom": "0.25rem"},
+                    children=[
+                        html.Div(style={"width": "0.625rem", "height": "0.625rem", "borderRadius": "50%", "backgroundColor": "#32CD32"}),
+                        html.Span("Low", style={"color": "#fff", "fontSize": "0.6875rem"}),
+                    ],
+                ),
+                html.Div(
+                    style={"display": "flex", "alignItems": "center", "gap": "0.375rem", "marginBottom": "0.25rem"},
+                    children=[
+                        html.Div(style={"width": "0.625rem", "height": "0.625rem", "borderRadius": "50%", "backgroundColor": "#FFD700"}),
+                        html.Span("Moderate", style={"color": "#fff", "fontSize": "0.6875rem"}),
+                    ],
+                ),
+                html.Div(
+                    style={"display": "flex", "alignItems": "center", "gap": "0.375rem"},
+                    children=[
+                        html.Div(style={"width": "0.625rem", "height": "0.625rem", "borderRadius": "50%", "backgroundColor": "#FF4500"}),
+                        html.Span("High", style={"color": "#fff", "fontSize": "0.6875rem"}),
+                    ],
+                ),
+            ],
+        ),
+    ], style={"width": "100%", "height": "100%", "display": "flex", "flexDirection": "column", "position": "relative"})
 
 
 def map_coordinates_display():

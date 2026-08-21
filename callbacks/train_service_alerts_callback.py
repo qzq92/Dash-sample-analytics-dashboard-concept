@@ -5,9 +5,15 @@ Reference: https://datamall2.mytransport.sg/ltaodataservice/TrainServiceAlerts
 import os
 import re
 from collections import defaultdict
+from typing import Any, Dict, Optional
 from dash import Input, Output, State, html, no_update
 from utils.async_fetcher import fetch_url_2min_cached, _executor
 from conf.mrt_line_config import MRT_LINES, LRT_LINES, ALL_TRAIN_LINES, LINE_INFO_MAP
+from utils.transport.gtfs_train_alerts import (
+    fetch_gtfs_train_service_alerts,
+    fetch_gtfs_train_trip_updates,
+    merge_gtfs_with_legacy_status,
+)
 
 
 TRAIN_SERVICE_ALERTS_URL = "https://datamall2.mytransport.sg/ltaodataservice/TrainServiceAlerts"
@@ -53,6 +59,58 @@ def fetch_train_service_alerts_async():
     }
     
     return _executor.submit(fetch_url_2min_cached, TRAIN_SERVICE_ALERTS_URL, headers)
+
+
+def _build_legacy_line_status_map(data: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, object]]:
+    """Build a line status map using TrainServiceAlerts payload semantics."""
+    line_status_map: Dict[str, Dict[str, object]] = {}
+    inner_data = (
+        data.get("value", data)
+        if isinstance(data, dict) and isinstance(data.get("value"), dict)
+        else (data if isinstance(data, dict) else {})
+    )
+    status = inner_data.get("Status", inner_data.get("status", 1))
+
+    segments = inner_data.get("AffectedSegments", inner_data.get("affected_segments", []))
+    for segment in segments:
+        if isinstance(segment, dict):
+            line = segment.get("Line", segment.get("line", ""))
+            if line:
+                line_upper = line.upper()
+                line_status_map[line_upper] = {
+                    "status": status,
+                    "direction": segment.get("Direction", segment.get("direction", "")),
+                    "stations": segment.get("Stations", segment.get("stations", "")),
+                    "has_message": False,
+                }
+
+    messages = inner_data.get("Message", inner_data.get("message", []))
+    for msg_obj in messages:
+        if isinstance(msg_obj, dict):
+            content = msg_obj.get("Content", msg_obj.get("content", ""))
+            if content:
+                upper_content = content.upper()
+                for line_info in ALL_TRAIN_LINES:
+                    code = line_info["code"]
+                    if (
+                        f"-{code}-" in upper_content
+                        or f" {code} " in upper_content
+                        or upper_content.endswith(f" {code}")
+                        or upper_content.startswith(f"{code} ")
+                    ):
+                        line_upper = code.upper()
+                        if line_upper not in line_status_map:
+                            line_status_map[line_upper] = {
+                                "status": status,
+                                "has_message": True,
+                                "status_text": "Normal*" if status == 1 else "Alert*",
+                            }
+                        else:
+                            line_status_map[line_upper]["has_message"] = True
+                            if status == 1:
+                                line_status_map[line_upper]["status_text"] = "Normal*"
+                        break
+    return line_status_map
 
 
 def format_train_service_alerts(data):
@@ -103,7 +161,7 @@ def format_train_service_alerts(data):
     })
 
 
-def format_mrt_line_operational_details(data):
+def format_mrt_line_operational_details(data, line_status_map_override=None):
     """
     Format MRT line operational details for display on transport page.
     Shows status for each MRT line.
@@ -118,52 +176,11 @@ def format_mrt_line_operational_details(data):
     mrt_lines = MRT_LINES
     lrt_lines = LRT_LINES
     
-    # Create a mapping of all lines with their status and details
-    line_status_map = {}
-    
-    # Get the value object if it exists (new format)
-    inner_data = data.get("value", data) if isinstance(data, dict) and isinstance(data.get("value"), dict) else (data if isinstance(data, dict) else {})
-    
-    # 1. Get status from inner data
-    status = inner_data.get("Status", inner_data.get("status", 1))
-    
-    # 2. Check AffectedSegments for status != 1 (disruptions)
-    segments = inner_data.get("AffectedSegments", inner_data.get("affected_segments", []))
-    for segment in segments:
-        if isinstance(segment, dict):
-            line = segment.get("Line", segment.get("line", ""))
-            if line:
-                line_upper = line.upper()
-                line_status_map[line_upper] = {
-                    "status": status,
-                    "direction": segment.get("Direction", segment.get("direction", "")),
-                    "stations": segment.get("Stations", segment.get("stations", "")),
-                    "has_message": False
-                }
-
-    # 3. Check Message list for advisories
-    messages = inner_data.get("Message", inner_data.get("message", []))
-    for msg_obj in messages:
-        if isinstance(msg_obj, dict):
-            content = msg_obj.get("Content", msg_obj.get("content", ""))
-            if content:
-                # Search for line codes in the message content
-                for line_info in ALL_TRAIN_LINES:
-                    code = line_info["code"]
-                    # Match if -CODE- or CODE surrounded by space/start/end
-                    upper_content = content.upper()
-                    if (f"-{code}-" in upper_content or 
-                        f" {code} " in upper_content or 
-                        upper_content.endswith(f" {code}") or
-                        upper_content.startswith(f"{code} ")):
-                        line_upper = code.upper()
-                        if line_upper not in line_status_map:
-                            line_status_map[line_upper] = {
-                                "status": status,
-                                "has_message": True
-                            }
-                        else:
-                            line_status_map[line_upper]["has_message"] = True
+    line_status_map = (
+        line_status_map_override
+        if isinstance(line_status_map_override, dict)
+        else _build_legacy_line_status_map(data)
+    )
     
     # Helper function to create line status display
     def create_line_status_display(line_info, line_status_dict):
@@ -178,19 +195,16 @@ def format_mrt_line_operational_details(data):
         if line_status_info:
             status_value = line_status_info.get("status", 1)
             has_message = line_status_info.get("has_message", False)
+            status_text_override = line_status_info.get("status_text")
             
-            if status_value == 1:
-                if has_message:
-                    # Normal service with message (Normal*)
-                    detail_text = "Normal*"
-                    detail_text_color = "#4CAF50"
-                else:
-                    # Normal service
-                    detail_text = "Normal"
-                    detail_text_color = "#4CAF50"
+            if status_text_override:
+                detail_text = str(status_text_override)
+                detail_text_color = "#ff4444" if detail_text in ("Delayed*", "Alert*") else "#4CAF50"
+            elif status_value == 1:
+                detail_text = "Normal*" if has_message else "Normal"
+                detail_text_color = "#4CAF50"
             else:
-                # Disrupted/Delays (status != 1) - show referral message
-                detail_text = "Refer a Road & Transport Metrics and Advisories tab for further advisory/information"
+                detail_text = "Alert*"
                 detail_text_color = "#ff4444"
         else:
             # No alert data for this line - assume normal
@@ -578,11 +592,24 @@ def register_train_service_alerts_callbacks(app):
             Tuple of (MRT lines display, LRT lines display)
         """
         try:
-            # Fetch train service alerts
-            data = fetch_train_service_alerts()
-            
-            # Format and return the line details (separate MRT and LRT)
-            return format_mrt_line_operational_details(data)
+            _ = n_intervals
+            legacy_data_future = _executor.submit(fetch_train_service_alerts)
+            gtfs_service_alerts_future = _executor.submit(fetch_gtfs_train_service_alerts)
+            gtfs_trip_updates_future = _executor.submit(fetch_gtfs_train_trip_updates)
+
+            legacy_data = legacy_data_future.result()
+            gtfs_service_alerts_map = gtfs_service_alerts_future.result()
+            gtfs_trip_updates_map = gtfs_trip_updates_future.result()
+
+            legacy_line_status_map = _build_legacy_line_status_map(legacy_data)
+            merged_line_status_map = merge_gtfs_with_legacy_status(
+                legacy_line_status_map=legacy_line_status_map,
+                service_alerts_map=gtfs_service_alerts_map,
+                trip_updates_map=gtfs_trip_updates_map,
+            )
+            return format_mrt_line_operational_details(
+                legacy_data, line_status_map_override=merged_line_status_map
+            )
         except Exception as error:
             print(f"Error updating MRT/LRT line operational details: {error}")
             error_display = html.P(
